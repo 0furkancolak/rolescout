@@ -11,7 +11,7 @@ import (
 func TestRegistryHasReviewedAdapters(t *testing.T) {
 	r := Registry(crawl.New(crawl.Options{UserAgent: "RoleScout/test"}), Options{JSONLDMaxPages: 10})
 	names := strings.Join(r.Names(), ",")
-	if !strings.Contains(names, "greenhouse") {
+	if names != "ashby,bamboohr,greenhouse,lever,personio,recruitee,workable,workday" {
 		t.Fatalf("registry = %s", names)
 	}
 }

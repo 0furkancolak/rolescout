@@ -135,7 +135,7 @@ func TestSourceEnableNeedsAdapterOrSourceReview(t *testing.T) {
 	for _, r := range reviews {
 		byName[r.Adapter] = r
 	}
-	for _, name := range []string{"greenhouse", "lever", "ashby", "workable", "smartrecruiters", "recruitee", "personio", "bamboohr", "jsonld"} {
+	for _, name := range []string{"greenhouse", "lever", "ashby", "workable", "recruitee", "personio", "bamboohr", "jsonld"} {
 		if r := byName[name]; !r.Enabled || r.ReviewedAt == nil || r.Note == nil {
 			t.Errorf("%s review = %+v, want enabled with note", name, r)
 		}

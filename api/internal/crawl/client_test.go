@@ -316,3 +316,48 @@ func TestDeadlineIsTemporaryButCancelIsNot(t *testing.T) {
 		t.Error("cancellation is final")
 	}
 }
+
+func TestCrawlDelayIsHonoredForVendorHosts(t *testing.T) {
+	var mu sync.Mutex
+	var starts []time.Time
+	srv := serve(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			w.Write([]byte("User-agent: *\nAllow: /\nCrawl-delay: 0.1\n"))
+			return
+		}
+		mu.Lock()
+		starts = append(starts, time.Now())
+		mu.Unlock()
+	})
+	c := newTestClient(Options{VendorHosts: []string{host(srv)}, VendorConcurrency: 4, VendorInterval: time.Millisecond})
+	var wg sync.WaitGroup
+	for range 4 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, err := c.Get(context.Background(), srv.URL+"/x", "", nil); err != nil {
+				t.Error(err)
+			}
+		}()
+	}
+	wg.Wait()
+	if len(starts) != 4 {
+		t.Fatalf("requests = %d", len(starts))
+	}
+	sortTimes(starts)
+	for i := 1; i < len(starts); i++ {
+		if gap := starts[i].Sub(starts[i-1]); gap < 90*time.Millisecond {
+			t.Errorf("gap %d = %v, want at least the 100ms crawl delay", i, gap)
+		}
+	}
+}
+
+func sortTimes(ts []time.Time) {
+	for i := range ts {
+		for j := i + 1; j < len(ts); j++ {
+			if ts[j].Before(ts[i]) {
+				ts[i], ts[j] = ts[j], ts[i]
+			}
+		}
+	}
+}

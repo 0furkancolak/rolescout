@@ -1,0 +1,253 @@
+{
+ "jobs": [
+  {
+   "id": "7458d4e9-da2e-47bd-98cb-adfda43d42b2",
+   "title": "Engineering Manager - EU",
+   "department": "Engineering",
+   "team": "EMEA Engineering",
+   "employmentType": "FullTime",
+   "location": "Remote - European Union",
+   "shouldDisplayCompensationOnJobPostings": true,
+   "secondaryLocations": [
+    {
+     "location": "Spain",
+     "address": {
+      "postalAddress": {
+       "addressRegion": "Spain",
+       "addressCountry": "Spain",
+       "addressLocality": "Spain"
+      }
+     }
+    },
+    {
+     "location": "Italy",
+     "address": {
+      "postalAddress": {
+       "addressRegion": "",
+       "addressCountry": "Italy",
+       "addressLocality": ""
+      }
+     }
+    },
+    {
+     "location": "Germany",
+     "address": {
+      "postalAddress": {
+       "addressCountry": "Germany",
+       "addressLocality": ""
+      }
+     }
+    },
+    {
+     "location": "Switzerland",
+     "address": {
+      "postalAddress": {
+       "addressRegion": "",
+       "addressCountry": "Switzerland",
+       "addressLocality": ""
+      }
+     }
+    },
+    {
+     "location": "Denmark",
+     "address": {
+      "postalAddress": {
+       "addressRegion": "",
+       "addressCountry": "Denmark",
+       "addressLocality": ""
+      }
+     }
+    },
+    {
+     "location": "Norway",
+     "address": {
+      "postalAddress": {
+       "addressRegion": "",
+       "addressCountry": "Norway",
+       "addressLocality": ""
+      }
+     }
+    },
+    {
+     "location": "Croatia",
+     "address": {
+      "postalAddress": {
+       "addressRegion": "",
+       "addressCountry": "Croatia",
+       "addressLocality": ""
+      }
+     }
+    },
+    {
+     "location": "Ireland",
+     "address": {
+      "postalAddress": {
+       "addressRegion": "Ireland",
+       "addressCountry": "Ireland",
+       "addressLocality": "Ireland"
+      }
+     }
+    },
+    {
+     "location": "Stockholm",
+     "address": {
+      "postalAddress": {
+       "addressRegion": "Stockholm",
+       "addressCountry": "Sweden",
+       "addressLocality": "Stockholm"
+      }
+     }
+    },
+    {
+     "location": "Romania",
+     "address": {
+      "postalAddress": {
+       "addressRegion": "",
+       "addressCountry": "Romania",
+       "addressLocality": ""
+      }
+     }
+    },
+    {
+     "location": "Austria",
+     "address": {
+      "postalAddress": {
+       "addressCountry": "Austria"
+      }
+     }
+    },
+    {
+     "location": "Barcelona",
+     "address": {
+      "postalAddress": {
+       "addressRegion": "Catalonia",
+       "addressCountry": "Spain",
+       "addressLocality": "Barcelona"
+      }
+     }
+    },
+    {
+     "location": "Netherlands",
+     "address": {
+      "postalAddress": {
+       "addressRegion": "",
+       "addressCountry": "Netherlands",
+       "addressLocality": "Amsterdam"
+      }
+     }
+    },
+    {
+     "location": "Portugal",
+     "address": {
+      "postalAddress": {
+       "addressCountry": "Portugal"
+      }
+     }
+    },
+    {
+     "location": "France",
+     "address": {
+      "postalAddress": {
+       "addressRegion": "",
+       "addressCountry": "France",
+       "addressLocality": ""
+      }
+     }
+    },
+    {
+     "location": "Berlin",
+     "address": {
+      "postalAddress": {
+       "addressRegion": "",
+       "addressCountry": "Germany",
+       "addressLocality": "Berlin"
+      }
+     }
+    },
+    {
+     "location": "Sweden",
+     "address": {
+      "postalAddress": {
+       "addressRegion": "",
+       "addressCountry": "Sweden",
+       "addressLocality": ""
+      }
+     }
+    },
+    {
+     "location": "Hungary",
+     "address": {
+      "postalAddress": {
+       "addressRegion": "Hungary",
+       "addressCountry": "Hungary",
+       "addressLocality": "Budapest"
+      }
+     }
+    },
+    {
+     "location": "Estonia",
+     "address": {
+      "postalAddress": {
+       "addressRegion": "",
+       "addressCountry": "Estonia",
+       "addressLocality": ""
+      }
+     }
+    }
+   ],
+   "publishedAt": "2024-03-04T14:29:08.532+00:00",
+   "isListed": true,
+   "isRemote": true,
+   "workplaceType": "Remote",
+   "address": {
+    "postalAddress": {
+     "postalCode": "",
+     "addressRegion": "",
+     "addressCountry": "European Union",
+     "addressLocality": ""
+    }
+   },
+   "jobUrl": "https://jobs.ashbyhq.com/ashby/7458d4e9-da2e-47bd-98cb-adfda43d42b2",
+   "applyUrl": "https://jobs.ashbyhq.com/ashby/7458d4e9-da2e-47bd-98cb-adfda43d42b2/application",
+   "descriptionHtml": "<p style=\"min-height:1.5em\">Hi 👋 I’m <a target=\"_blank\" rel=\"noopener noreferrer nofollow\" href=\"https://uk.linkedin.com/in/colinhoweuk\"><u>Colin</u></a>, Director of Engineering, Europe. How do you feel about software engineers writing product specs, making product decisions, and not breaking down projects into individual tickets? If that sounds exciting (even if a bit scary), read on because I’m looking for an engineering manager to help us build a different type of engineering team and culture at Ashby.</p><p style=\"min-height:1.5em\">To start, why do we need to be different? Time and again,",
+   "descriptionPlain": "Hi 👋 I’m Colin https://uk.linkedin.com/in/colinhoweuk, Director of Engineering, Europe. How do you feel about software engineers writing product specs, making product decisions, and not breaking down projects into individual tickets? If that sounds exciting (even if a bit scary), read on because I’m looking for an engineering manager to help us build a different type of engineering team and cultur"
+  },
+  {
+   "id": "390e266b-4b6c-4490-ad74-05ff5e0bb36a",
+   "title": "Product Manager, Onboarding and Growth",
+   "department": "Product",
+   "team": "Product",
+   "employmentType": "FullTime",
+   "location": "Remote - US",
+   "shouldDisplayCompensationOnJobPostings": true,
+   "secondaryLocations": [
+    {
+     "location": "Remote - Canada",
+     "address": {
+      "postalAddress": {
+       "addressRegion": "",
+       "addressCountry": "Canada",
+       "addressLocality": ""
+      }
+     }
+    }
+   ],
+   "publishedAt": "2026-10-16T00:42:17.137+00:00",
+   "isListed": true,
+   "isRemote": true,
+   "workplaceType": "Remote",
+   "address": {
+    "postalAddress": {
+     "addressRegion": "",
+     "addressCountry": "United States",
+     "addressLocality": ""
+    }
+   },
+   "jobUrl": "https://jobs.ashbyhq.com/ashby/390e266b-4b6c-4490-ad74-05ff5e0bb36a",
+   "applyUrl": "https://jobs.ashbyhq.com/ashby/390e266b-4b6c-4490-ad74-05ff5e0bb36a/application",
+   "descriptionHtml": "<p style=\"min-height:1.5em\">Hi, I’m Geo, Ashby’s VP of Product. I joined Ashby August ‘26; <a target=\"_blank\" rel=\"noopener noreferrer nofollow\" href=\"https://www.ashbyhq.com/blog/all/a-letter-from-chris-geoghegan-on-joining-ashby\"><u>read more about why I joined here.</u></a> I’m looking for a growth-oriented product manager to help users onboard and expand their usage of the product.</p><p style=\"min-height:1.5em\">At Ashby, we have a <a target=\"_blank\" rel=\"noopener noreferrer nofollow\" href=\"https://www.ashbyhq.com/blog/culture/ashbys-operating-principles\"><u>unique approach to building pro",
+   "descriptionPlain": "Hi, I’m Geo, Ashby’s VP of Product. I joined Ashby August ‘26; read more about why I joined here. https://www.ashbyhq.com/blog/all/a-letter-from-chris-geoghegan-on-joining-ashby I’m looking for a growth-oriented product manager to help users onboard and expand their usage of the product.\n\nAt Ashby, we have a unique approach to building products https://www.ashbyhq.com/blog/culture/ashbys-operating"
+  }
+ ],
+ "apiVersion": "1"
+}

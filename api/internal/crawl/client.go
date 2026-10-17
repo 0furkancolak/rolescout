@@ -173,11 +173,15 @@ func (c *Client) vendorKey(host string) string {
 	return ""
 }
 
-func (c *Client) limiter(host string) *hostLimiter {
-	key, concurrency, interval := host, 1, c.o.HostInterval
+func (c *Client) limiterKey(host string) (key string, concurrency int, interval time.Duration) {
 	if v := c.vendorKey(host); v != "" {
-		key, concurrency, interval = v, c.o.VendorConcurrency, c.o.VendorInterval
+		return v, c.o.VendorConcurrency, c.o.VendorInterval
 	}
+	return host, 1, c.o.HostInterval
+}
+
+func (c *Client) limiter(host string) *hostLimiter {
+	key, concurrency, interval := c.limiterKey(host)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	l, ok := c.limiters[key]
@@ -186,6 +190,18 @@ func (c *Client) limiter(host string) *hostLimiter {
 		c.limiters[key] = l
 	}
 	return l
+}
+
+// applyCrawlDelay makes the host's limiter sequential with at least delay
+// between requests, as its robots.txt asks.
+func (c *Client) applyCrawlDelay(host string, delay time.Duration) {
+	key, _, interval := c.limiterKey(host)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if l, ok := c.limiters[key]; ok && cap(l.slots) == 1 && l.interval >= delay {
+		return
+	}
+	c.limiters[key] = newHostLimiter(1, max(interval, delay))
 }
 
 // Get fetches rawURL, following up to 5 redirects. accept sets the Accept
@@ -359,6 +375,9 @@ func (c *Client) robotsFor(ctx context.Context, origin string) (robotsRules, err
 			body = body[:robotsBodyLimit]
 		}
 		rules = parseRobots(body, c.agent)
+		if rules.crawlDelay > 0 {
+			c.applyCrawlDelay(u.Host, rules.crawlDelay)
+		}
 	case res.StatusCode >= 500:
 		rules = robotsRules{disallowAll: true}
 	default:

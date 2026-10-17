@@ -1,0 +1,67 @@
+{
+ "meta": {
+  "totalCount": 3
+ },
+ "result": [
+  {
+   "id": "178",
+   "jobOpeningName": "Applied Data Scientist",
+   "departmentId": "18456",
+   "departmentLabel": "DEV001 - Development",
+   "employmentStatusLabel": "Full-Time",
+   "employmentType": null,
+   "location": {
+    "city": null,
+    "state": null
+   },
+   "atsLocation": {
+    "country": "United States",
+    "state": "Arizona",
+    "province": null,
+    "city": "Scottsdale"
+   },
+   "isRemote": null,
+   "locationType": "1"
+  },
+  {
+   "id": "179",
+   "jobOpeningName": "Software Engineer",
+   "departmentId": "18456",
+   "departmentLabel": "DEV001 - Development",
+   "employmentStatusLabel": "Full-Time",
+   "employmentType": null,
+   "location": {
+    "city": null,
+    "state": null
+   },
+   "atsLocation": {
+    "country": "United States",
+    "state": "Arizona",
+    "province": null,
+    "city": "Scottsdale"
+   },
+   "isRemote": null,
+   "locationType": "1"
+  },
+  {
+   "id": "180",
+   "jobOpeningName": "Software Engineer",
+   "departmentId": "18456",
+   "departmentLabel": "DEV001 - Development",
+   "employmentStatusLabel": "Full-Time",
+   "employmentType": null,
+   "location": {
+    "city": "Alicante",
+    "state": "Spain"
+   },
+   "atsLocation": {
+    "country": null,
+    "state": null,
+    "province": null,
+    "city": null
+   },
+   "isRemote": null,
+   "locationType": "0"
+  }
+ ]
+}

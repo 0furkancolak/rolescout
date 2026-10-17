@@ -1,0 +1,34 @@
+{
+ "total": 3,
+ "jobPostings": [
+  {
+   "title": "Principal Block and File Storage Software Engineer, Linux - DGX Cloud",
+   "externalPath": "/job/US-CA-Santa-Clara/Principal-Block-File-Storage-Software-Engineer--Linux---DGX-Cloud_JR2024421",
+   "locationsText": "US, CA, Santa Clara",
+   "postedOn": "Posted Yesterday",
+   "bulletFields": [
+    "JR2024421"
+   ]
+  },
+  {
+   "title": "Senior Distributed Software Engineer, Golang - DGX Cloud",
+   "externalPath": "/job/US-CA-Santa-Clara/Senior-Distributed-Software-Engineer--Golang---DGX-Cloud_JR2024570-1",
+   "locationsText": "2 Locations",
+   "postedOn": "Posted Yesterday",
+   "bulletFields": [
+    "JR2024570"
+   ]
+  },
+  {
+   "title": "Engineering Manager, Reliability Engineering Flywheel - EDA Infrastructure",
+   "externalPath": "/job/US-WA-Redmond/Engineering-Manager--Reliability-Engineering-Flywheel---EDA-Infrastructure_JR2026305",
+   "locationsText": "5 Locations",
+   "postedOn": "Posted Yesterday",
+   "bulletFields": [
+    "JR2026305"
+   ]
+  }
+ ],
+ "facets": [],
+ "userAuthenticated": false
+}

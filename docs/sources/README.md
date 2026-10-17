@@ -72,3 +72,13 @@ docker compose run --rm admin companies list -status pending
 | Adapter | Access method | Review |
 | --- | --- | --- |
 | `greenhouse` | Greenhouse public Job Board API | [greenhouse.md](greenhouse.md) |
+| `lever` | Lever Postings API | [lever.md](lever.md) |
+| `ashby` | Ashby Job Postings API | [ashby.md](ashby.md) |
+| `workable` | Workable jobs widget API | [workable.md](workable.md) |
+| `recruitee` | Recruitee careers site API | [recruitee.md](recruitee.md) |
+| `personio` | Personio XML job feed | [personio.md](personio.md) |
+| `bamboohr` | BambooHR careers list | [bamboohr.md](bamboohr.md) |
+| `workday` | Workday career site endpoint, **off until reviewed** | [workday.md](workday.md) |
+
+SmartRecruiters is not supported: the robots.txt of its API host disallows all
+crawlers except LinkedIn's.

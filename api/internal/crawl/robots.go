@@ -3,7 +3,9 @@ package crawl
 import (
 	"bufio"
 	"bytes"
+	"strconv"
 	"strings"
+	"time"
 )
 
 // robotsRules holds the rules of the robots.txt group that applies to us
@@ -13,7 +15,12 @@ type robotsRules struct {
 	// disallowAll is set when robots.txt could not be read because of a
 	// server error; RFC 9309 says to assume complete disallow then.
 	disallowAll bool
+	// crawlDelay is the group's non-standard Crawl-delay, which we honour.
+	crawlDelay time.Duration
 }
+
+// maxCrawlDelay caps Crawl-delay so one site cannot stall a worker.
+const maxCrawlDelay = 60 * time.Second
 
 type robotsRule struct {
 	allow   bool
@@ -25,6 +32,7 @@ type robotsRule struct {
 func parseRobots(body []byte, agent string) robotsRules {
 	agent = strings.ToLower(agent)
 	var specific, star []robotsRule
+	var specificDelay, starDelay time.Duration
 	var agents []string
 	inRules := false
 	sc := bufio.NewScanner(bytes.NewReader(body))
@@ -45,6 +53,21 @@ func parseRobots(body []byte, agent string) robotsRules {
 				agents, inRules = nil, false
 			}
 			agents = append(agents, strings.ToLower(value))
+		case "crawl-delay":
+			inRules = true
+			secs, err := strconv.ParseFloat(value, 64)
+			if err != nil || secs <= 0 {
+				continue
+			}
+			d := min(time.Duration(secs*float64(time.Second)), maxCrawlDelay)
+			for _, a := range agents {
+				switch a {
+				case agent:
+					specificDelay = d
+				case "*":
+					starDelay = d
+				}
+			}
 		case "allow", "disallow":
 			inRules = true
 			if value == "" {
@@ -69,9 +92,9 @@ func parseRobots(body []byte, agent string) robotsRules {
 		}
 	}
 	if matched {
-		return robotsRules{rules: specific}
+		return robotsRules{rules: specific, crawlDelay: specificDelay}
 	}
-	return robotsRules{rules: star}
+	return robotsRules{rules: star, crawlDelay: starDelay}
 }
 
 func agentsInFile(body []byte) []string {

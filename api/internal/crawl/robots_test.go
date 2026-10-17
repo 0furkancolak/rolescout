@@ -1,6 +1,9 @@
 package crawl
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestParseRobots(t *testing.T) {
 	const body = `
@@ -57,5 +60,16 @@ func TestParseRobotsSharedGroupAndEmptyDisallow(t *testing.T) {
 	r := parseRobots([]byte(body), "RoleScout")
 	if !r.allowed("/anything") {
 		t.Error("empty Disallow in the matching group should allow everything")
+	}
+}
+
+func TestParseRobotsCrawlDelay(t *testing.T) {
+	r := parseRobots([]byte("User-agent: *\nCrawl-delay: 1.5\nDisallow: /x\n\nUser-agent: other\nCrawl-delay: 9\n"), "RoleScout")
+	if r.crawlDelay != 1500*time.Millisecond {
+		t.Errorf("crawl delay = %v, want 1.5s", r.crawlDelay)
+	}
+	r = parseRobots([]byte("User-agent: *\nCrawl-delay: 9999\n"), "RoleScout")
+	if r.crawlDelay != maxCrawlDelay {
+		t.Errorf("crawl delay = %v, want capped at %v", r.crawlDelay, maxCrawlDelay)
 	}
 }
