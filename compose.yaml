@@ -50,9 +50,23 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: "postgres://${POSTGRES_USER:-rolescout}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-rolescout}?sslmode=disable"
-      MIGRATIONS_DIR: /app/migrations
+      WORKER_TICK: ${WORKER_TICK:-1m}
+    # The API applies migrations on startup; wait until it is ready.
     depends_on:
-      postgres:
+      api:
+        condition: service_healthy
+
+  # Source management CLI: docker compose run --rm admin sources list
+  admin:
+    build:
+      context: ./api
+      args:
+        APP: admin
+    profiles: ["tools"]
+    environment:
+      DATABASE_URL: "postgres://${POSTGRES_USER:-rolescout}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-rolescout}?sslmode=disable"
+    depends_on:
+      api:
         condition: service_healthy
 
   web:

@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -10,9 +10,11 @@ import (
 
 	"example.com/rolescout/api/internal/config"
 	"example.com/rolescout/api/internal/infrastructure/database"
+	"example.com/rolescout/api/internal/ingest"
+	"example.com/rolescout/api/internal/ingest/adapters"
 )
 
-func run() error {
+func run(logger *slog.Logger) error {
 	cfg, err := config.Load()
 	if err != nil {
 		return err
@@ -29,15 +31,22 @@ func run() error {
 	}
 	defer pool.Close()
 
-	log.Println("RoleScout worker started; waiting for ingestion jobs")
-	<-ctx.Done()
-	log.Println("RoleScout worker shutting down")
+	runner := &ingest.Runner{
+		Sources:  database.NewSourceRepository(pool),
+		Listings: database.NewJobRepository(pool),
+		Adapters: adapters.Registry(),
+		Logger:   logger,
+	}
+	logger.Info("worker started", "tick", cfg.WorkerTick.String(), "adapters", runner.Adapters.Names())
+	runner.Loop(ctx, cfg.WorkerTick)
+	logger.Info("worker stopped")
 	return nil
 }
 
 func main() {
-	if err := run(); err != nil {
-		log.Printf("Worker stopped: %v", err)
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	if err := run(logger); err != nil {
+		logger.Error("worker failed", "error", err)
 		os.Exit(1)
 	}
 }

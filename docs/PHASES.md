@@ -191,7 +191,7 @@ Notes:
 
 ## Phase 6 - Job Source Ingestion
 
-Status: NOT_STARTED
+Status: DONE
 
 Goals:
 - Establish a maintainable source adapter interface
@@ -199,19 +199,26 @@ Goals:
 - Normalize and deduplicate source data
 
 Tasks:
-- [ ] Define the source adapter contract
-- [ ] Define normalized job representation
-- [ ] Implement retry and failure handling
-- [ ] Implement idempotent ingestion
-- [ ] Review permissions and terms for candidate sources
-- [ ] Implement the first verified source adapter
-- [ ] Add ingestion observability and tests
+- [x] Define the source adapter contract
+- [x] Define normalized job representation
+- [x] Implement retry and failure handling
+- [x] Implement idempotent ingestion
+- [x] Review permissions and terms for candidate sources
+- [x] Implement the first verified source adapter
+- [x] Add ingestion observability and tests
 
 Exit criteria:
 - The worker imports valid listings reliably
 - Duplicate handling is verified
 - Failures can be diagnosed and retried
 - The enabled source has passed a permission and access review
+
+Notes:
+- Decision record: docs/adr/0003-source-ingestion.md. Operations and rules:
+  docs/sources/README.md.
+- First adapter: Greenhouse public Job Board API, reviewed in
+  docs/sources/greenhouse.md and verified against a real board.
+- Sources are managed with the new `admin` CLI (`docker compose run --rm admin`).
 
 ## Phase 7 - Quality, Security, and Observability
 

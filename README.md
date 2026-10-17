@@ -49,6 +49,13 @@ TEST_DATABASE_URL="postgres://rolescout:<password>@127.0.0.1:5432/rolescout?sslm
 Go tests live next to the code as `*_test.go` (the Go tool skips directories
 starting with `_`). Frontend tests live in `__tests__` folders.
 
+### Job sources
+
+The worker imports listings from configured sources. Sources start disabled
+and need a recorded permission review before they can be enabled. Manage them
+with the admin CLI, for example `docker compose run --rm admin sources list`.
+See [docs/sources](docs/sources/README.md).
+
 The REST API is described in [docs/api/openapi.yaml](docs/api/openapi.yaml)
 with conventions in [docs/api/README.md](docs/api/README.md).
 Data model and authentication decisions are recorded in [docs/adr](docs/adr).

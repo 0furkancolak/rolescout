@@ -65,13 +65,43 @@ type MemberWorkspace struct {
 }
 
 type JobSource struct {
-	ID        string
-	Key       string
-	Name      string
-	BaseURL   string
-	Enabled   bool
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID      string
+	Key     string
+	Name    string
+	BaseURL string
+	Enabled bool
+	// Adapter names the source adapter; Config is its JSON configuration.
+	Adapter      string
+	Config       map[string]any
+	SyncInterval time.Duration
+	// ReviewedAt and ReviewNote record the permission and terms review that
+	// is required before a source can be enabled.
+	ReviewedAt *time.Time
+	ReviewNote *string
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+}
+
+type RunStatus string
+
+const (
+	RunRunning   RunStatus = "running"
+	RunSucceeded RunStatus = "succeeded"
+	RunFailed    RunStatus = "failed"
+)
+
+// IngestionRun records one synchronization of a source.
+type IngestionRun struct {
+	ID            string
+	SourceID      string
+	Status        RunStatus
+	StartedAt     time.Time
+	FinishedAt    *time.Time
+	Attempts      int
+	FetchedCount  int
+	UpsertedCount int
+	FailedCount   int
+	Error         *string
 }
 
 type Job struct {

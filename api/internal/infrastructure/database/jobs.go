@@ -41,16 +41,10 @@ func scanListing(row pgx.Row) (domain.JobListing, error) {
 	return l, err
 }
 
-// CreateSource registers a job source. Sources start disabled until their
-// access method and terms have been reviewed.
+// CreateSource registers a manually managed job source. Sources start
+// disabled until their access method and terms have been reviewed.
 func (r *JobRepository) CreateSource(ctx context.Context, key, name, baseURL string) (domain.JobSource, error) {
-	var s domain.JobSource
-	err := r.pool.QueryRow(ctx, `
-		INSERT INTO job_sources (key, name, base_url) VALUES ($1, $2, $3)
-		RETURNING id, key, name, base_url, enabled, created_at, updated_at`,
-		key, name, baseURL,
-	).Scan(&s.ID, &s.Key, &s.Name, &s.BaseURL, &s.Enabled, &s.CreatedAt, &s.UpdatedAt)
-	return s, translate(err, "create job source")
+	return NewSourceRepository(r.pool).Create(ctx, SourceParams{Key: key, Name: name, BaseURL: baseURL})
 }
 
 // IngestedListing is a normalized listing produced by a source adapter.

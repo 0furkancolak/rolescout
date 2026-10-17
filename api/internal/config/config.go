@@ -19,6 +19,8 @@ type Config struct {
 	CookieSecure bool
 	// AllowRegistration permits sign-ups after the first account exists.
 	AllowRegistration bool
+	// WorkerTick is how often the worker checks for sources due to sync.
+	WorkerTick time.Duration
 }
 
 func Load() (Config, error) {
@@ -55,6 +57,15 @@ func Load() (Config, error) {
 		sessionTTL = parsed
 	}
 
+	workerTick := time.Minute
+	if raw := os.Getenv("WORKER_TICK"); raw != "" {
+		parsed, err := time.ParseDuration(raw)
+		if err != nil || parsed < 10*time.Second {
+			return Config{}, fmt.Errorf("invalid WORKER_TICK: use a Go duration of at least 10s, such as 1m")
+		}
+		workerTick = parsed
+	}
+
 	cookieSecure, err := boolEnv("COOKIE_SECURE", true)
 	if err != nil {
 		return Config{}, err
@@ -72,6 +83,7 @@ func Load() (Config, error) {
 		SessionTTL:        sessionTTL,
 		CookieSecure:      cookieSecure,
 		AllowRegistration: allowRegistration,
+		WorkerTick:        workerTick,
 	}, nil
 }
 
