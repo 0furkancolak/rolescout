@@ -8,7 +8,9 @@ import { RegisterPage } from "../features/auth/RegisterPage";
 import { RequireAuth } from "../features/auth/RequireAuth";
 import { JobRedirect } from "../features/jobs/JobRedirect";
 import { JobsPage } from "../features/jobs/JobsPage";
+import { CompaniesPage } from "../features/companies/CompaniesPage";
 import { DashboardPage } from "../features/dashboard/DashboardPage";
+import { SettingsPage } from "../features/settings/SettingsPage";
 import { ProfileEditPage } from "../features/research/ProfileEditPage";
 import { ResearchPage } from "../features/research/ResearchPage";
 import { RunPage } from "../features/research/RunPage";
@@ -37,6 +39,8 @@ export const routes: RouteObject[] = [
       { path: "saved", element: <SavedJobsPage /> },
       { path: "applications", element: <ApplicationsPage /> },
       { path: "applications/:applicationId", element: <ApplicationDetailPage /> },
+      { path: "companies", element: <CompaniesPage /> },
+      { path: "settings", element: <SettingsPage /> },
       { path: "*", element: <NotFound /> },
     ],
   },

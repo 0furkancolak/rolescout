@@ -1,4 +1,4 @@
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Columns3, List } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { EmptyState, ErrorState, PageTitle, Spinner, StatusBadge } from "../../components/ui";
 import { applicationStatuses, type Application, type ApplicationStatus } from "../../lib/api";
@@ -6,20 +6,64 @@ import { useI18n } from "../../lib/i18n";
 import { useJob } from "../jobs/api";
 import { useWorkspace } from "../workspaces/context";
 import { useApplications } from "./api";
+import { ApplicationsBoard } from "./ApplicationsBoard";
 
 export function ApplicationsPage() {
   const { t } = useI18n();
   const { workspace } = useWorkspace();
   const [params, setParams] = useSearchParams();
+  const view = params.get("view") === "board" ? "board" : "list";
   const raw = params.get("status");
   const status = applicationStatuses.includes(raw as ApplicationStatus) ? (raw as ApplicationStatus) : undefined;
-  const apps = useApplications(workspace.id, status);
+  const apps = useApplications(workspace.id, view === "board" ? undefined : status);
 
-  const tabs: (ApplicationStatus | undefined)[] = [undefined, ...applicationStatuses];
+  const viewButton = (v: "list" | "board", label: string, Icon: typeof List) => (
+    <button
+      type="button"
+      aria-pressed={view === v}
+      onClick={() => setParams(v === "board" ? { view: "board" } : {})}
+      className={`inline-flex min-h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium ${
+        view === v ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+      }`}
+    >
+      <Icon aria-hidden className="size-4" />
+      {label}
+    </button>
+  );
+
+  let content;
+  if (apps.isPending) content = <Spinner />;
+  else if (apps.isError) content = <ErrorState error={apps.error} onRetry={() => void apps.refetch()} />;
+  else if (view === "board") content = <ApplicationsBoard applications={apps.data} />;
+  else content = <ApplicationList applications={apps.data} status={status} onStatus={(s) => setParams(s ? { status: s } : {})} />;
 
   return (
     <div className="space-y-6">
-      <PageTitle>{t("apps.title")}</PageTitle>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <PageTitle>{t("apps.title")}</PageTitle>
+        <div className="inline-flex rounded-lg bg-slate-100 p-1">
+          {viewButton("list", t("board.list"), List)}
+          {viewButton("board", t("board.board"), Columns3)}
+        </div>
+      </div>
+      {content}
+    </div>
+  );
+}
+
+function ApplicationList({
+  applications,
+  status,
+  onStatus,
+}: {
+  applications: Application[];
+  status?: ApplicationStatus;
+  onStatus: (s?: ApplicationStatus) => void;
+}) {
+  const { t } = useI18n();
+  const tabs: (ApplicationStatus | undefined)[] = [undefined, ...applicationStatuses];
+  return (
+    <>
       <nav aria-label={t("apps.filterLabel")} className="-mx-4 overflow-x-auto px-4">
         <ul className="flex gap-1">
           {tabs.map((s) => (
@@ -27,9 +71,9 @@ export function ApplicationsPage() {
               <button
                 type="button"
                 aria-current={s === status ? "true" : undefined}
-                onClick={() => setParams(s ? { status: s } : {})}
+                onClick={() => onStatus(s)}
                 className={`min-h-10 whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium ${
-                  s === status ? "bg-slate-900 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
+                  s === status ? "bg-blue-700 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
                 }`}
               >
                 {s ? t(`status.${s}`) : t("apps.all")}
@@ -38,24 +82,16 @@ export function ApplicationsPage() {
           ))}
         </ul>
       </nav>
-
-      {apps.isPending ? (
-        <Spinner />
-      ) : apps.isError ? (
-        <ErrorState error={apps.error} onRetry={() => void apps.refetch()} />
-      ) : apps.data.length === 0 ? (
-        <EmptyState
-          title={status ? t("apps.emptyFiltered") : t("apps.empty")}
-          hint={status ? undefined : t("apps.emptyHint")}
-        />
+      {applications.length === 0 ? (
+        <EmptyState title={status ? t("apps.emptyFiltered") : t("apps.empty")} hint={status ? undefined : t("apps.emptyHint")} />
       ) : (
         <ul className="divide-y divide-slate-200 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-          {apps.data.map((a) => (
+          {applications.map((a) => (
             <ApplicationRow key={a.id} application={a} />
           ))}
         </ul>
       )}
-    </div>
+    </>
   );
 }
 
