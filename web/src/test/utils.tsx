@@ -4,7 +4,7 @@ import { vi } from "vitest";
 import { Providers } from "../app/Providers";
 import { createQueryClient } from "../app/queryClient";
 import { routes } from "../app/routes";
-import type { Job, Locale, User, Workspace } from "../lib/api";
+import type { Job, Locale, ResearchProfile, ResearchRun, StageProgress, User, Workspace, WorkspaceJob } from "../lib/api";
 
 export interface Call {
   method: string;
@@ -98,4 +98,59 @@ export function signedIn(): Record<string, Handler> {
     "GET /auth/me": { body: { data: user } },
     "GET /workspaces": { body: { data: [workspace] } },
   };
+}
+
+export const PROFILE = "44444444-4444-4444-8444-444444444444";
+export const RUN = "55555555-5555-4555-8555-555555555555";
+
+export function makeProfile(overrides: Partial<ResearchProfile> = {}): ResearchProfile {
+  return {
+    id: PROFILE,
+    name: "Full Stack Developer",
+    title_keywords: ["full stack"],
+    keywords: [],
+    technologies: ["react", "typescript"],
+    countries: [],
+    locations: [],
+    excluded_keywords: [],
+    remote: "any",
+    seniority: [],
+    schedule_hours: 12,
+    last_run_at: null,
+    created_at: "2026-10-01T10:00:00Z",
+    updated_at: "2026-10-01T10:00:00Z",
+    ...overrides,
+  };
+}
+
+function stage(state: StageProgress["state"], total = 0, done = 0, extra: Partial<StageProgress> = {}): StageProgress {
+  return { state, total, done, failed: 0, detail: {}, note: "", started_at: null, finished_at: null, ...extra };
+}
+
+export function makeRun(overrides: Partial<ResearchRun> = {}): ResearchRun {
+  return {
+    id: RUN,
+    profile_id: PROFILE,
+    state: "running",
+    stage: "collection",
+    stages: {
+      discovery: stage("done", 120, 120, { detail: { seed: 100, hackernews: 20 } }),
+      detection: stage("done", 120, 120, { failed: 12, detail: { greenhouse: 60, lever: 40 } }),
+      collection: stage("running", 100, 64, { failed: 3, detail: { jobs: 3150 } }),
+      scoring: stage("pending"),
+      result: stage("pending"),
+    },
+    trigger: "manual",
+    error: null,
+    cancel_requested: false,
+    summary: {},
+    queued_at: "2026-10-17T10:00:00Z",
+    started_at: "2026-10-17T10:00:01Z",
+    finished_at: null,
+    ...overrides,
+  };
+}
+
+export function makeWorkspaceJob(n: number, overrides: Partial<WorkspaceJob> = {}): WorkspaceJob {
+  return { ...makeJob(n), saved: false, match: null, ...overrides };
 }

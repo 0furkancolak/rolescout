@@ -9,6 +9,9 @@ import { RequireAuth } from "../features/auth/RequireAuth";
 import { JobRedirect } from "../features/jobs/JobRedirect";
 import { JobSearchPage } from "../features/jobs/JobSearchPage";
 import { DashboardPage } from "../features/dashboard/DashboardPage";
+import { ProfileEditPage } from "../features/research/ProfileEditPage";
+import { ResearchPage } from "../features/research/ResearchPage";
+import { RunPage } from "../features/research/RunPage";
 import { SavedJobsPage } from "../features/saved/SavedJobsPage";
 import { WorkspaceProvider } from "../features/workspaces/WorkspaceProvider";
 
@@ -26,6 +29,9 @@ export const routes: RouteObject[] = [
     ),
     children: [
       { index: true, element: <DashboardPage /> },
+      { path: "research", element: <ResearchPage /> },
+      { path: "research/profiles/:profileId", element: <ProfileEditPage /> },
+      { path: "research/runs/:runId", element: <RunPage /> },
       { path: "jobs", element: <JobSearchPage /> },
       { path: "jobs/:jobId", element: <JobRedirect /> },
       { path: "saved", element: <SavedJobsPage /> },
