@@ -325,9 +325,9 @@ func TestRunDueParallel(t *testing.T) {
 		sources.due = append(sources.due, s)
 	}
 	var mu sync.Mutex
-	results := 0
+	results, total := 0, 0
 	start := time.Now()
-	err := r.RunDue(context.Background(), RunDueOptions{Concurrency: 5, OnResult: func(_ domain.JobSource, run domain.IngestionRun, err error) {
+	err := r.RunDue(context.Background(), RunDueOptions{Concurrency: 5, OnStart: func(n int) { total = n }, OnResult: func(_ domain.JobSource, run domain.IngestionRun, err error) {
 		mu.Lock()
 		defer mu.Unlock()
 		if err != nil || run.Status != domain.RunSucceeded {
@@ -341,7 +341,7 @@ func TestRunDueParallel(t *testing.T) {
 	if d := time.Since(start); d > 200*time.Millisecond {
 		t.Errorf("10 syncs of 50ms with concurrency 5 took %v", d)
 	}
-	if results != 10 || len(sources.finished) != 10 {
+	if results != 10 || total != 10 || len(sources.finished) != 10 {
 		t.Fatalf("results=%d finished=%d", results, len(sources.finished))
 	}
 	if len(companies.outcomes) != 5 || companies.outcomes["co-s0"] != domain.RunSucceeded {

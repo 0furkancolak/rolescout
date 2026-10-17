@@ -343,3 +343,22 @@ func (r *CompanyRepository) ReviewAdapter(ctx context.Context, adapter, note str
 	).Scan(&a.Adapter, &a.Enabled, &a.ReviewedAt, &a.Note)
 	return a, translate(err, "review adapter")
 }
+
+// UpdateTiers sets how often company sources sync: top when the company has
+// an open job matching any profile, mid when it has open jobs, low otherwise.
+func (r *CompanyRepository) UpdateTiers(ctx context.Context, top, mid, low time.Duration) error {
+	_, err := r.pool.Exec(ctx, `
+		WITH tiers AS (
+			SELECT s.id, CASE
+				WHEN EXISTS (SELECT 1 FROM jobs j JOIN research_matches m ON m.job_id = j.id
+				             WHERE j.company_id = s.company_id AND j.closed_at IS NULL) THEN make_interval(secs => $1)
+				WHEN EXISTS (SELECT 1 FROM jobs j WHERE j.company_id = s.company_id AND j.closed_at IS NULL)
+				     THEN make_interval(secs => $2)
+				ELSE make_interval(secs => $3) END AS interval
+			FROM job_sources s WHERE s.company_id IS NOT NULL
+		)
+		UPDATE job_sources s SET sync_interval = t.interval
+		FROM tiers t WHERE s.id = t.id AND s.sync_interval <> t.interval`,
+		top.Seconds(), mid.Seconds(), low.Seconds())
+	return translate(err, "update company sync tiers")
+}

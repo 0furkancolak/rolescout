@@ -26,6 +26,8 @@ var DefaultVendorHosts = []string{
 	"boards-api.greenhouse.io", "api.lever.co", "api.eu.lever.co", "api.ashbyhq.com",
 	"apply.workable.com", "api.smartrecruiters.com",
 	".recruitee.com", ".jobs.personio.de", ".jobs.personio.com", ".bamboohr.com", ".myworkdayjobs.com",
+	// Discovery sources.
+	"hacker-news.firebaseio.com", "raw.githubusercontent.com",
 }
 
 // conditionalHeader asks Get to send stored validators (ETag,

@@ -337,3 +337,92 @@ func TestDiscoveryState(t *testing.T) {
 		t.Fatalf("state = %q", v)
 	}
 }
+
+func TestOpenJobsForScoringSkipsClosedAndBlocked(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	pool := requireDB(t)
+	jobs := NewJobRepository(pool)
+	companies := NewCompanyRepository(pool)
+	blocked := newCompany(t, companies, "lever")
+	companies.Block(ctx, f.workspace.ID, blocked.ID)
+	mk := func(title string, company *string) domain.Job {
+		j, _, err := jobs.UpsertListing(ctx, IngestedListing{SourceID: f.source.ID, ExternalID: uniq("e"), URL: "https://x.example/s",
+			DedupeKey: uniq("dk"), Title: title, CompanyName: "Acme", CompanyID: company})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return j
+	}
+	open, closed, fromBlocked := mk(uniq("Open "), nil), mk(uniq("Closed "), nil), mk(uniq("Blocked "), &blocked.ID)
+	pool.Exec(ctx, `UPDATE jobs SET closed_at = NOW() WHERE id = $1`, closed.ID)
+	seen := map[string]bool{}
+	if err := jobs.OpenJobsForScoring(ctx, f.workspace.ID, func(j domain.Job) error {
+		seen[j.ID] = true
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if !seen[open.ID] || seen[closed.ID] || seen[fromBlocked.ID] {
+		t.Fatalf("open=%v closed=%v blocked=%v", seen[open.ID], seen[closed.ID], seen[fromBlocked.ID])
+	}
+}
+
+func TestUpdateTiers(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	pool := requireDB(t)
+	companies := NewCompanyRepository(pool)
+	jobs := NewJobRepository(pool)
+	research := NewResearchRepository(pool)
+	profiles, _ := research.ListProfiles(ctx, f.workspace.ID)
+
+	tier := func(withJob, withMatch bool) string {
+		c := newCompany(t, companies, "greenhouse")
+		s, err := companies.AttachSource(ctx, c.ID, SourceParams{Name: c.Name, BaseURL: c.CareersURL, Adapter: "greenhouse"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if withJob {
+			j, _, err := jobs.UpsertListing(ctx, IngestedListing{SourceID: s.ID, ExternalID: "1", URL: "https://x.example/t",
+				DedupeKey: uniq("dk"), Title: "T", CompanyName: c.Name, CompanyID: &c.ID})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if withMatch {
+				research.ReplaceMatches(ctx, profiles[0].ID, []domain.Match{{JobID: j.ID, Score: 80}}, nil)
+			}
+		}
+		return s.ID
+	}
+	top, mid, low := tier(true, true), tier(true, false), tier(false, false)
+	if err := companies.UpdateTiers(ctx, 12*time.Hour, 72*time.Hour, 168*time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	interval := func(id string) time.Duration {
+		var secs int64
+		pool.QueryRow(ctx, `SELECT EXTRACT(EPOCH FROM sync_interval)::bigint FROM job_sources WHERE id = $1`, id).Scan(&secs)
+		return time.Duration(secs) * time.Second
+	}
+	if interval(top) != 12*time.Hour || interval(mid) != 72*time.Hour || interval(low) != 168*time.Hour {
+		t.Fatalf("tiers = %v %v %v", interval(top), interval(mid), interval(low))
+	}
+}
+
+func TestStageLockIsExclusive(t *testing.T) {
+	repo := NewResearchRepository(requireDB(t))
+	ctx := context.Background()
+	release, ok, err := repo.TryStageLock(ctx)
+	if err != nil || !ok {
+		t.Fatalf("first lock: %v %v", ok, err)
+	}
+	if _, ok2, err := repo.TryStageLock(ctx); err != nil || ok2 {
+		t.Fatalf("second lock acquired while held: %v %v", ok2, err)
+	}
+	release()
+	release2, ok, err := repo.TryStageLock(ctx)
+	if err != nil || !ok {
+		t.Fatalf("lock after release: %v %v", ok, err)
+	}
+	release2()
+}

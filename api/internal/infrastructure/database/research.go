@@ -207,7 +207,7 @@ func nonNilStages(s map[domain.Stage]domain.StageProgress) map[domain.Stage]doma
 }
 
 // FinishRun records a run's final state. A succeeded run also becomes its
-// profile's last run.
+// profile's last run, so jobs it collected are not new for the next run.
 func (r *ResearchRepository) FinishRun(ctx context.Context, id string, state domain.RunStatus, errMsg *string, summary map[string]int) error {
 	if summary == nil {
 		summary = map[string]int{}
@@ -218,16 +218,15 @@ func (r *ResearchRepository) FinishRun(ctx context.Context, id string, state dom
 	}
 	return inTx(ctx, r.pool, func(tx pgx.Tx) error {
 		var profileID string
-		var started *time.Time
 		err := tx.QueryRow(ctx, `
 			UPDATE research_runs SET state = $2, error = $3, summary = $4, finished_at = NOW(), updated_at = NOW()
 			WHERE id = $1 AND state IN ('queued', 'running')
-			RETURNING profile_id, started_at`, id, state, errMsg, sum).Scan(&profileID, &started)
+			RETURNING profile_id`, id, state, errMsg, sum).Scan(&profileID)
 		if err != nil {
 			return translate(err, "finish research run")
 		}
 		if state == domain.RunSucceeded {
-			_, err = tx.Exec(ctx, `UPDATE research_profiles SET last_run_at = COALESCE($2, NOW()) WHERE id = $1`, profileID, started)
+			_, err = tx.Exec(ctx, `UPDATE research_profiles SET last_run_at = NOW() WHERE id = $1`, profileID)
 		}
 		return translate(err, "update profile last run")
 	})
@@ -473,4 +472,26 @@ func (r *ResearchRepository) SetState(ctx context.Context, key, value string) er
 		INSERT INTO discovery_state (key, value) VALUES ($1, $2)
 		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`, key, value)
 	return translate(err, "write discovery state")
+}
+
+// stageLockKey identifies the advisory lock that serializes the shared
+// research stages (discovery, detection, collection) across workers.
+const stageLockKey = 7_311_204_118
+
+// TryStageLock takes the shared-stage lock on a dedicated connection. ok is
+// false when another run holds it. release unlocks and returns the
+// connection; the lock also ends if the connection drops.
+func (r *ResearchRepository) TryStageLock(ctx context.Context) (release func(), ok bool, err error) {
+	conn, err := r.pool.Acquire(ctx)
+	if err != nil {
+		return nil, false, translate(err, "acquire connection for stage lock")
+	}
+	if err := conn.QueryRow(ctx, `SELECT pg_try_advisory_lock($1)`, stageLockKey).Scan(&ok); err != nil || !ok {
+		conn.Release()
+		return nil, false, translate(err, "take stage lock")
+	}
+	return func() {
+		_, _ = conn.Exec(context.Background(), `SELECT pg_advisory_unlock($1)`, stageLockKey)
+		conn.Release()
+	}, true, nil
 }

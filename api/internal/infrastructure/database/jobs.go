@@ -363,3 +363,27 @@ func prefixed(alias, columns string) string {
 	}
 	return strings.Join(parts, ", ")
 }
+
+// OpenJobsForScoring streams every open job that the workspace has not
+// blocked the company of.
+func (r *JobRepository) OpenJobsForScoring(ctx context.Context, workspaceID string, fn func(domain.Job) error) error {
+	rows, err := r.pool.Query(ctx, `
+		SELECT `+jobColumns+` FROM jobs j
+		WHERE j.closed_at IS NULL
+		  AND NOT EXISTS (SELECT 1 FROM workspace_company_blocks b
+		                  WHERE b.workspace_id = $1 AND b.company_id = j.company_id)`, workspaceID)
+	if err != nil {
+		return translate(err, "list jobs for scoring")
+	}
+	defer rows.Close()
+	for rows.Next() {
+		j, err := scanJob(rows)
+		if err != nil {
+			return translate(err, "list jobs for scoring")
+		}
+		if err := fn(j); err != nil {
+			return err
+		}
+	}
+	return translate(rows.Err(), "list jobs for scoring")
+}

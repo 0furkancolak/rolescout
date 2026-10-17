@@ -31,7 +31,7 @@ type ResearchProfile struct {
 	Remote           RemotePreference
 	Seniority        []string
 	ScheduleInterval time.Duration
-	// LastRunAt is when the last successful run started.
+	// LastRunAt is when the last successful run finished.
 	LastRunAt *time.Time
 	CreatedAt time.Time
 	UpdatedAt time.Time
