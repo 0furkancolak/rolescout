@@ -92,6 +92,8 @@ type SavedJob struct {
 	JobID       string
 	SavedBy     *string
 	CreatedAt   time.Time
+	// Job is populated by list queries.
+	Job *Job
 }
 
 type ApplicationStatus string

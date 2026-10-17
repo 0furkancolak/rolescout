@@ -42,5 +42,10 @@ database, so the URL needs a role that may create databases:
 TEST_DATABASE_URL="postgres://rolescout:<password>@127.0.0.1:5432/rolescout?sslmode=disable" go test -race ./...
 ```
 
+Go tests live next to the code as `*_test.go` (the Go tool skips directories
+starting with `_`). Frontend tests live in `__tests__` folders.
+
+The REST API is described in [docs/api/openapi.yaml](docs/api/openapi.yaml)
+with conventions in [docs/api/README.md](docs/api/README.md).
 Data model decisions are recorded in [docs/adr](docs/adr).
 See [docs/PHASES.md](docs/PHASES.md) for the roadmap and current status.

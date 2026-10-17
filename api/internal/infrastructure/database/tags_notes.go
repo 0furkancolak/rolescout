@@ -38,6 +38,39 @@ func (r *AnnotationRepository) TagApplication(ctx context.Context, workspaceID, 
 	return translate(err, "tag application")
 }
 
+// ListTags returns the workspace's tags ordered by name.
+func (r *AnnotationRepository) ListTags(ctx context.Context, workspaceID string) ([]domain.Tag, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT id, workspace_id, name, created_at FROM tags
+		WHERE workspace_id = $1 ORDER BY lower(name)`, workspaceID)
+	if err != nil {
+		return nil, translate(err, "list tags")
+	}
+	tags, err := pgx.CollectRows(rows, scanTag)
+	return tags, translate(err, "list tags")
+}
+
+func scanTag(row pgx.CollectableRow) (domain.Tag, error) {
+	var t domain.Tag
+	err := row.Scan(&t.ID, &t.WorkspaceID, &t.Name, &t.CreatedAt)
+	return t, err
+}
+
+// UntagApplication detaches a tag, or returns ErrNotFound if it was not attached.
+func (r *AnnotationRepository) UntagApplication(ctx context.Context, workspaceID, applicationID, tagID string) error {
+	tag, err := r.pool.Exec(ctx, `
+		DELETE FROM application_tags
+		WHERE workspace_id = $1 AND application_id = $2 AND tag_id = $3`,
+		workspaceID, applicationID, tagID)
+	if err != nil {
+		return translate(err, "untag application")
+	}
+	if tag.RowsAffected() == 0 {
+		return translate(pgx.ErrNoRows, "untag application")
+	}
+	return nil
+}
+
 func (r *AnnotationRepository) ListApplicationTags(ctx context.Context, workspaceID, applicationID string) ([]domain.Tag, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT t.id, t.workspace_id, t.name, t.created_at
@@ -47,11 +80,7 @@ func (r *AnnotationRepository) ListApplicationTags(ctx context.Context, workspac
 	if err != nil {
 		return nil, translate(err, "list application tags")
 	}
-	tags, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.Tag, error) {
-		var t domain.Tag
-		err := row.Scan(&t.ID, &t.WorkspaceID, &t.Name, &t.CreatedAt)
-		return t, err
-	})
+	tags, err := pgx.CollectRows(rows, scanTag)
 	return tags, translate(err, "list application tags")
 }
 
@@ -70,10 +99,11 @@ func (r *AnnotationRepository) AddNote(ctx context.Context, workspaceID, applica
 	return n, translate(err, "add note")
 }
 
-func (r *AnnotationRepository) UpdateNote(ctx context.Context, workspaceID, noteID, body string) (domain.Note, error) {
+func (r *AnnotationRepository) UpdateNote(ctx context.Context, workspaceID, applicationID, noteID, body string) (domain.Note, error) {
 	n, err := scanNote(r.pool.QueryRow(ctx, `
-		UPDATE notes SET body = $3 WHERE workspace_id = $1 AND id = $2
-		RETURNING `+noteColumns, workspaceID, noteID, body))
+		UPDATE notes SET body = $4
+		WHERE workspace_id = $1 AND application_id = $2 AND id = $3
+		RETURNING `+noteColumns, workspaceID, applicationID, noteID, body))
 	return n, translate(err, "update note")
 }
 

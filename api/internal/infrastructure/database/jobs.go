@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -81,10 +82,7 @@ func (r *JobRepository) UpsertListing(ctx context.Context, in IngestedListing) (
 		seenAt = time.Now()
 	}
 	seenAt = seenAt.UTC()
-	technologies := in.Technologies
-	if technologies == nil {
-		technologies = []string{}
-	}
+	technologies := normalizeTechnologies(in.Technologies)
 
 	var job domain.Job
 	var listing domain.JobListing
@@ -152,6 +150,85 @@ func (r *JobRepository) ListListings(ctx context.Context, jobID string) ([]domai
 	return ls, translate(err, "list job listings")
 }
 
+// normalizeTechnologies lower-cases, trims and de-duplicates technology names
+// so filters match regardless of how a source spelled them.
+func normalizeTechnologies(in []string) []string {
+	out := make([]string, 0, len(in))
+	seen := make(map[string]bool, len(in))
+	for _, t := range in {
+		t = strings.ToLower(strings.TrimSpace(t))
+		if t == "" || seen[t] {
+			continue
+		}
+		seen[t] = true
+		out = append(out, t)
+	}
+	return out
+}
+
+// JobCursor marks the last job of a page in (last_seen_at, id) order.
+type JobCursor struct {
+	LastSeenAt time.Time
+	ID         string
+}
+
+// JobFilter selects jobs. Empty fields do not filter. Technologies must all be
+// present on a job.
+type JobFilter struct {
+	Query           string
+	WorkArrangement string
+	EmploymentType  string
+	Seniority       string
+	Technologies    []string
+	After           *JobCursor
+	Limit           int
+}
+
+// escapeLike escapes LIKE wildcards so user input matches literally.
+func escapeLike(s string) string {
+	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(s)
+}
+
+// SearchJobs returns jobs most recently seen first. It fetches one row more
+// than Limit so callers can tell whether another page exists.
+func (r *JobRepository) SearchJobs(ctx context.Context, f JobFilter) (jobs []domain.Job, hasMore bool, err error) {
+	var pattern string
+	if q := strings.TrimSpace(f.Query); q != "" {
+		pattern = "%" + escapeLike(q) + "%"
+	}
+	var afterTime *time.Time
+	var afterID *string
+	if f.After != nil {
+		afterTime, afterID = &f.After.LastSeenAt, &f.After.ID
+	}
+
+	rows, err := r.pool.Query(ctx, `
+		SELECT `+jobColumns+` FROM jobs
+		WHERE ($1 = '' OR title ILIKE $1 OR company_name ILIKE $1 OR location ILIKE $1)
+		  AND ($2 = '' OR work_arrangement = $2)
+		  AND ($3 = '' OR employment_type = $3)
+		  AND ($4 = '' OR seniority = $4)
+		  AND (cardinality($5::text[]) = 0 OR technologies @> $5::text[])
+		  AND ($6::timestamptz IS NULL OR (last_seen_at, id) < ($6, $7::uuid))
+		ORDER BY last_seen_at DESC, id DESC
+		LIMIT $8`,
+		pattern, f.WorkArrangement, f.EmploymentType, f.Seniority,
+		normalizeTechnologies(f.Technologies), afterTime, afterID, f.Limit+1)
+	if err != nil {
+		return nil, false, translate(err, "search jobs")
+	}
+	jobs, err = pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.Job, error) {
+		return scanJob(row)
+	})
+	if err != nil {
+		return nil, false, translate(err, "search jobs")
+	}
+	if len(jobs) > f.Limit {
+		return jobs[:f.Limit], true, nil
+	}
+	return jobs, false, nil
+}
+
 // SaveJob bookmarks a job for a workspace. Saving an already saved job is a no-op.
 func (r *JobRepository) SaveJob(ctx context.Context, workspaceID, jobID string, savedBy *string) error {
 	_, err := r.pool.Exec(ctx, `
@@ -172,18 +249,34 @@ func (r *JobRepository) UnsaveJob(ctx context.Context, workspaceID, jobID string
 	return nil
 }
 
-// ListSavedJobs returns the workspace's saved jobs, most recently saved first.
+// ListSavedJobs returns the workspace's saved jobs with their job details,
+// most recently saved first.
 func (r *JobRepository) ListSavedJobs(ctx context.Context, workspaceID string) ([]domain.SavedJob, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT workspace_id, job_id, saved_by, created_at FROM saved_jobs
-		WHERE workspace_id = $1 ORDER BY created_at DESC, job_id`, workspaceID)
+		SELECT s.workspace_id, s.saved_by, s.created_at, `+prefixed("j", jobColumns)+`
+		FROM saved_jobs s JOIN jobs j ON j.id = s.job_id
+		WHERE s.workspace_id = $1 ORDER BY s.created_at DESC, s.job_id`, workspaceID)
 	if err != nil {
 		return nil, translate(err, "list saved jobs")
 	}
 	saved, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.SavedJob, error) {
 		var s domain.SavedJob
-		err := row.Scan(&s.WorkspaceID, &s.JobID, &s.SavedBy, &s.CreatedAt)
+		var j domain.Job
+		err := row.Scan(&s.WorkspaceID, &s.SavedBy, &s.CreatedAt,
+			&j.ID, &j.DedupeKey, &j.Title, &j.CompanyName, &j.Location,
+			&j.WorkArrangement, &j.EmploymentType, &j.Seniority, &j.Technologies,
+			&j.Description, &j.FirstSeenAt, &j.LastSeenAt, &j.CreatedAt, &j.UpdatedAt)
+		s.JobID, s.Job = j.ID, &j
 		return s, err
 	})
 	return saved, translate(err, "list saved jobs")
+}
+
+// prefixed qualifies a comma-separated column list with a table alias.
+func prefixed(alias, columns string) string {
+	parts := strings.Split(columns, ",")
+	for i, c := range parts {
+		parts[i] = alias + "." + strings.TrimSpace(c)
+	}
+	return strings.Join(parts, ", ")
 }

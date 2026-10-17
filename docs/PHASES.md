@@ -99,7 +99,7 @@ Exit criteria:
 
 ## Phase 3 - API Contracts and Core Backend
 
-Status: NOT_STARTED
+Status: IN_PROGRESS
 
 Goals:
 - Define REST API conventions
@@ -108,20 +108,26 @@ Goals:
 - Implement core job and application use cases
 
 Tasks:
-- [ ] Define API response and error formats
-- [ ] Define pagination, filtering, and sorting
-- [ ] Implement job listing and search endpoints
-- [ ] Implement saved jobs
-- [ ] Implement application tracking
-- [ ] Implement application attempts and history
-- [ ] Add unit and integration tests
-- [ ] Document API contracts
+- [x] Define API response and error formats
+- [x] Define pagination, filtering, and sorting
+- [x] Implement job listing and search endpoints
+- [x] Implement saved jobs
+- [x] Implement application tracking
+- [x] Implement application attempts and history
+- [x] Add unit and integration tests
+- [x] Document API contracts
 
 Exit criteria:
 - Core use cases work through the API
 - API contract is documented
 - Authorization and validation are tested
 - Integration tests pass
+
+Notes:
+- Contract: docs/api/openapi.yaml, conventions: docs/api/README.md.
+- Validation and workspace isolation are tested. Authorization is only a
+  workspace-existence hook (WorkspaceAuthorizer) until Phase 4, so the
+  authorization exit criterion is verified there.
 
 ## Phase 4 - Authentication and Workspace Isolation
 
@@ -159,7 +165,7 @@ Tasks:
 - [ ] Implement routing and layouts
 - [ ] Implement job search and filters
 - [ ] Implement job details and saved jobs
-- [ ] Implement application tracking views
+- [x] Implement application tracking views
 - [ ] Implement application history and notes
 - [ ] Implement loading, empty, and error states
 - [ ] Add accessibility and responsive checks

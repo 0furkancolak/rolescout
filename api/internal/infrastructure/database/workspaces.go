@@ -72,3 +72,12 @@ func (r *WorkspaceRepository) ListForUser(ctx context.Context, userID string) ([
 	})
 	return ws, translate(err, "list workspaces")
 }
+
+// Get returns a workspace or ErrNotFound.
+func (r *WorkspaceRepository) Get(ctx context.Context, id string) (domain.Workspace, error) {
+	var w domain.Workspace
+	err := r.pool.QueryRow(ctx, `
+		SELECT id, name, created_at, updated_at FROM workspaces WHERE id = $1`, id,
+	).Scan(&w.ID, &w.Name, &w.CreatedAt, &w.UpdatedAt)
+	return w, translate(err, "get workspace")
+}

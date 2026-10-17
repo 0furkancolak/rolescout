@@ -126,7 +126,8 @@ func (r *ApplicationRepository) List(ctx context.Context, workspaceID string, st
 }
 
 // ChangeStatus updates the current status and appends a status_changed event in
-// the same transaction. Setting the current status again is a no-op.
+// the same transaction. The workflow in domain.ValidateTransition is checked
+// while the row is locked. Setting the current status again is a no-op.
 func (r *ApplicationRepository) ChangeStatus(ctx context.Context, workspaceID, id string, to domain.ApplicationStatus, changedBy *string) (domain.Application, error) {
 	var a domain.Application
 	err := inTx(ctx, r.pool, func(tx pgx.Tx) error {
@@ -134,23 +135,32 @@ func (r *ApplicationRepository) ChangeStatus(ctx context.Context, workspaceID, i
 		if err != nil {
 			return err
 		}
-		if current.Status == to {
-			a = current
-			return nil
+		if err := domain.ValidateTransition(current.Status, to); err != nil {
+			return fmt.Errorf("change application status: %w", err)
 		}
-		a, err = scanApplication(tx.QueryRow(ctx, `
-			UPDATE applications SET status = $3
-			WHERE workspace_id = $1 AND id = $2
-			RETURNING `+applicationColumns, workspaceID, id, to))
-		if err != nil {
-			return translate(err, "update application status")
-		}
-		from := current.Status
-		_, err = insertEvent(ctx, tx, eventInsert{
-			workspaceID: workspaceID, applicationID: id, eventType: domain.EventStatusChanged,
-			fromStatus: &from, toStatus: &to, createdBy: changedBy,
-		})
+		a, err = setStatus(ctx, tx, current, to, changedBy)
 		return err
+	})
+	return a, err
+}
+
+// setStatus updates a locked application's status and appends the matching
+// status_changed event. It is a no-op when the status does not change.
+func setStatus(ctx context.Context, tx pgx.Tx, current domain.Application, to domain.ApplicationStatus, changedBy *string) (domain.Application, error) {
+	if current.Status == to {
+		return current, nil
+	}
+	a, err := scanApplication(tx.QueryRow(ctx, `
+		UPDATE applications SET status = $3
+		WHERE workspace_id = $1 AND id = $2
+		RETURNING `+applicationColumns, current.WorkspaceID, current.ID, to))
+	if err != nil {
+		return a, translate(err, "update application status")
+	}
+	from := current.Status
+	_, err = insertEvent(ctx, tx, eventInsert{
+		workspaceID: current.WorkspaceID, applicationID: current.ID, eventType: domain.EventStatusChanged,
+		fromStatus: &from, toStatus: &to, createdBy: changedBy,
 	})
 	return a, err
 }
@@ -162,17 +172,19 @@ type AddAttemptParams struct {
 }
 
 // AddAttempt records a new submission with the next attempt number. Earlier
-// attempts are never modified.
+// attempts are never modified. A planned, rejected or withdrawn application
+// moves to applied in the same transaction.
 func (r *ApplicationRepository) AddAttempt(ctx context.Context, workspaceID, applicationID string, p AddAttemptParams) (domain.ApplicationAttempt, error) {
 	if p.AppliedAt.IsZero() {
 		return domain.ApplicationAttempt{}, fmt.Errorf("add attempt: applied_at is required: %w", domain.ErrInvalid)
 	}
 	var at domain.ApplicationAttempt
 	err := inTx(ctx, r.pool, func(tx pgx.Tx) error {
-		if _, err := lockApplication(ctx, tx, workspaceID, applicationID); err != nil {
+		current, err := lockApplication(ctx, tx, workspaceID, applicationID)
+		if err != nil {
 			return err
 		}
-		err := tx.QueryRow(ctx, `
+		err = tx.QueryRow(ctx, `
 			INSERT INTO application_attempts (workspace_id, application_id, attempt_number,
 				applied_at, channel, created_by)
 			SELECT $1, $2, COALESCE(MAX(attempt_number), 0) + 1, $3, $4, $5
@@ -190,6 +202,12 @@ func (r *ApplicationRepository) AddAttempt(ctx context.Context, workspaceID, app
 			eventType: domain.EventAttemptAdded, occurredAt: at.AppliedAt,
 			details: map[string]any{"attempt_number": at.AttemptNumber}, createdBy: p.CreatedBy,
 		})
+		if err != nil {
+			return err
+		}
+		if next, changed := domain.StatusAfterAttempt(current.Status); changed {
+			_, err = setStatus(ctx, tx, current, next, p.CreatedBy)
+		}
 		return err
 	})
 	return at, err

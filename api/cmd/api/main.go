@@ -45,9 +45,17 @@ func run() error {
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
+		BodyLimit:    1 << 20,
+		ErrorHandler: httptransport.ErrorHandler,
 	})
 
 	httptransport.RegisterHealthRoutes(app, pool)
+	httptransport.RegisterAPIRoutes(app, httptransport.Deps{
+		Jobs:         database.NewJobRepository(pool),
+		Applications: database.NewApplicationRepository(pool),
+		Annotations:  database.NewAnnotationRepository(pool),
+		Workspaces:   httptransport.ExistingWorkspace{Workspaces: database.NewWorkspaceRepository(pool)},
+	})
 
 	addr := fmt.Sprintf("%s:%d", cfg.HTTPHost, cfg.HTTPPort)
 	log.Printf("RoleScout API listening on %s", addr)

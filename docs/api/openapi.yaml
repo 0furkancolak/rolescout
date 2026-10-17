@@ -1,0 +1,753 @@
+openapi: 3.1.0
+info:
+  title: RoleScout API
+  version: 0.1.0
+  summary: Job discovery and application tracking.
+  description: |
+    Conventions are described in docs/api/README.md.
+    Authentication is added in Phase 4; until then any existing workspace can be used.
+  license:
+    name: Apache-2.0
+    identifier: Apache-2.0
+servers:
+  - url: http://127.0.0.1:8080
+    description: Local Docker Compose
+tags:
+  - name: health
+  - name: jobs
+  - name: saved-jobs
+  - name: applications
+  - name: tags
+  - name: notes
+
+paths:
+  /healthz:
+    get:
+      tags: [health]
+      summary: Liveness check
+      operationId: getHealth
+      responses:
+        "200":
+          description: The process is running.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, const: ok }
+  /readyz:
+    get:
+      tags: [health]
+      summary: Readiness check including PostgreSQL
+      operationId: getReadiness
+      responses:
+        "200":
+          description: Ready to serve traffic.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, const: ready }
+                  database: { type: string, const: ok }
+        "503":
+          description: The database is unreachable.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, const: not_ready }
+
+  /api/v1/jobs:
+    get:
+      tags: [jobs]
+      summary: Search jobs
+      description: Jobs are ordered by `last_seen_at` descending, then `id` descending.
+      operationId: searchJobs
+      parameters:
+        - name: q
+          in: query
+          description: Case-insensitive substring of title, company or location. Wildcards match literally.
+          schema: { type: string, maxLength: 200 }
+        - name: work_arrangement
+          in: query
+          schema: { $ref: "#/components/schemas/WorkArrangement" }
+        - name: employment_type
+          in: query
+          schema: { $ref: "#/components/schemas/EmploymentType" }
+        - name: seniority
+          in: query
+          schema: { $ref: "#/components/schemas/Seniority" }
+        - name: technology
+          in: query
+          description: Comma-separated technologies; a job must have all of them. Case-insensitive.
+          schema: { type: string }
+          example: go,postgresql
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: One page of jobs.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, next_cursor]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Job" }
+                  next_cursor:
+                    type: [string, "null"]
+                    description: Pass as `cursor` to fetch the next page; null on the last page.
+        "422": { $ref: "#/components/responses/InvalidInput" }
+  /api/v1/jobs/{jobID}:
+    parameters:
+      - $ref: "#/components/parameters/JobID"
+    get:
+      tags: [jobs]
+      summary: Get a job with its source listings
+      operationId: getJob
+      responses:
+        "200":
+          description: The job.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/JobDetail" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/workspaces/{workspaceID}/saved-jobs:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+    get:
+      tags: [saved-jobs]
+      summary: List saved jobs, most recently saved first
+      operationId: listSavedJobs
+      responses:
+        "200":
+          description: Saved jobs.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/SavedJob" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/workspaces/{workspaceID}/saved-jobs/{jobID}:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+      - $ref: "#/components/parameters/JobID"
+    put:
+      tags: [saved-jobs]
+      summary: Save a job (idempotent)
+      operationId: saveJob
+      responses:
+        "204": { description: Saved. }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [saved-jobs]
+      summary: Remove a saved job
+      operationId: unsaveJob
+      responses:
+        "204": { description: Removed. }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /api/v1/workspaces/{workspaceID}/tags:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+    get:
+      tags: [tags]
+      summary: List workspace tags ordered by name
+      operationId: listTags
+      responses:
+        "200":
+          description: Tags.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Tag" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [tags]
+      summary: Create a tag
+      description: Names are trimmed and unique per workspace ignoring case.
+      operationId: createTag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 50 }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/Tag" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
+
+  /api/v1/workspaces/{workspaceID}/applications:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+    get:
+      tags: [applications]
+      summary: List applications, most recently updated first
+      description: Not paginated yet; a workspace is expected to hold a bounded number of applications.
+      operationId: listApplications
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/ApplicationStatus" }
+      responses:
+        "200":
+          description: Applications.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Application" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
+    post:
+      tags: [applications]
+      summary: Start tracking a job
+      description: Creates the application in `planned` status. A workspace has at most one application per job.
+      operationId: createApplication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [job_id]
+              properties:
+                job_id: { type: string, format: uuid }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/Application" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
+  /api/v1/workspaces/{workspaceID}/applications/{applicationID}:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+      - $ref: "#/components/parameters/ApplicationID"
+    get:
+      tags: [applications]
+      summary: Get an application
+      operationId: getApplication
+      responses:
+        "200":
+          description: The application.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/Application" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [applications]
+      summary: Change application status
+      description: |
+        Allowed transitions:
+        planned → applied, withdrawn;
+        applied → interviewing, offer, rejected, withdrawn;
+        interviewing → offer, rejected, withdrawn;
+        offer → accepted, rejected, withdrawn;
+        accepted → withdrawn;
+        rejected → planned, applied;
+        withdrawn → planned, applied.
+        Setting the current status again succeeds without adding history.
+      operationId: updateApplication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [status]
+              properties:
+                status: { $ref: "#/components/schemas/ApplicationStatus" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/Application" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`invalid_transition`: the workflow does not allow this change."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
+  /api/v1/workspaces/{workspaceID}/applications/{applicationID}/attempts:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+      - $ref: "#/components/parameters/ApplicationID"
+    get:
+      tags: [applications]
+      summary: List application attempts in order
+      operationId: listAttempts
+      responses:
+        "200":
+          description: Attempts.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Attempt" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [applications]
+      summary: Record an application attempt
+      description: |
+        Attempts are numbered from 1 and never modified. Recording an attempt on a
+        planned, rejected or withdrawn application moves it to `applied`.
+      operationId: addAttempt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [applied_at]
+              properties:
+                applied_at:
+                  type: string
+                  format: date-time
+                  description: Any offset is accepted; responses are UTC. At most 24 hours in the future.
+                channel: { type: string, maxLength: 100, example: Company site }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/Attempt" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
+  /api/v1/workspaces/{workspaceID}/applications/{applicationID}/events:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+      - $ref: "#/components/parameters/ApplicationID"
+    get:
+      tags: [applications]
+      summary: Application history
+      description: Ordered by `occurred_at`, so a back-dated attempt can appear before `created`.
+      operationId: listEvents
+      responses:
+        "200":
+          description: Events.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Event" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [applications]
+      summary: Add an interview, follow-up or deadline
+      operationId: addEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [type, occurred_at]
+              properties:
+                type: { type: string, enum: [interview, follow_up, deadline] }
+                occurred_at: { type: string, format: date-time }
+                attempt_id:
+                  type: string
+                  format: uuid
+                  description: Must be an attempt of the same application.
+                details:
+                  type: object
+                  description: Free-form JSON object, at most 4096 bytes when encoded.
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/Event" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
+  /api/v1/workspaces/{workspaceID}/applications/{applicationID}/tags:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+      - $ref: "#/components/parameters/ApplicationID"
+    get:
+      tags: [tags]
+      summary: List an application's tags
+      operationId: listApplicationTags
+      responses:
+        "200":
+          description: Tags.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Tag" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/workspaces/{workspaceID}/applications/{applicationID}/tags/{tagID}:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+      - $ref: "#/components/parameters/ApplicationID"
+      - name: tagID
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      tags: [tags]
+      summary: Attach a tag (idempotent)
+      operationId: tagApplication
+      responses:
+        "204": { description: Attached. }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [tags]
+      summary: Detach a tag
+      operationId: untagApplication
+      responses:
+        "204": { description: Detached. }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/workspaces/{workspaceID}/applications/{applicationID}/notes:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+      - $ref: "#/components/parameters/ApplicationID"
+    get:
+      tags: [notes]
+      summary: List notes, oldest first
+      operationId: listNotes
+      responses:
+        "200":
+          description: Notes.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Note" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [notes]
+      summary: Add a note
+      operationId: addNote
+      requestBody: { $ref: "#/components/requestBodies/NoteBody" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/Note" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
+  /api/v1/workspaces/{workspaceID}/applications/{applicationID}/notes/{noteID}:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+      - $ref: "#/components/parameters/ApplicationID"
+      - name: noteID
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      tags: [notes]
+      summary: Edit a note
+      operationId: updateNote
+      requestBody: { $ref: "#/components/requestBodies/NoteBody" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/Note" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
+
+components:
+  parameters:
+    WorkspaceID:
+      name: workspaceID
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    JobID:
+      name: jobID
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ApplicationID:
+      name: applicationID
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    Cursor:
+      name: cursor
+      in: query
+      description: Opaque value from a previous page's `next_cursor`.
+      schema: { type: string }
+
+  requestBodies:
+    NoteBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required: [body]
+            properties:
+              body: { type: string, minLength: 1, maxLength: 10000 }
+
+  responses:
+    BadRequest:
+      description: "`bad_request`: the body is missing, not JSON, or has unknown fields."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: "`not_found`: the resource does not exist in this workspace, or an ID is malformed."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: "`conflict`: the resource already exists."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    InvalidInput:
+      description: "`invalid_input`: one or more fields are invalid; see `fields`."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum: [bad_request, not_found, conflict, invalid_transition, invalid_input,
+                method_not_allowed, payload_too_large, internal, error]
+            message: { type: string }
+            fields:
+              type: array
+              items:
+                type: object
+                required: [field, message]
+                properties:
+                  field: { type: string }
+                  message: { type: string }
+      example:
+        error:
+          code: invalid_input
+          message: The request contains invalid fields.
+          fields:
+            - field: limit
+              message: must be an integer between 1 and 100
+    WorkArrangement:
+      type: string
+      enum: [onsite, hybrid, remote, unknown]
+    EmploymentType:
+      type: string
+      enum: [full_time, part_time, contract, internship, temporary, unknown]
+    Seniority:
+      type: string
+      enum: [intern, junior, mid, senior, lead, unknown]
+    ApplicationStatus:
+      type: string
+      enum: [planned, applied, interviewing, offer, accepted, rejected, withdrawn]
+    Job:
+      type: object
+      required: [id, title, company_name, location, work_arrangement, employment_type,
+        seniority, technologies, description, first_seen_at, last_seen_at]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        company_name: { type: string }
+        location: { type: [string, "null"] }
+        work_arrangement: { $ref: "#/components/schemas/WorkArrangement" }
+        employment_type: { $ref: "#/components/schemas/EmploymentType" }
+        seniority: { $ref: "#/components/schemas/Seniority" }
+        technologies:
+          type: array
+          items: { type: string }
+          description: Lower-case.
+        description: { type: string }
+        first_seen_at: { type: string, format: date-time }
+        last_seen_at: { type: string, format: date-time }
+    JobDetail:
+      allOf:
+        - $ref: "#/components/schemas/Job"
+        - type: object
+          required: [listings]
+          properties:
+            listings:
+              type: array
+              items: { $ref: "#/components/schemas/Listing" }
+    Listing:
+      type: object
+      required: [id, source_id, url, source_posted_at, source_updated_at, last_ingested_at]
+      properties:
+        id: { type: string, format: uuid }
+        source_id: { type: string, format: uuid }
+        url: { type: string, format: uri, description: Original listing URL. }
+        source_posted_at: { type: [string, "null"], format: date-time }
+        source_updated_at: { type: [string, "null"], format: date-time }
+        last_ingested_at: { type: string, format: date-time }
+    SavedJob:
+      type: object
+      required: [saved_at, saved_by, job]
+      properties:
+        saved_at: { type: string, format: date-time }
+        saved_by: { type: [string, "null"], format: uuid }
+        job: { $ref: "#/components/schemas/Job" }
+    Application:
+      type: object
+      required: [id, job_id, status, created_by, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        job_id: { type: string, format: uuid }
+        status: { $ref: "#/components/schemas/ApplicationStatus" }
+        created_by: { type: [string, "null"], format: uuid }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    Attempt:
+      type: object
+      required: [id, attempt_number, applied_at, channel, created_by, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        attempt_number: { type: integer, minimum: 1 }
+        applied_at: { type: string, format: date-time }
+        channel: { type: string }
+        created_by: { type: [string, "null"], format: uuid }
+        created_at: { type: string, format: date-time }
+    Event:
+      type: object
+      required: [id, type, attempt_id, from_status, to_status, occurred_at, details, created_by, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        type:
+          type: string
+          enum: [created, status_changed, attempt_added, interview, follow_up, deadline]
+        attempt_id: { type: [string, "null"], format: uuid }
+        from_status:
+          oneOf:
+            - $ref: "#/components/schemas/ApplicationStatus"
+            - type: "null"
+        to_status:
+          oneOf:
+            - $ref: "#/components/schemas/ApplicationStatus"
+            - type: "null"
+        occurred_at: { type: string, format: date-time }
+        details: { type: object }
+        created_by: { type: [string, "null"], format: uuid }
+        created_at: { type: string, format: date-time }
+    Tag:
+      type: object
+      required: [id, name, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        created_at: { type: string, format: date-time }
+    Note:
+      type: object
+      required: [id, author_id, body, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        author_id: { type: [string, "null"], format: uuid }
+        body: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }

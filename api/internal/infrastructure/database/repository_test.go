@@ -294,11 +294,19 @@ func TestApplicationHistory(t *testing.T) {
 			statusChanges = append(statusChanges, string(*e.FromStatus)+"->"+string(*e.ToStatus))
 		}
 	}
-	if got := strings.Join(statusChanges, ","); got != "planned->applied,applied->rejected" {
+	// The first attempt moved planned->applied; the second reopened the
+	// rejected application.
+	if got := strings.Join(statusChanges, ","); got != "planned->applied,applied->rejected,rejected->applied" {
 		t.Fatalf("status history = %s", got)
 	}
-	if len(events) != 5 { // created, 2 status changes, 2 attempts
-		t.Fatalf("events = %d, want 5", len(events))
+	if len(events) != 6 { // created, 3 status changes, 2 attempts
+		t.Fatalf("events = %d, want 6", len(events))
+	}
+
+	_, err = apps.ChangeStatus(ctx, f.workspace.ID, app.ID, domain.StatusAccepted, nil)
+	var notAllowed domain.ErrTransitionNotAllowed
+	if !errors.As(err, &notAllowed) || !errors.Is(err, domain.ErrConflict) {
+		t.Fatalf("applied->accepted error = %v, want transition conflict", err)
 	}
 
 	_, err = apps.ChangeStatus(ctx, f.workspace.ID, app.ID, "ghosted", nil)
@@ -317,7 +325,7 @@ func TestApplicationHistory(t *testing.T) {
 		t.Fatalf("details = %v", interview.Details)
 	}
 
-	status := domain.StatusRejected
+	status := domain.StatusApplied
 	list, err := apps.List(ctx, f.workspace.ID, &status)
 	if err != nil {
 		t.Fatal(err)
@@ -481,7 +489,7 @@ func TestTagsAndNotes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	updated, err := annotations.UpdateNote(ctx, f.workspace.ID, note.ID, "Recruiter call went very well")
+	updated, err := annotations.UpdateNote(ctx, f.workspace.ID, app.ID, note.ID, "Recruiter call went very well")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -497,5 +505,94 @@ func TestTagsAndNotes(t *testing.T) {
 	}
 	if len(notes) != 1 || notes[0].Body != "Recruiter call went very well" {
 		t.Fatalf("notes = %+v", notes)
+	}
+}
+
+func TestSearchJobs(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	jobs := NewJobRepository(testPool)
+
+	// A unique company keeps this test independent of jobs created elsewhere.
+	company := uniq("Search Co 100%_")
+	base := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	add := func(i int, title, arrangement string, tech ...string) {
+		t.Helper()
+		_, _, err := jobs.UpsertListing(ctx, IngestedListing{
+			SourceID: f.source.ID, ExternalID: uniq("ext"), URL: "https://jobs.example.com/s",
+			SeenAt: base.Add(time.Duration(i) * time.Hour), DedupeKey: uniq("dk"),
+			Title: title, CompanyName: company, WorkArrangement: arrangement, Technologies: tech,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	add(1, "Go Engineer", "remote", "Go", "PostgreSQL")
+	add(2, "Frontend Engineer", "hybrid", "react")
+	add(3, "Platform Engineer", "remote", "go", "kubernetes")
+	add(4, "Data Analyst", "onsite", "sql")
+
+	titles := func(js []domain.Job) string {
+		out := make([]string, len(js))
+		for i, j := range js {
+			out[i] = j.Title
+		}
+		return strings.Join(out, ",")
+	}
+
+	got, more, err := jobs.SearchJobs(ctx, JobFilter{Query: company, WorkArrangement: "remote", Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if titles(got) != "Platform Engineer,Go Engineer" || more {
+		t.Fatalf("remote jobs = %s (more=%v)", titles(got), more)
+	}
+
+	got, _, err = jobs.SearchJobs(ctx, JobFilter{Query: company, Technologies: []string{"GO", "postgresql"}, Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if titles(got) != "Go Engineer" {
+		t.Fatalf("technology filter = %s", titles(got))
+	}
+
+	// LIKE wildcards in the query match literally: the decoy would match an
+	// unescaped "%100%_%" pattern.
+	if _, _, err := jobs.UpsertListing(ctx, IngestedListing{
+		SourceID: f.source.ID, ExternalID: uniq("ext"), URL: "https://jobs.example.com/d",
+		DedupeKey: uniq("dk"), Title: "Decoy", CompanyName: "Decoy 1000 Corp",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got, _, err = jobs.SearchJobs(ctx, JobFilter{Query: "100%_", Limit: 100})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, j := range got {
+		if j.CompanyName != company {
+			t.Fatalf("wildcard query matched %q", j.CompanyName)
+		}
+	}
+
+	// Paginate two at a time through all four jobs.
+	var all []string
+	var after *JobCursor
+	for page := 0; ; page++ {
+		got, more, err := jobs.SearchJobs(ctx, JobFilter{Query: company, Limit: 2, After: after})
+		if err != nil {
+			t.Fatal(err)
+		}
+		all = append(all, titles(got))
+		if !more {
+			break
+		}
+		last := got[len(got)-1]
+		after = &JobCursor{LastSeenAt: last.LastSeenAt, ID: last.ID}
+		if page > 3 {
+			t.Fatal("pagination did not terminate")
+		}
+	}
+	if strings.Join(all, "|") != "Data Analyst,Platform Engineer|Frontend Engineer,Go Engineer" {
+		t.Fatalf("pages = %v", all)
 	}
 }
