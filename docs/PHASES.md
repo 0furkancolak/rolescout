@@ -262,25 +262,38 @@ Notes:
 
 ## Phase 8 - Release and Self-Hosting
 
-Status: NOT_STARTED
+Status: DONE
 
 Goals:
 - Make installation repeatable for external users
 - Publish release and maintenance documentation
 
 Tasks:
-- [ ] Document environment variables
-- [ ] Document Docker Compose installation
-- [ ] Document upgrades and migrations
-- [ ] Document backup and restore
-- [ ] Add production deployment guidance
-- [ ] Verify clean installation from a fresh checkout
-- [ ] Prepare release checklist
+- [x] Document environment variables
+- [x] Document Docker Compose installation
+- [x] Document upgrades and migrations
+- [x] Document backup and restore
+- [x] Add production deployment guidance
+- [x] Verify clean installation from a fresh checkout
+- [x] Prepare release checklist
 
 Exit criteria:
 - A new operator can install the application from documentation
 - Upgrade and backup procedures are documented and verified
 - Release checks pass
+
+Notes:
+- Docs: docs/installation.md, configuration.md, deployment.md,
+  operations.md, RELEASING.md; CHANGELOG.md prepares 0.1.0.
+- Clean installation verified from a fresh clone with a separate Compose
+  project and ports, following docs/installation.md: stack healthy, smoke test
+  passed, version string reported. The HTTPS override was verified with
+  `ROLESCOUT_DOMAIN=localhost` (Caddy internal certificate): HTTPS, HSTS,
+  Secure cookies and client addresses forwarded through nginx.
+- Backup and restore are verified in CI on every change (e2e job); CI run
+  39031914862 passed all jobs.
+- Tagging v0.1.0 and publishing a GitHub release are left to the maintainer
+  (docs/RELEASING.md).
 
 ## Phase 9 - Post-MVP Improvements
 
