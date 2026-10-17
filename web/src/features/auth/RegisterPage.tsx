@@ -34,13 +34,13 @@ export function RegisterPage() {
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { locale } });
 
-  if (me.data) return <Navigate to="/jobs" replace />;
+  if (me.data) return <Navigate to="/" replace />;
 
   const onSubmit = handleSubmit((values) =>
     registerUser.mutate(values, {
       onSuccess: (user) => {
         setLocale(user.locale);
-        navigate("/jobs", { replace: true });
+        navigate("/", { replace: true });
       },
     }),
   );

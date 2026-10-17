@@ -7,7 +7,7 @@ import { LoginPage } from "../features/auth/LoginPage";
 import { RegisterPage } from "../features/auth/RegisterPage";
 import { RequireAuth } from "../features/auth/RequireAuth";
 import { JobRedirect } from "../features/jobs/JobRedirect";
-import { JobSearchPage } from "../features/jobs/JobSearchPage";
+import { JobsPage } from "../features/jobs/JobsPage";
 import { DashboardPage } from "../features/dashboard/DashboardPage";
 import { ProfileEditPage } from "../features/research/ProfileEditPage";
 import { ResearchPage } from "../features/research/ResearchPage";
@@ -32,7 +32,7 @@ export const routes: RouteObject[] = [
       { path: "research", element: <ResearchPage /> },
       { path: "research/profiles/:profileId", element: <ProfileEditPage /> },
       { path: "research/runs/:runId", element: <RunPage /> },
-      { path: "jobs", element: <JobSearchPage /> },
+      { path: "jobs", element: <JobsPage /> },
       { path: "jobs/:jobId", element: <JobRedirect /> },
       { path: "saved", element: <SavedJobsPage /> },
       { path: "applications", element: <ApplicationsPage /> },

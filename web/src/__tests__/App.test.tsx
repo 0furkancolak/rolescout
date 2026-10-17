@@ -1,7 +1,7 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { makeJob, mockApi, renderApp, signedIn, user, workspace } from "../test/utils";
+import { mockApi, renderApp, signedIn, user, workspace } from "../test/utils";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -34,15 +34,21 @@ describe("App", () => {
   });
 
   it("renders the app in Turkish and switches language", async () => {
-    mockApi({ ...signedIn(), "GET /jobs": { body: { data: [makeJob(1)], next_cursor: null } } });
-    renderApp("/jobs", { locale: "tr" });
+    const ws = `/workspaces/${workspace.id}`;
+    mockApi({
+      ...signedIn(),
+      [`GET ${ws}/research-profiles`]: { body: { data: [] } },
+      [`GET ${ws}/research-runs`]: { body: { data: [] } },
+      [`GET ${ws}/applications`]: { body: { data: [] } },
+    });
+    renderApp("/", { locale: "tr" });
 
-    expect(await screen.findByRole("heading", { name: "İlan ara" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Pano" })).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Ana menü" })).toBeInTheDocument();
     expect(document.documentElement.lang).toBe("tr");
 
     await userEvent.selectOptions(screen.getAllByRole("combobox", { name: "Dil" })[0], "en");
-    expect(await screen.findByRole("heading", { name: "Find jobs" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
     expect(document.documentElement.lang).toBe("en");
   });
 

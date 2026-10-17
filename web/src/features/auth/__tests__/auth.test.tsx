@@ -32,9 +32,9 @@ describe("LoginPage", () => {
 
   it("only redirects to in-app paths", () => {
     expect(redirectTarget({ from: "/saved" })).toBe("/saved");
-    expect(redirectTarget({ from: "//evil.example" })).toBe("/jobs");
-    expect(redirectTarget({ from: "https://evil.example" })).toBe("/jobs");
-    expect(redirectTarget(null)).toBe("/jobs");
+    expect(redirectTarget({ from: "//evil.example" })).toBe("/");
+    expect(redirectTarget({ from: "https://evil.example" })).toBe("/");
+    expect(redirectTarget(null)).toBe("/");
   });
 });
 
@@ -63,19 +63,22 @@ describe("RegisterPage", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Registration is disabled on this server.");
   });
 
-  it("registers and opens the job search", async () => {
+  it("registers and opens the dashboard", async () => {
+    const ws = `/workspaces/${workspace.id}`;
     const api = mockApi({
       ...signedOut,
       "POST /auth/register": { status: 201, body: { data: user } },
       "GET /workspaces": { body: { data: [workspace] } },
-      "GET /jobs": { body: { data: [], next_cursor: null } },
+      [`GET ${ws}/research-profiles`]: { body: { data: [] } },
+      [`GET ${ws}/research-runs`]: { body: { data: [] } },
+      [`GET ${ws}/applications`]: { body: { data: [] } },
     });
     renderApp("/register");
     await userEvent.type(await screen.findByLabelText("Name"), " Ada ");
     await userEvent.type(screen.getByLabelText("Email"), "ada@example.com");
     await userEvent.type(screen.getByLabelText("Password"), "a long enough password");
     await userEvent.click(screen.getByRole("button", { name: "Create account" }));
-    expect(await screen.findByRole("heading", { name: "Find jobs" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
     expect(api.calls.find((c) => c.path === "/auth/register")?.body).toEqual({
       display_name: "Ada",
       email: "ada@example.com",
