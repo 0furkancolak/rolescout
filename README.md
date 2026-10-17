@@ -13,11 +13,12 @@ Requirements: Docker with the Compose plugin.
 
 ```bash
 git clone https://github.com/0furkancolak/rolescout.git && cd rolescout
-cp .env.example .env          # set POSTGRES_PASSWORD
-docker compose up -d --build --wait
+make up                       # creates .env with a random password, starts everything
 ```
 
-Open http://127.0.0.1:4173 and create your account.
+Open http://127.0.0.1:4173 and create your account. Without `make`, run
+`cp .env.example .env`, set `POSTGRES_PASSWORD`, then
+`docker compose up -d --build --wait`.
 
 ## Documentation
 | Topic | |
@@ -45,16 +46,20 @@ Open http://127.0.0.1:4173 and create your account.
 Requirements: Docker with Compose, Go 1.27+, Node.js 22+.
 
 ```bash
-docker compose up -d --build --wait     # full stack
-cd web && npm ci && npm run dev         # UI with hot reload on :5173, proxies /api to :8080
+make dev      # PostgreSQL, API and worker in Docker; UI with hot reload on http://127.0.0.1:5173
+make down     # stop the containers (data is kept)
+make help     # all tasks
 ```
+
+`make dev` creates `.env` on first run, installs the web dependencies when
+`package-lock.json` changes, and proxies `/api` to the API container.
 
 Checks:
 
 ```bash
-cd api && gofmt -l . && go vet ./... && go test -race ./...
-cd web && npm run lint && npm test && npm run build
-scripts/smoke.sh                        # end to end against the running stack
+make lint test                          # gofmt, go vet, oxlint, Go and web tests
+cd web && npm run build
+make up smoke                           # end to end against the full Docker stack
 ```
 
 Database tests run when `TEST_DATABASE_URL` is set and are skipped otherwise.

@@ -5,6 +5,10 @@ All notable changes are listed here. Versions follow
 include breaking changes, which are called out.
 
 ## [Unreleased]
+### Added
+- `Makefile` with `make dev` (backend in Docker, web app with hot reload) and
+  `up`, `down`, `logs`, `test`, `lint` and `smoke` tasks.
+- `scripts/init-env.sh` creates `.env` with a random database password.
 
 ## [0.1.0] - 2026-10-17
 
