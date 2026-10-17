@@ -3,6 +3,8 @@ package httptransport
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -198,4 +200,22 @@ func TestMembersCannotManageMembers(t *testing.T) {
 	app := newTestApp(Deps{Workspaces: member})
 	r := call(t, app, "POST", wsPath+"/members", map[string]string{"email": "x@example.com"})
 	expectError(t, r, 403, "forbidden")
+}
+
+func TestRequestBodiesMustBeJSON(t *testing.T) {
+	app := newTestApp(Deps{Workspaces: allowAll})
+	for _, ct := range []string{"text/plain", "application/x-www-form-urlencoded", ""} {
+		req := httptest.NewRequest("POST", wsPath+"/tags", strings.NewReader(`{"name":"go"}`))
+		if ct != "" {
+			req.Header.Set("Content-Type", ct)
+		}
+		req.AddCookie(&http.Cookie{Name: sessionCookie, Value: testToken})
+		resp, err := app.Test(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resp.StatusCode != fiber.StatusUnsupportedMediaType {
+			t.Errorf("Content-Type %q: status %d, want 415", ct, resp.StatusCode)
+		}
+	}
 }

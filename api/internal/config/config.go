@@ -2,8 +2,11 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
+	"net"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -21,6 +24,15 @@ type Config struct {
 	AllowRegistration bool
 	// WorkerTick is how often the worker checks for sources due to sync.
 	WorkerTick time.Duration
+	// TrustedProxies lists proxy IPs or CIDR ranges whose X-Real-IP header is
+	// trusted for the client address (used by rate limiting).
+	TrustedProxies []string
+	// LoginRateLimit and RegisterRateLimit cap failed sign-ins per 15 minutes
+	// and sign-ups per hour from one IP address; 0 disables the limit.
+	LoginRateLimit    int
+	RegisterRateLimit int
+	// LogLevel is debug, info, warn or error.
+	LogLevel slog.Level
 }
 
 func Load() (Config, error) {
@@ -66,6 +78,35 @@ func Load() (Config, error) {
 		workerTick = parsed
 	}
 
+	var trustedProxies []string
+	for _, p := range strings.Split(os.Getenv("TRUSTED_PROXIES"), ",") {
+		if p = strings.TrimSpace(p); p == "" {
+			continue
+		}
+		if net.ParseIP(p) == nil {
+			if _, _, err := net.ParseCIDR(p); err != nil {
+				return Config{}, fmt.Errorf("invalid TRUSTED_PROXIES entry %q: use IP addresses or CIDR ranges", p)
+			}
+		}
+		trustedProxies = append(trustedProxies, p)
+	}
+
+	loginLimit, err := intEnv("LOGIN_RATE_LIMIT", 10)
+	if err != nil {
+		return Config{}, err
+	}
+	registerLimit, err := intEnv("REGISTER_RATE_LIMIT", 5)
+	if err != nil {
+		return Config{}, err
+	}
+
+	var logLevel slog.Level
+	if raw := os.Getenv("LOG_LEVEL"); raw != "" {
+		if err := logLevel.UnmarshalText([]byte(raw)); err != nil {
+			return Config{}, fmt.Errorf("invalid LOG_LEVEL: use debug, info, warn or error")
+		}
+	}
+
 	cookieSecure, err := boolEnv("COOKIE_SECURE", true)
 	if err != nil {
 		return Config{}, err
@@ -84,7 +125,23 @@ func Load() (Config, error) {
 		CookieSecure:      cookieSecure,
 		AllowRegistration: allowRegistration,
 		WorkerTick:        workerTick,
+		TrustedProxies:    trustedProxies,
+		LoginRateLimit:    loginLimit,
+		RegisterRateLimit: registerLimit,
+		LogLevel:          logLevel,
 	}, nil
+}
+
+func intEnv(name string, fallback int) (int, error) {
+	raw := os.Getenv(name)
+	if raw == "" {
+		return fallback, nil
+	}
+	v, err := strconv.Atoi(raw)
+	if err != nil || v < 0 {
+		return 0, fmt.Errorf("invalid %s: use a whole number of at least 0", name)
+	}
+	return v, nil
 }
 
 func boolEnv(name string, fallback bool) (bool, error) {

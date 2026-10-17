@@ -1,6 +1,7 @@
 package config
 
 import (
+	"log/slog"
 	"testing"
 	"time"
 )
@@ -65,5 +66,36 @@ func TestLoadRejectsInvalidPort(t *testing.T) {
 
 	if _, err := Load(); err == nil {
 		t.Fatal("expected invalid API_PORT to fail")
+	}
+}
+
+func TestLoadOperationalSettings(t *testing.T) {
+	t.Setenv("TRUSTED_PROXIES", " 10.0.0.0/8, 192.168.1.10 ")
+	t.Setenv("LOGIN_RATE_LIMIT", "0")
+	t.Setenv("LOG_LEVEL", "debug")
+	t.Setenv("WORKER_TICK", "30s")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.TrustedProxies) != 2 || cfg.TrustedProxies[1] != "192.168.1.10" {
+		t.Fatalf("trusted proxies = %v", cfg.TrustedProxies)
+	}
+	if cfg.LoginRateLimit != 0 || cfg.RegisterRateLimit != 5 || cfg.LogLevel != slog.LevelDebug || cfg.WorkerTick != 30*time.Second {
+		t.Fatalf("settings not applied: %+v", cfg)
+	}
+}
+
+func TestLoadRejectsInvalidOperationalSettings(t *testing.T) {
+	for name, value := range map[string]string{
+		"TRUSTED_PROXIES": "10.0.0.0/8,not-an-ip", "LOGIN_RATE_LIMIT": "-1",
+		"REGISTER_RATE_LIMIT": "many", "LOG_LEVEL": "loud", "WORKER_TICK": "1s",
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Setenv(name, value)
+			if _, err := Load(); err == nil {
+				t.Fatalf("%s=%q accepted", name, value)
+			}
+		})
 	}
 }

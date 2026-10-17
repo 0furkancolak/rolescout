@@ -53,6 +53,7 @@ type WorkspaceAuthorizer interface {
 type Deps struct {
 	Auth           AuthStore
 	AuthConfig     AuthConfig
+	RateLimits     RateLimits
 	WorkspaceStore WorkspaceStore
 	Jobs           JobStore
 	Applications   ApplicationStore
@@ -71,8 +72,9 @@ func RegisterAPIRoutes(app *fiber.App, d Deps) {
 	v1 := app.Group("/api/v1")
 
 	// Public routes are registered before the authentication middleware.
-	v1.Post("/auth/register", h.register)
-	v1.Post("/auth/login", h.login)
+	v1.Post("/auth/register", rateLimit(d.RateLimits.Register, false), renderErrors, h.register)
+	// Only failed sign-ins count, so a user who signs in often is not locked out.
+	v1.Post("/auth/login", rateLimit(d.RateLimits.Login, true), renderErrors, h.login)
 	v1.Post("/auth/logout", h.logout)
 
 	private := v1.Group("", h.requireUser)

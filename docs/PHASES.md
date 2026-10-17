@@ -222,7 +222,7 @@ Notes:
 
 ## Phase 7 - Quality, Security, and Observability
 
-Status: NOT_STARTED
+Status: DONE
 
 Goals:
 - Improve production reliability
@@ -230,20 +230,35 @@ Goals:
 - Establish useful operational signals
 
 Tasks:
-- [ ] Add structured logging and request IDs
-- [ ] Review secrets and configuration handling
-- [ ] Review input validation and SQL usage
-- [ ] Add rate limiting where appropriate
-- [ ] Add metrics and operational diagnostics
-- [ ] Test backup and restore procedures
-- [ ] Add end-to-end smoke tests
-- [ ] Review dependency and container security
+- [x] Add structured logging and request IDs
+- [x] Review secrets and configuration handling
+- [x] Review input validation and SQL usage
+- [x] Add rate limiting where appropriate
+- [x] Add metrics and operational diagnostics
+- [x] Test backup and restore procedures
+- [x] Add end-to-end smoke tests
+- [x] Review dependency and container security
 
 Exit criteria:
 - Critical workflows have automated coverage
 - Operational failures are diagnosable
 - Backup and restore procedures are tested
 - Security review findings are addressed or documented
+
+Notes:
+- Review and known limitations: docs/security.md.
+- API and worker log JSON lines; API requests carry `X-Request-ID`. The API
+  serves Prometheus metrics at `/metrics`; ingestion runs are inspected with
+  `admin sources runs`.
+- Sign-in and sign-up are rate limited per client IP; request bodies must be
+  JSON.
+- `scripts/smoke.sh` checks a running stack through nginx;
+  `scripts/backup.sh` and `scripts/restore.sh` were verified by deleting data
+  and restoring it. CI runs both against a fresh Compose stack, plus
+  govulncheck and npm audit.
+- End-to-end browser tests (Playwright) were not added to avoid a new
+  dependency; the UI flows are covered by Testing Library tests and the API
+  flows by the smoke test.
 
 ## Phase 8 - Release and Self-Hosting
 

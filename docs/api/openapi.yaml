@@ -103,6 +103,7 @@ paths:
                 properties:
                   data: { $ref: "#/components/schemas/User" }
         "400": { $ref: "#/components/responses/BadRequest" }
+        "429": { $ref: "#/components/responses/RateLimited" }
         "403":
           description: "`registration_closed`: sign-ups are disabled."
           content:
@@ -141,6 +142,7 @@ paths:
                 properties:
                   data: { $ref: "#/components/schemas/User" }
         "400": { $ref: "#/components/responses/BadRequest" }
+        "429": { $ref: "#/components/responses/RateLimited" }
         "401":
           description: "`invalid_credentials`: same response for unknown emails and wrong passwords."
           content:
@@ -836,6 +838,11 @@ components:
           schema: { $ref: "#/components/schemas/Error" }
     InvalidInput:
       description: "`invalid_input`: one or more fields are invalid; see `fields`."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    RateLimited:
+      description: "`rate_limited`: too many attempts from this IP address; try again later."
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }

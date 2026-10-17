@@ -9,3 +9,6 @@ dist/
 node_modules/
 *.log
 api/bin/
+
+# Database backups
+backups/

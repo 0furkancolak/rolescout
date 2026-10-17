@@ -3,9 +3,10 @@ package httptransport
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/requestid"
 
 	"example.com/rolescout/api/internal/domain"
 )
@@ -38,7 +39,8 @@ func badRequest(format string, args ...any) error {
 func ErrorHandler(c fiber.Ctx, err error) error {
 	status, detail := classify(err)
 	if status == fiber.StatusInternalServerError {
-		log.Printf("%s %s: %v", c.Method(), c.Path(), err)
+		slog.ErrorContext(c.Context(), "unexpected error",
+			"request_id", requestid.FromContext(c), "method", c.Method(), "path", c.Path(), "error", err)
 	}
 	return c.Status(status).JSON(errorBody{Error: detail})
 }
@@ -89,6 +91,10 @@ func fiberCode(status int) string {
 		return "payload_too_large"
 	case fiber.StatusBadRequest:
 		return "bad_request"
+	case fiber.StatusTooManyRequests:
+		return "rate_limited"
+	case fiber.StatusUnsupportedMediaType:
+		return "unsupported_media_type"
 	default:
 		if status >= 500 {
 			return "internal"

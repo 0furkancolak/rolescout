@@ -5,7 +5,8 @@ The contract is [openapi.yaml](openapi.yaml) (OpenAPI 3.1). Keep it in sync with
 
 ## Basics
 - Base path: `/api/v1`. Health checks stay at `/healthz` and `/readyz`.
-- JSON only, `snake_case` field names. Request bodies are decoded strictly:
+- JSON only, `snake_case` field names. Requests with a body must send
+  `Content-Type: application/json`. Request bodies are decoded strictly:
   unknown fields, trailing data and bodies over 1 MiB are rejected.
 - Timestamps are RFC 3339. Requests may use any offset; responses are UTC.
 - IDs are UUIDs. A malformed ID in the path returns `404`, because it cannot
@@ -35,7 +36,9 @@ Every error uses one shape:
 | 404 | `not_found` | Not found in this workspace, or malformed ID |
 | 409 | `conflict` | Duplicate (application for a job, tag name) |
 | 409 | `invalid_transition` | Status change not allowed by the workflow |
+| 415 | `unsupported_media_type` | Body sent without `Content-Type: application/json` |
 | 422 | `invalid_input` | Field validation failed; see `fields` |
+| 429 | `rate_limited` | Too many sign-in or sign-up attempts from one IP |
 | 500 | `internal` | Unexpected error; details are logged, never returned |
 
 ## Pagination, filtering and sorting
@@ -56,6 +59,10 @@ Every error uses one shape:
   session, including unknown routes, so route names are not revealed.
 - Login failures always return `401 invalid_credentials`, whether the email
   exists or not.
+- Per IP address, 10 failed sign-ins per 15 minutes (`LOGIN_RATE_LIMIT`) and 5
+  sign-ups per hour (`REGISTER_RATE_LIMIT`) are allowed; more return
+  `429 rate_limited`. Counters live in the API process memory. Behind a proxy,
+  set `TRUSTED_PROXIES` so the client address is read from `X-Real-IP`.
 - Registration is open while the installation has no users; afterwards it
   needs `ALLOW_REGISTRATION=true`, otherwise `403 registration_closed`.
 

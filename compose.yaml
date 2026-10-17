@@ -31,8 +31,16 @@ services:
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-false}
       SESSION_TTL: ${SESSION_TTL:-720h}
+      # nginx forwards the client address in X-Real-IP from the Compose network.
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.16.0.0/12,10.0.0.0/8,192.168.0.0/16}
+      LOGIN_RATE_LIMIT: ${LOGIN_RATE_LIMIT:-10}
+      REGISTER_RATE_LIMIT: ${REGISTER_RATE_LIMIT:-5}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     ports:
       - "127.0.0.1:8080:8080"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
     depends_on:
       postgres:
         condition: service_healthy
@@ -51,6 +59,9 @@ services:
     environment:
       DATABASE_URL: "postgres://${POSTGRES_USER:-rolescout}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-rolescout}?sslmode=disable"
       WORKER_TICK: ${WORKER_TICK:-1m}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
     # The API applies migrations on startup; wait until it is ready.
     depends_on:
       api:
@@ -74,7 +85,16 @@ services:
       context: ./web
     restart: unless-stopped
     ports:
-      - "127.0.0.1:4173:80"
+      - "127.0.0.1:${WEB_PORT:-4173}:8080"
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
     depends_on:
       api:
         condition: service_healthy

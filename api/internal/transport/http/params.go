@@ -32,8 +32,13 @@ func pathID(c fiber.Ctx, name string) (string, error) {
 }
 
 // decodeJSON strictly decodes the request body: unknown fields and trailing
-// data are rejected.
+// data are rejected. The body must be declared as JSON, which browsers cannot
+// send cross-origin without a CORS preflight; this backs up the SameSite
+// cookie against forged requests.
 func decodeJSON(c fiber.Ctx, dst any) error {
+	if mt, _, _ := strings.Cut(c.Get(fiber.HeaderContentType), ";"); !strings.EqualFold(strings.TrimSpace(mt), fiber.MIMEApplicationJSON) {
+		return fiber.NewError(fiber.StatusUnsupportedMediaType, "Content-Type must be application/json.")
+	}
 	dec := json.NewDecoder(bytes.NewReader(c.Body()))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(dst); err != nil {
