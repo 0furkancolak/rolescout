@@ -35,7 +35,7 @@ describe("App", () => {
 
   it("renders the app in Turkish and switches language", async () => {
     mockApi({ ...signedIn(), "GET /jobs": { body: { data: [makeJob(1)], next_cursor: null } } });
-    renderApp("/", { locale: "tr" });
+    renderApp("/jobs", { locale: "tr" });
 
     expect(await screen.findByRole("heading", { name: "İlan ara" })).toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Ana menü" })).toBeInTheDocument();

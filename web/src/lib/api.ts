@@ -25,6 +25,7 @@ export interface User {
   email: string;
   display_name: string;
   locale: Locale;
+  is_admin?: boolean;
   created_at: string;
 }
 
@@ -53,8 +54,128 @@ export interface Job {
   seniority: string;
   technologies: string[];
   description: string;
+  company_id?: string | null;
+  country_code?: string | null;
+  closed_at?: string | null;
   first_seen_at: string;
   last_seen_at: string;
+}
+
+export interface MatchReason {
+  code: "title" | "keyword" | "role" | "tech" | "remote" | "country" | "location" | "hybrid" | "seniority" | "fresh";
+  params?: Record<string, string>;
+}
+
+export interface Match {
+  score: number;
+  new: boolean;
+  reasons: MatchReason[];
+}
+
+// WorkspaceJob is a job as the current workspace sees it.
+export interface WorkspaceJob extends Job {
+  saved: boolean;
+  match: Match | null;
+}
+
+export interface FacetCount {
+  value: string;
+  label: string;
+  count: number;
+}
+
+export interface Facets {
+  posted: Record<string, number>;
+  arrangement: Record<string, number>;
+  seniority: Record<string, number>;
+  country: Record<string, number>;
+  technologies: FacetCount[];
+  companies: FacetCount[];
+}
+
+export type RemotePreference = "any" | "remote_only" | "remote_or_hybrid" | "onsite_ok";
+
+export interface ResearchProfile {
+  id: string;
+  name: string;
+  title_keywords: string[];
+  keywords: string[];
+  technologies: string[];
+  countries: string[];
+  locations: string[];
+  excluded_keywords: string[];
+  remote: RemotePreference;
+  seniority: string[];
+  schedule_hours: number;
+  last_run_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type RunState = "queued" | "running" | "succeeded" | "failed" | "cancelled";
+export type Stage = "discovery" | "detection" | "collection" | "scoring" | "result";
+export const stages: Stage[] = ["discovery", "detection", "collection", "scoring", "result"];
+
+export interface StageProgress {
+  state: "pending" | "running" | "done" | "skipped" | "failed";
+  total: number;
+  done: number;
+  failed: number;
+  detail: Record<string, number>;
+  note: string;
+  started_at: string | null;
+  finished_at: string | null;
+}
+
+export interface ResearchRun {
+  id: string;
+  profile_id: string;
+  state: RunState;
+  stage: Stage;
+  stages: Record<Stage, StageProgress>;
+  trigger: "manual" | "schedule";
+  error: string | null;
+  cancel_requested: boolean;
+  summary: Record<string, number>;
+  queued_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+}
+
+export interface RunEvent {
+  id: number;
+  at: string;
+  level: "info" | "warn" | "error";
+  stage: Stage;
+  company: string;
+  message: string;
+}
+
+export type CompanyStatus = "pending" | "active" | "empty" | "unreachable" | "blocked_by_robots" | "disabled";
+
+export interface Company {
+  id: string;
+  name: string;
+  careers_url: string;
+  ats: string;
+  status: CompanyStatus;
+  origin: string;
+  open_jobs: number;
+  last_checked_at: string | null;
+  last_error: string | null;
+  blocked: boolean;
+}
+
+export interface AdapterReview {
+  adapter: string;
+  enabled: boolean;
+  reviewed_at: string | null;
+  note: string | null;
+}
+
+export interface Setting {
+  name: string;
+  value: string;
 }
 
 export interface Listing {
@@ -194,10 +315,14 @@ export async function data<T>(path: string, options?: RequestOptions): Promise<T
   return body.data;
 }
 
-export function query(params: Record<string, string | undefined>): string {
+export function query(params: Record<string, string | string[] | undefined>): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
-    if (value) search.set(key, value);
+    if (Array.isArray(value)) {
+      for (const v of value) if (v) search.append(key, v);
+    } else if (value) {
+      search.set(key, value);
+    }
   }
   const s = search.toString();
   return s ? `?${s}` : "";
