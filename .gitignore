@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+.DS_Store
+.idea/
+.vscode/
+coverage/
+dist/
+node_modules/
+*.log
+api/bin/
