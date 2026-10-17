@@ -326,6 +326,9 @@ func (p *Pipeline) discover(ctx context.Context, rep *reporter) error {
 			if created {
 				added++
 				rep.update(stage, func(sp *domain.StageProgress) { sp.Detail[src.Name()]++ })
+				if added%100 == 0 {
+					rep.event("info", stage, "", fmt.Sprintf("%s: %d new companies so far", src.Name(), added))
+				}
 			}
 			return nil
 		})

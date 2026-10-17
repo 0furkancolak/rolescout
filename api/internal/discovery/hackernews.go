@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"example.com/rolescout/api/internal/crawl"
@@ -21,7 +22,10 @@ type HackerNews struct {
 	BaseURL string // default https://hacker-news.firebaseio.com/v0
 	// Months is how many monthly threads are read on the first run (default 12).
 	Months int
-	Now    func() time.Time
+	// Concurrency is how many comments are read at once (default 4, the
+	// crawler's limit for the API host).
+	Concurrency int
+	Now         func() time.Time
 }
 
 func (h *HackerNews) Name() string { return "hackernews" }
@@ -82,24 +86,14 @@ func (h *HackerNews) Discover(ctx context.Context, state string, fn func(Candida
 
 	next := done
 	cutoff := now().Add(-35 * 24 * time.Hour).Unix()
+	workers := h.Concurrency
+	if workers <= 0 {
+		workers = 4
+	}
 	for i := len(stories) - 1; i >= 0; i-- {
 		story := stories[i]
-		for _, kid := range story.Kids {
-			var c hnItem
-			if err := ingest.FetchJSON(ctx, h.Client, fmt.Sprintf("%s/item/%d.json", base, kid), &c); err != nil {
-				if ctx.Err() != nil {
-					return strconv.FormatInt(next, 10), ctx.Err()
-				}
-				continue
-			}
-			if c.Deleted || c.Dead || c.Text == "" {
-				continue
-			}
-			for _, cand := range commentCandidates(c.Text) {
-				if err := fn(cand); err != nil {
-					return strconv.FormatInt(next, 10), err
-				}
-			}
+		if err := h.readComments(ctx, base, story.Kids, workers, fn); err != nil {
+			return strconv.FormatInt(next, 10), err
 		}
 		if story.Time < cutoff && story.ID > next {
 			next = story.ID
@@ -109,6 +103,56 @@ func (h *HackerNews) Discover(ctx context.Context, state string, fn func(Candida
 		return state, nil
 	}
 	return strconv.FormatInt(next, 10), nil
+}
+
+// readComments reads a thread's comments with a few requests at a time and
+// passes their candidates to fn one at a time, in comment order per worker.
+func (h *HackerNews) readComments(ctx context.Context, base string, kids []int64, workers int, fn func(Candidate) error) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	work := make(chan int64)
+	var mu sync.Mutex
+	var firstErr error
+	var wg sync.WaitGroup
+	for range min(workers, max(len(kids), 1)) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for kid := range work {
+				var c hnItem
+				if err := ingest.FetchJSON(ctx, h.Client, fmt.Sprintf("%s/item/%d.json", base, kid), &c); err != nil {
+					continue
+				}
+				if c.Deleted || c.Dead || c.Text == "" {
+					continue
+				}
+				mu.Lock()
+				for _, cand := range commentCandidates(c.Text) {
+					if firstErr == nil {
+						if err := fn(cand); err != nil {
+							firstErr = err
+							cancel()
+						}
+					}
+				}
+				mu.Unlock()
+			}
+		}()
+	}
+feed:
+	for _, kid := range kids {
+		select {
+		case work <- kid:
+		case <-ctx.Done():
+			break feed
+		}
+	}
+	close(work)
+	wg.Wait()
+	if firstErr != nil {
+		return firstErr
+	}
+	return ctx.Err()
 }
 
 // commentCandidates returns the job board links of a "Who is hiring?"

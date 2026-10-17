@@ -3,6 +3,7 @@ package research
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"strings"
@@ -211,5 +212,26 @@ func TestTickEnqueuesDueProfilesAndRunsThem(t *testing.T) {
 	h.p.Tick(context.Background())
 	if h.runs.purged != 1 {
 		t.Error("purge must run at most once a day")
+	}
+}
+
+func TestDiscoveryLogsProgressEveryHundredCompanies(t *testing.T) {
+	h := newHarness()
+	var cands []discovery.Candidate
+	for i := range 250 {
+		cands = append(cands, discovery.Candidate{URL: fmt.Sprintf("https://c%d.example/careers", i), Origin: "seed"})
+	}
+	h.p.Sources = []discovery.Source{fakeSource{name: "seed", cands: cands}}
+	if err := h.p.Execute(context.Background(), testRun); err != nil {
+		t.Fatal(err)
+	}
+	var progress []string
+	for _, e := range h.runs.events {
+		if strings.Contains(e.Message, "so far") {
+			progress = append(progress, e.Message)
+		}
+	}
+	if strings.Join(progress, "|") != "seed: 100 new companies so far|seed: 200 new companies so far" {
+		t.Fatalf("progress events = %v", progress)
 	}
 }

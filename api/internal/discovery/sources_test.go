@@ -3,11 +3,14 @@ package discovery
 import (
 	"fmt"
 	"net/http"
+	"net/url"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"example.com/rolescout/api/internal/crawl"
 	"example.com/rolescout/api/internal/ingest/ingesttest"
 )
 
@@ -24,12 +27,23 @@ func collect(t *testing.T, s Source, state string) ([]Candidate, string) {
 	return got, next
 }
 
+// urls lists candidate URLs sorted, because comments are read in parallel.
 func urls(cs []Candidate) string {
 	var out []string
 	for _, c := range cs {
 		out = append(out, c.URL)
 	}
+	slices.Sort(out)
 	return strings.Join(out, " ")
+}
+
+func byURL(cs []Candidate, u string) Candidate {
+	for _, c := range cs {
+		if c.URL == u {
+			return c
+		}
+	}
+	return Candidate{}
 }
 
 // hnServer serves the whoishiring user, three stories and their comments.
@@ -64,10 +78,11 @@ func TestHackerNewsDiscover(t *testing.T) {
 	now := time.Date(2026, 10, 17, 0, 0, 0, 0, time.UTC)
 	hn, _ := hnServer(t, now)
 	got, state := collect(t, hn, "")
-	if u := urls(got); u != "https://gamma.example https://jobs.lever.co/acme https://beta.example/careers" {
+	if u := urls(got); u != "https://beta.example/careers https://gamma.example https://jobs.lever.co/acme" {
 		t.Errorf("candidates = %s", u)
 	}
-	if got[1].Name != "Acme Corp" || got[1].Origin != "hackernews" || got[2].Name != "Beta GmbH" {
+	acme, beta := byURL(got, "https://jobs.lever.co/acme"), byURL(got, "https://beta.example/careers")
+	if acme.Name != "Acme Corp" || acme.Origin != "hackernews" || beta.Name != "Beta GmbH" {
 		t.Errorf("names = %+v", got)
 	}
 	// Only finished months are remembered; the current thread is read again.
@@ -80,7 +95,7 @@ func TestHackerNewsSkipsRememberedStories(t *testing.T) {
 	now := time.Date(2026, 10, 17, 0, 0, 0, 0, time.UTC)
 	hn, hits := hnServer(t, now)
 	got, state := collect(t, hn, "200")
-	if u := urls(got); u != "https://jobs.lever.co/acme https://beta.example/careers" {
+	if u := urls(got); u != "https://beta.example/careers https://jobs.lever.co/acme" {
 		t.Errorf("candidates = %s", u)
 	}
 	if state != "200" {
@@ -133,5 +148,43 @@ func TestEmbeddedSeedsValid(t *testing.T) {
 	got, _ := collect(t, SeedSource{}, "")
 	if len(got) != len(seeds) || got[0].Origin != "seed" {
 		t.Errorf("seed source returned %d candidates", len(got))
+	}
+}
+
+func TestHackerNewsReadsCommentsInParallel(t *testing.T) {
+	var current, peak atomic.Int32
+	kids := make([]string, 12)
+	for i := range kids {
+		kids[i] = fmt.Sprint(1000 + i)
+	}
+	recent := time.Now().Add(-24 * time.Hour).Unix()
+	c, base := ingesttest.Server(t, func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/v0/user/whoishiring.json":
+			w.Write([]byte(`{"submitted":[500]}`))
+		case r.URL.Path == "/v0/item/500.json":
+			fmt.Fprintf(w, `{"id":500,"title":"Ask HN: Who is hiring?","time":%d,"kids":[%s]}`, recent, strings.Join(kids, ","))
+		default:
+			n := current.Add(1)
+			for p := peak.Load(); n > p && !peak.CompareAndSwap(p, n); p = peak.Load() {
+			}
+			time.Sleep(20 * time.Millisecond)
+			current.Add(-1)
+			id := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/v0/item/"), ".json")
+			fmt.Fprintf(w, `{"id":%s,"text":"Co %s | <a href=\"https://jobs.lever.co/co%s\">x</a>"}`, id, id, id)
+		}
+	})
+	_ = c
+	u, _ := url.Parse(base)
+	// Like the real API host, the test host is a vendor host that allows
+	// several requests at a time.
+	vendor := crawl.New(crawl.Options{UserAgent: "RoleScout/test", VendorHosts: []string{u.Host}, VendorConcurrency: 4, VendorInterval: time.Millisecond})
+	hn := &HackerNews{Client: vendor, BaseURL: base + "/v0", Concurrency: 4}
+	got, _ := collect(t, hn, "")
+	if len(got) != 12 {
+		t.Fatalf("candidates = %d, want 12", len(got))
+	}
+	if p := peak.Load(); p < 2 {
+		t.Errorf("peak concurrent comment reads = %d, want parallel reads", p)
 	}
 }
