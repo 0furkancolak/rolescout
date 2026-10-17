@@ -1,6 +1,6 @@
 # ADR 0003 - Source Ingestion
 
-Status: Accepted
+Status: Accepted (review per source superseded by [ADR 0004](0004-discovery-and-adapter-review.md))
 Date: 2026-10-17
 
 ## Context

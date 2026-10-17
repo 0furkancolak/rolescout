@@ -60,7 +60,8 @@ func (r *AuthRepository) Register(ctx context.Context, p RegisterParams) (domain
 
 		var err error
 		u, err = scanUser(tx.QueryRow(ctx, `
-			INSERT INTO users (email, display_name, locale) VALUES ($1, $2, $3)
+			INSERT INTO users (email, display_name, locale, is_admin)
+			VALUES ($1, $2, $3, NOT EXISTS (SELECT 1 FROM users))
 			RETURNING `+userColumns,
 			strings.ToLower(strings.TrimSpace(p.Email)), p.DisplayName, locale))
 		if err != nil {
@@ -90,10 +91,10 @@ func (r *AuthRepository) Credentials(ctx context.Context, email string) (domain.
 	var u domain.User
 	var hash string
 	err := r.pool.QueryRow(ctx, `
-		SELECT u.id, u.email, u.display_name, u.locale, u.created_at, u.updated_at, c.password_hash
+		SELECT u.id, u.email, u.display_name, u.locale, u.created_at, u.updated_at, u.is_admin, c.password_hash
 		FROM users u JOIN user_credentials c ON c.user_id = u.id
 		WHERE u.email = $1`, strings.ToLower(strings.TrimSpace(email)),
-	).Scan(&u.ID, &u.Email, &u.DisplayName, &u.Locale, &u.CreatedAt, &u.UpdatedAt, &hash)
+	).Scan(&u.ID, &u.Email, &u.DisplayName, &u.Locale, &u.CreatedAt, &u.UpdatedAt, &u.IsAdmin, &hash)
 	return u, hash, translate(err, "get credentials")
 }
 

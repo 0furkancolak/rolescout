@@ -6,6 +6,11 @@
 //	admin sources enable|disable -key KEY
 //	admin sources sync -key KEY
 //	admin sources runs -key KEY [-limit 10]
+//	admin adapters list
+//	admin adapters review -adapter NAME -note "what was checked"
+//	admin adapters enable|disable -adapter NAME
+//	admin companies list [-status STATUS] [-q TEXT]
+//	admin companies add -url CAREERS_URL [-name NAME]
 package main
 
 import (
@@ -16,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -34,11 +40,13 @@ import (
 var version = "dev"
 
 const usage = `usage: admin sources <list|add|review|enable|disable|sync|runs> [flags]
+       admin adapters <list|review|enable|disable> [flags]
+       admin companies <list|add> [flags]
        admin version
 
-Sources start disabled. Before enabling one, review its access method,
-permissions and terms, and record the result with "admin sources review".
-See docs/sources/README.md.`
+Sources start disabled. A source can be enabled when it has its own review
+("admin sources review") or its adapter type has an enabled review ("admin
+adapters review", then "admin adapters enable"). See docs/sources/README.md.`
 
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -55,7 +63,7 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 		fmt.Fprintln(out, version)
 		return nil
 	}
-	if len(args) < 2 || args[0] != "sources" {
+	if len(args) < 2 || (args[0] != "sources" && args[0] != "adapters" && args[0] != "companies") {
 		return errors.New(usage)
 	}
 	cfg, err := config.Load()
@@ -69,19 +77,140 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 	defer pool.Close()
 
 	c := &cli{
-		sources:  database.NewSourceRepository(pool),
-		jobs:     database.NewJobRepository(pool),
-		adapters: adapters.Registry(),
-		out:      out,
+		sources:   database.NewSourceRepository(pool),
+		jobs:      database.NewJobRepository(pool),
+		companies: database.NewCompanyRepository(pool),
+		adapters:  adapters.Registry(),
+		out:       out,
+	}
+	switch args[0] {
+	case "adapters":
+		return c.adapterCommand(ctx, args[1], args[2:])
+	case "companies":
+		return c.companyCommand(ctx, args[1], args[2:])
 	}
 	return c.dispatch(ctx, args[1], args[2:])
 }
 
 type cli struct {
-	sources  *database.SourceRepository
-	jobs     *database.JobRepository
-	adapters ingest.Registry
-	out      io.Writer
+	sources   *database.SourceRepository
+	jobs      *database.JobRepository
+	companies *database.CompanyRepository
+	adapters  ingest.Registry
+	out       io.Writer
+}
+
+func (c *cli) adapterCommand(ctx context.Context, cmd string, args []string) error {
+	fs := flag.NewFlagSet(cmd, flag.ContinueOnError)
+	name := fs.String("adapter", "", "adapter type, such as workday")
+	note := fs.String("note", "", "what was reviewed and where the terms are")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if cmd == "list" {
+		reviews, err := c.companies.AdapterReviews(ctx)
+		if err != nil {
+			return err
+		}
+		w := tabwriter.NewWriter(c.out, 0, 2, 2, ' ', 0)
+		fmt.Fprintln(w, "ADAPTER\tENABLED\tREVIEWED\tNOTE")
+		for _, r := range reviews {
+			reviewed, text := "no", ""
+			if r.ReviewedAt != nil {
+				reviewed = r.ReviewedAt.Format("2006-01-02")
+			}
+			if r.Note != nil {
+				text = *r.Note
+			}
+			fmt.Fprintf(w, "%s\t%v\t%s\t%s\n", r.Adapter, r.Enabled, reviewed, text)
+		}
+		return w.Flush()
+	}
+	if err := required(*name, "adapter"); err != nil {
+		return err
+	}
+	var current *domain.AdapterReview
+	reviews, err := c.companies.AdapterReviews(ctx)
+	if err != nil {
+		return err
+	}
+	for _, r := range reviews {
+		if r.Adapter == *name {
+			current = &r
+		}
+	}
+	switch cmd {
+	case "review":
+		if err := required(strings.TrimSpace(*note), "note"); err != nil {
+			return err
+		}
+		enabled := current != nil && current.Enabled
+		if _, err := c.companies.ReviewAdapter(ctx, *name, *note, enabled); err != nil {
+			return err
+		}
+		fmt.Fprintf(c.out, "Recorded review for adapter %s. Enable it with: admin adapters enable -adapter %s\n", *name, *name)
+		return nil
+	case "enable", "disable":
+		enable := cmd == "enable"
+		existing := ""
+		if current != nil && current.Note != nil && current.ReviewedAt != nil {
+			existing = *current.Note
+		}
+		if enable && existing == "" {
+			return fmt.Errorf("adapter %s has no review; run: admin adapters review -adapter %s -note \"...\"", *name, *name)
+		}
+		if _, err := c.companies.ReviewAdapter(ctx, *name, existing, enable); err != nil {
+			return err
+		}
+		fmt.Fprintf(c.out, "Adapter %s is now %s.\n", *name, map[bool]string{true: "enabled", false: "disabled"}[enable])
+		return nil
+	}
+	return errors.New(usage)
+}
+
+func (c *cli) companyCommand(ctx context.Context, cmd string, args []string) error {
+	fs := flag.NewFlagSet(cmd, flag.ContinueOnError)
+	switch cmd {
+	case "list":
+		status := fs.String("status", "", "pending, active, empty, unreachable, blocked_by_robots or disabled")
+		q := fs.String("q", "", "text in the name or careers URL")
+		limit := fs.Int("limit", 100, "number of companies")
+		if err := fs.Parse(args); err != nil {
+			return err
+		}
+		list, _, err := c.companies.List(ctx, database.CompanyFilter{Query: *q, Status: domain.CompanyStatus(*status), Limit: *limit})
+		if err != nil {
+			return err
+		}
+		w := tabwriter.NewWriter(c.out, 0, 2, 2, ' ', 0)
+		fmt.Fprintln(w, "NAME\tATS\tSTATUS\tJOBS\tCAREERS URL")
+		for _, co := range list {
+			fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\n", co.Name, co.ATS, co.Status, co.OpenJobs, co.CareersURL)
+		}
+		return w.Flush()
+	case "add":
+		rawURL := fs.String("url", "", "career page URL")
+		name := fs.String("name", "", "company name (defaults to the host)")
+		if err := fs.Parse(args); err != nil {
+			return err
+		}
+		u, err := url.Parse(*rawURL)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+			return errors.New("-url must be an absolute http(s) URL")
+		}
+		if *name == "" {
+			*name = strings.TrimPrefix(u.Hostname(), "www.")
+		}
+		co, _, err := c.companies.UpsertDiscovered(ctx, database.CompanyParams{
+			Name: *name, CareersURL: u.String(), ATS: "unknown", Origin: "manual",
+		})
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(c.out, "%s is %s; the worker detects its career page on its next tick.\n", co.Name, co.Status)
+		return nil
+	}
+	return errors.New(usage)
 }
 
 func (c *cli) dispatch(ctx context.Context, cmd string, args []string) error {

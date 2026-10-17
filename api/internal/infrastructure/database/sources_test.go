@@ -14,9 +14,10 @@ func TestSourceMustBeReviewedBeforeEnabling(t *testing.T) {
 	ctx := context.Background()
 	repo := NewSourceRepository(pool)
 
+	// An adapter type without an enabled review needs a review per source.
 	s, err := repo.Create(ctx, SourceParams{
-		Key: uniq("gh-"), Name: "Acme", BaseURL: "https://boards.greenhouse.io/acme",
-		Adapter: "greenhouse", Config: map[string]any{"board_token": "acme"}, SyncInterval: 2 * time.Hour,
+		Key: uniq("wd-"), Name: "Acme", BaseURL: "https://acme.wd5.myworkdayjobs.com",
+		Adapter: uniq("unreviewed_"), Config: map[string]any{"board_token": "acme"}, SyncInterval: 2 * time.Hour,
 	})
 	if err != nil {
 		t.Fatal(err)

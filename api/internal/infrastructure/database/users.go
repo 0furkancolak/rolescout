@@ -18,11 +18,11 @@ func NewUserRepository(pool *pgxpool.Pool) *UserRepository {
 	return &UserRepository{pool: pool}
 }
 
-const userColumns = `id, email, display_name, locale, created_at, updated_at`
+const userColumns = `id, email, display_name, locale, created_at, updated_at, is_admin`
 
 func scanUser(row pgx.Row) (domain.User, error) {
 	var u domain.User
-	err := row.Scan(&u.ID, &u.Email, &u.DisplayName, &u.Locale, &u.CreatedAt, &u.UpdatedAt)
+	err := row.Scan(&u.ID, &u.Email, &u.DisplayName, &u.Locale, &u.CreatedAt, &u.UpdatedAt, &u.IsAdmin)
 	return u, err
 }
 

@@ -116,7 +116,7 @@ func (r *WorkspaceRepository) ListMembers(ctx context.Context, workspaceID strin
 	members, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.WorkspaceMember, error) {
 		var m domain.WorkspaceMember
 		err := row.Scan(&m.User.ID, &m.User.Email, &m.User.DisplayName, &m.User.Locale,
-			&m.User.CreatedAt, &m.User.UpdatedAt, &m.Role, &m.CreatedAt)
+			&m.User.CreatedAt, &m.User.UpdatedAt, &m.User.IsAdmin, &m.Role, &m.CreatedAt)
 		return m, err
 	})
 	return members, translate(err, "list workspace members")
@@ -136,6 +136,6 @@ func (r *WorkspaceRepository) AddMemberByEmail(ctx context.Context, workspaceID,
 		SELECT `+prefixed("t", userColumns)+`, i.role, i.created_at FROM target t, inserted i`,
 		workspaceID, strings.ToLower(strings.TrimSpace(email)), role,
 	).Scan(&m.User.ID, &m.User.Email, &m.User.DisplayName, &m.User.Locale,
-		&m.User.CreatedAt, &m.User.UpdatedAt, &m.Role, &m.CreatedAt)
+		&m.User.CreatedAt, &m.User.UpdatedAt, &m.User.IsAdmin, &m.Role, &m.CreatedAt)
 	return m, translate(err, "add workspace member")
 }

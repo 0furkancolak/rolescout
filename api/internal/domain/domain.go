@@ -33,8 +33,10 @@ type User struct {
 	Email       string
 	DisplayName string
 	Locale      string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	// IsAdmin marks the installation administrator (the first account).
+	IsAdmin   bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 type Workspace struct {
@@ -78,8 +80,54 @@ type JobSource struct {
 	// is required before a source can be enabled.
 	ReviewedAt *time.Time
 	ReviewNote *string
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	// CompanyID links a source created for a discovered company.
+	CompanyID *string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type CompanyStatus string
+
+const (
+	CompanyPending         CompanyStatus = "pending"
+	CompanyActive          CompanyStatus = "active"
+	CompanyEmpty           CompanyStatus = "empty"
+	CompanyUnreachable     CompanyStatus = "unreachable"
+	CompanyBlockedByRobots CompanyStatus = "blocked_by_robots"
+	CompanyDisabled        CompanyStatus = "disabled"
+)
+
+// Company is an employer with a career page, shared by all workspaces.
+type Company struct {
+	ID         string
+	Name       string
+	Domain     *string
+	CareersURL string
+	// ATS is the detected job board system ("unknown" until detected) and
+	// ATSID its board identifier.
+	ATS           string
+	ATSID         *string
+	Origin        string // commoncrawl, seed, link or manual
+	Status        CompanyStatus
+	LastCheckedAt *time.Time
+	LastError     *string
+	FailureCount  int
+	NextCheckAt   time.Time
+	SourceID      *string
+	OpenJobs      int
+	// Blocked is set when listing for a workspace that blocked the company.
+	Blocked   bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+// AdapterReview records the access and terms review of a source adapter type.
+// Sources of an enabled, reviewed adapter type can be enabled.
+type AdapterReview struct {
+	Adapter    string
+	Enabled    bool
+	ReviewedAt *time.Time
+	Note       *string
 }
 
 type RunStatus string

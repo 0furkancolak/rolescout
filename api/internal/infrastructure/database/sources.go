@@ -22,13 +22,13 @@ func NewSourceRepository(pool *pgxpool.Pool) *SourceRepository {
 }
 
 const sourceColumns = `id, key, name, base_url, enabled, adapter, config,
-	EXTRACT(EPOCH FROM sync_interval)::bigint, reviewed_at, review_note, created_at, updated_at`
+	EXTRACT(EPOCH FROM sync_interval)::bigint, reviewed_at, review_note, company_id, created_at, updated_at`
 
 func scanSource(row pgx.Row) (domain.JobSource, error) {
 	var s domain.JobSource
 	var seconds int64
 	err := row.Scan(&s.ID, &s.Key, &s.Name, &s.BaseURL, &s.Enabled, &s.Adapter, &s.Config,
-		&seconds, &s.ReviewedAt, &s.ReviewNote, &s.CreatedAt, &s.UpdatedAt)
+		&seconds, &s.ReviewedAt, &s.ReviewNote, &s.CompanyID, &s.CreatedAt, &s.UpdatedAt)
 	s.SyncInterval = time.Duration(seconds) * time.Second
 	return s, err
 }
@@ -111,7 +111,7 @@ func (r *SourceRepository) Due(ctx context.Context, now time.Time) ([]domain.Job
 	rows, err := r.pool.Query(ctx, `
 		SELECT s.id, s.key, s.name, s.base_url, s.enabled, s.adapter, s.config,
 			EXTRACT(EPOCH FROM s.sync_interval)::bigint, s.reviewed_at, s.review_note,
-			s.created_at, s.updated_at
+			s.company_id, s.created_at, s.updated_at
 		FROM job_sources s
 		LEFT JOIN LATERAL (
 			SELECT status, started_at FROM ingestion_runs

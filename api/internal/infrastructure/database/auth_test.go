@@ -70,9 +70,16 @@ func TestRegisterOnlyFirstUserWhenClosed(t *testing.T) {
 		t.Fatalf("%d concurrent first registrations succeeded, want 1", succeeded)
 	}
 
+	var admins int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM users WHERE is_admin`).Scan(&admins); err != nil || admins != 1 {
+		t.Fatalf("admins after first registration = %d, %v; want 1", admins, err)
+	}
 	u, w, err := repo.Register(ctx, params(100, true))
 	if err != nil {
 		t.Fatalf("registration with AllowWhenUsersExist failed: %v", err)
+	}
+	if u.IsAdmin {
+		t.Fatal("second user must not be an admin")
 	}
 	m, err := NewWorkspaceRepository(pool).Membership(ctx, w.ID, u.ID)
 	if err != nil || m.Role != domain.RoleOwner {
