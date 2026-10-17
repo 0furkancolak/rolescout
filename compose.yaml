@@ -21,6 +21,7 @@ services:
       context: ./api
       args:
         APP: api
+        VERSION: ${ROLESCOUT_VERSION:-dev}
     restart: unless-stopped
     environment:
       API_HOST: 0.0.0.0
@@ -37,7 +38,7 @@ services:
       REGISTER_RATE_LIMIT: ${REGISTER_RATE_LIMIT:-5}
       LOG_LEVEL: ${LOG_LEVEL:-info}
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:${API_HOST_PORT:-8080}:8080"
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
@@ -55,10 +56,12 @@ services:
       context: ./api
       args:
         APP: worker
+        VERSION: ${ROLESCOUT_VERSION:-dev}
     restart: unless-stopped
     environment:
       DATABASE_URL: "postgres://${POSTGRES_USER:-rolescout}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-rolescout}?sslmode=disable"
       WORKER_TICK: ${WORKER_TICK:-1m}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
@@ -73,6 +76,7 @@ services:
       context: ./api
       args:
         APP: admin
+        VERSION: ${ROLESCOUT_VERSION:-dev}
     profiles: ["tools"]
     environment:
       DATABASE_URL: "postgres://${POSTGRES_USER:-rolescout}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-rolescout}?sslmode=disable"

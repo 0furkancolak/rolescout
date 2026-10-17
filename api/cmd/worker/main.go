@@ -14,11 +14,16 @@ import (
 	"example.com/rolescout/api/internal/ingest/adapters"
 )
 
-func run(logger *slog.Logger) error {
+// version is set at build time with -ldflags "-X main.version=...".
+var version = "dev"
+
+func run() error {
 	cfg, err := config.Load()
 	if err != nil {
 		return err
 	}
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: cfg.LogLevel}))
+	slog.SetDefault(logger)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
@@ -37,16 +42,15 @@ func run(logger *slog.Logger) error {
 		Adapters: adapters.Registry(),
 		Logger:   logger,
 	}
-	logger.Info("worker started", "tick", cfg.WorkerTick.String(), "adapters", runner.Adapters.Names())
+	logger.Info("worker started", "version", version, "tick", cfg.WorkerTick.String(), "adapters", runner.Adapters.Names())
 	runner.Loop(ctx, cfg.WorkerTick)
 	logger.Info("worker stopped")
 	return nil
 }
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	if err := run(logger); err != nil {
-		logger.Error("worker failed", "error", err)
+	if err := run(); err != nil {
+		slog.Error("worker failed", "error", err)
 		os.Exit(1)
 	}
 }

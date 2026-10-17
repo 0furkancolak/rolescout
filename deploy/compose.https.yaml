@@ -1,0 +1,31 @@
+# Production override that serves RoleScout over HTTPS with Caddy.
+#
+#   docker compose -f compose.yaml -f deploy/compose.https.yaml up -d --build --wait
+#
+# Set ROLESCOUT_DOMAIN in .env. See docs/deployment.md.
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    environment:
+      ROLESCOUT_DOMAIN: ${ROLESCOUT_DOMAIN:?Set ROLESCOUT_DOMAIN in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+
+  api:
+    environment:
+      # Cookies must only travel over HTTPS in production.
+      COOKIE_SECURE: "true"
+
+volumes:
+  caddy_data:
+  caddy_config:

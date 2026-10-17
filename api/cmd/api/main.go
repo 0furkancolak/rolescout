@@ -17,6 +17,9 @@ import (
 	httptransport "example.com/rolescout/api/internal/transport/http"
 )
 
+// version is set at build time with -ldflags "-X main.version=...".
+var version = "dev"
+
 func run() error {
 	cfg, err := config.Load()
 	if err != nil {
@@ -84,7 +87,7 @@ func run() error {
 	}
 
 	addr := fmt.Sprintf("%s:%d", cfg.HTTPHost, cfg.HTTPPort)
-	logger.Info("API listening", "addr", addr, "trusted_proxies", cfg.TrustedProxies)
+	logger.Info("API listening", "version", version, "addr", addr, "trusted_proxies", cfg.TrustedProxies)
 
 	// Listen returns once ctx is cancelled and graceful shutdown completes.
 	return app.Listen(addr, fiber.ListenConfig{

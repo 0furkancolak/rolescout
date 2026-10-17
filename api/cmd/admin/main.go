@@ -30,7 +30,11 @@ import (
 	"example.com/rolescout/api/internal/ingest/adapters"
 )
 
+// version is set at build time with -ldflags "-X main.version=...".
+var version = "dev"
+
 const usage = `usage: admin sources <list|add|review|enable|disable|sync|runs> [flags]
+       admin version
 
 Sources start disabled. Before enabling one, review its access method,
 permissions and terms, and record the result with "admin sources review".
@@ -47,6 +51,10 @@ func main() {
 }
 
 func run(ctx context.Context, args []string, out io.Writer) error {
+	if len(args) == 1 && args[0] == "version" {
+		fmt.Fprintln(out, version)
+		return nil
+	}
 	if len(args) < 2 || args[0] != "sources" {
 		return errors.New(usage)
 	}

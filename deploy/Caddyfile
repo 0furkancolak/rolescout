@@ -1,0 +1,8 @@
+# HTTPS entry point for RoleScout. Caddy obtains and renews certificates
+# automatically for ROLESCOUT_DOMAIN (its DNS must point to this host and
+# ports 80 and 443 must be reachable).
+{$ROLESCOUT_DOMAIN} {
+	encode zstd gzip
+	header Strict-Transport-Security "max-age=31536000"
+	reverse_proxy web:8080
+}
