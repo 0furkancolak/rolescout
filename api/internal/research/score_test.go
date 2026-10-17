@@ -129,4 +129,3 @@ func TestScoreNeverExceeds100(t *testing.T) {
 		t.Errorf("perfect score = %d, want 100", score)
 	}
 }
-

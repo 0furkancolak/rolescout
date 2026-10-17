@@ -30,6 +30,11 @@ type badRequestError struct{ message string }
 
 func (e *badRequestError) Error() string { return e.message }
 
+// conflictError is a 409 with a specific message for the client.
+type conflictError struct{ message string }
+
+func (e *conflictError) Error() string { return e.message }
+
 func badRequest(format string, args ...any) error {
 	return &badRequestError{message: fmt.Sprintf(format, args...)}
 }
@@ -50,7 +55,10 @@ func classify(err error) (int, errorDetail) {
 	var transition domain.ErrTransitionNotAllowed
 	var fiberErr *fiber.Error
 	var badReq *badRequestError
+	var conflict *conflictError
 	switch {
+	case errors.As(err, &conflict):
+		return fiber.StatusConflict, errorDetail{Code: "conflict", Message: conflict.message}
 	case errors.As(err, &validation):
 		return fiber.StatusUnprocessableEntity, errorDetail{
 			Code: "invalid_input", Message: "The request contains invalid fields.", Fields: validation.Fields,

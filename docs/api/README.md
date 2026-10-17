@@ -77,3 +77,23 @@ workspace data; only owners can add members (`403 forbidden` for members).
 Application status transitions and the effect of recording an attempt are
 defined in `api/internal/domain/rules.go` and documented on the
 `PATCH /applications/{id}` and `POST .../attempts` operations.
+
+## Career page research
+- Research profiles (`/workspaces/{id}/research-profiles`) say what a
+  workspace looks for. Every workspace starts with a "Full Stack Developer"
+  profile. `PATCH` changes only the fields it sends.
+- `POST .../research-profiles/{id}/runs` queues a run (`202`); a profile has at
+  most one queued or running run (`409`). Profiles also run on their own every
+  `schedule_hours`.
+- A run moves through `discovery`, `detection`, `collection`, `scoring` and
+  `result`. `GET .../research-runs/{id}` returns each stage's state and
+  counts; poll it (the web app polls every 2 seconds) and read new log lines
+  with `GET .../research-runs/{id}/events?after=<last id>`.
+- `POST .../research-runs/{id}/cancel` cancels a queued run at once and stops
+  a running one at its next progress report.
+- The company catalog is shared by all workspaces. `GET
+  /workspaces/{id}/companies` marks companies the workspace blocked;
+  `PUT`/`DELETE .../company-blocks/{companyID}` hide or show their jobs in that
+  workspace only. `POST /companies` adds a career page.
+- `/admin/...` is for the installation administrator (the first account) and
+  answers `403 forbidden` to everyone else.

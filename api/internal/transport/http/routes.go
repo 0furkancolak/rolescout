@@ -58,7 +58,11 @@ type Deps struct {
 	Jobs           JobStore
 	Applications   ApplicationStore
 	Annotations    AnnotationStore
-	Workspaces     WorkspaceAuthorizer
+	Research       ResearchStore
+	Companies      CompanyCatalog
+	// CrawlSettings are shown read-only to administrators.
+	CrawlSettings []Setting
+	Workspaces    WorkspaceAuthorizer
 }
 
 const (
@@ -85,6 +89,13 @@ func RegisterAPIRoutes(app *fiber.App, d Deps) {
 
 	private.Get("/workspaces", h.listWorkspaces)
 	private.Post("/workspaces", h.createWorkspace)
+	private.Post("/companies", h.addCompany)
+
+	admin := private.Group("/admin", h.requireAdmin)
+	admin.Get("/adapters", h.listAdapterReviews)
+	admin.Patch("/adapters/:adapter", h.reviewAdapter)
+	admin.Patch("/companies/:companyID", h.setCompanyDisabled)
+	admin.Get("/settings", h.crawlSettings)
 
 	ws := private.Group("/workspaces/:workspaceID", h.requireWorkspace)
 	ws.Get("/members", h.listMembers)
@@ -110,6 +121,21 @@ func RegisterAPIRoutes(app *fiber.App, d Deps) {
 	ws.Get("/applications/:applicationID/notes", h.listNotes)
 	ws.Post("/applications/:applicationID/notes", h.addNote)
 	ws.Patch("/applications/:applicationID/notes/:noteID", h.updateNote)
+
+	ws.Get("/research-profiles", h.listProfiles)
+	ws.Post("/research-profiles", h.createProfile)
+	ws.Get("/research-profiles/:profileID", h.getProfile)
+	ws.Patch("/research-profiles/:profileID", h.updateProfile)
+	ws.Delete("/research-profiles/:profileID", h.deleteProfile)
+	ws.Post("/research-profiles/:profileID/runs", h.startRun)
+	ws.Get("/research-runs", h.listRuns)
+	ws.Get("/research-runs/:runID", h.getRun)
+	ws.Get("/research-runs/:runID/events", h.listRunEvents)
+	ws.Post("/research-runs/:runID/cancel", h.cancelRun)
+
+	ws.Get("/companies", h.listCompanies)
+	ws.Put("/company-blocks/:companyID", h.blockCompany)
+	ws.Delete("/company-blocks/:companyID", h.unblockCompany)
 }
 
 type handlers struct {

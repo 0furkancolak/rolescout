@@ -182,11 +182,12 @@ type userDTO struct {
 	Email       string    `json:"email"`
 	DisplayName string    `json:"display_name"`
 	Locale      string    `json:"locale"`
+	IsAdmin     bool      `json:"is_admin"`
 	CreatedAt   time.Time `json:"created_at"`
 }
 
 func toUser(u domain.User) userDTO {
-	return userDTO{ID: u.ID, Email: u.Email, DisplayName: u.DisplayName, Locale: u.Locale, CreatedAt: u.CreatedAt.UTC()}
+	return userDTO{ID: u.ID, Email: u.Email, DisplayName: u.DisplayName, Locale: u.Locale, IsAdmin: u.IsAdmin, CreatedAt: u.CreatedAt.UTC()}
 }
 
 type workspaceDTO struct {
@@ -213,4 +214,133 @@ func toMember(m domain.WorkspaceMember) memberDTO {
 		UserID: m.User.ID, Email: m.User.Email, DisplayName: m.User.DisplayName,
 		Role: string(m.Role), JoinedAt: m.CreatedAt.UTC(),
 	}
+}
+
+type profileDTO struct {
+	ID               string     `json:"id"`
+	Name             string     `json:"name"`
+	TitleKeywords    []string   `json:"title_keywords"`
+	Keywords         []string   `json:"keywords"`
+	Technologies     []string   `json:"technologies"`
+	Countries        []string   `json:"countries"`
+	Locations        []string   `json:"locations"`
+	ExcludedKeywords []string   `json:"excluded_keywords"`
+	Remote           string     `json:"remote"`
+	Seniority        []string   `json:"seniority"`
+	ScheduleHours    int        `json:"schedule_hours"`
+	LastRunAt        *time.Time `json:"last_run_at"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+}
+
+func nonNil(s []string) []string {
+	if s == nil {
+		return []string{}
+	}
+	return s
+}
+
+func toProfile(p domain.ResearchProfile) profileDTO {
+	return profileDTO{
+		ID: p.ID, Name: p.Name, TitleKeywords: nonNil(p.TitleKeywords), Keywords: nonNil(p.Keywords),
+		Technologies: nonNil(p.Technologies), Countries: nonNil(p.Countries), Locations: nonNil(p.Locations),
+		ExcludedKeywords: nonNil(p.ExcludedKeywords), Remote: string(p.Remote), Seniority: nonNil(p.Seniority),
+		ScheduleHours: int(p.ScheduleInterval.Hours()), LastRunAt: utcPtr(p.LastRunAt),
+		CreatedAt: p.CreatedAt.UTC(), UpdatedAt: p.UpdatedAt.UTC(),
+	}
+}
+
+type stageDTO struct {
+	State      string         `json:"state"`
+	Total      int            `json:"total"`
+	Done       int            `json:"done"`
+	Failed     int            `json:"failed"`
+	Detail     map[string]int `json:"detail"`
+	Note       string         `json:"note"`
+	StartedAt  *time.Time     `json:"started_at"`
+	FinishedAt *time.Time     `json:"finished_at"`
+}
+
+type runDTO struct {
+	ID              string              `json:"id"`
+	ProfileID       string              `json:"profile_id"`
+	State           string              `json:"state"`
+	Stage           string              `json:"stage"`
+	Stages          map[string]stageDTO `json:"stages"`
+	Trigger         string              `json:"trigger"`
+	Error           *string             `json:"error"`
+	CancelRequested bool                `json:"cancel_requested"`
+	Summary         map[string]int      `json:"summary"`
+	QueuedAt        time.Time           `json:"queued_at"`
+	StartedAt       *time.Time          `json:"started_at"`
+	FinishedAt      *time.Time          `json:"finished_at"`
+}
+
+func toRun(r domain.ResearchRun) runDTO {
+	stages := make(map[string]stageDTO, len(domain.Stages))
+	for _, s := range domain.Stages {
+		p, ok := r.Stages[s]
+		if !ok {
+			p = domain.StageProgress{State: "pending"}
+		}
+		detail := p.Detail
+		if detail == nil {
+			detail = map[string]int{}
+		}
+		stages[string(s)] = stageDTO{State: p.State, Total: p.Total, Done: p.Done, Failed: p.Failed, Detail: detail,
+			Note: p.Note, StartedAt: utcPtr(p.StartedAt), FinishedAt: utcPtr(p.FinishedAt)}
+	}
+	summary := r.Summary
+	if summary == nil {
+		summary = map[string]int{}
+	}
+	return runDTO{
+		ID: r.ID, ProfileID: r.ProfileID, State: string(r.State), Stage: string(r.Stage), Stages: stages,
+		Trigger: r.Trigger, Error: r.Error, CancelRequested: r.CancelRequested, Summary: summary,
+		QueuedAt: r.QueuedAt.UTC(), StartedAt: utcPtr(r.StartedAt), FinishedAt: utcPtr(r.FinishedAt),
+	}
+}
+
+type runEventDTO struct {
+	ID      int64     `json:"id"`
+	At      time.Time `json:"at"`
+	Level   string    `json:"level"`
+	Stage   string    `json:"stage"`
+	Company string    `json:"company"`
+	Message string    `json:"message"`
+}
+
+func toRunEvent(e domain.RunEvent) runEventDTO {
+	return runEventDTO{ID: e.ID, At: e.At.UTC(), Level: e.Level, Stage: string(e.Stage), Company: e.Company, Message: e.Message}
+}
+
+type companyDTO struct {
+	ID            string     `json:"id"`
+	Name          string     `json:"name"`
+	CareersURL    string     `json:"careers_url"`
+	ATS           string     `json:"ats"`
+	Status        string     `json:"status"`
+	Origin        string     `json:"origin"`
+	OpenJobs      int        `json:"open_jobs"`
+	LastCheckedAt *time.Time `json:"last_checked_at"`
+	LastError     *string    `json:"last_error"`
+	Blocked       bool       `json:"blocked"`
+}
+
+func toCompany(c domain.Company) companyDTO {
+	return companyDTO{
+		ID: c.ID, Name: c.Name, CareersURL: c.CareersURL, ATS: c.ATS, Status: string(c.Status), Origin: c.Origin,
+		OpenJobs: c.OpenJobs, LastCheckedAt: utcPtr(c.LastCheckedAt), LastError: c.LastError, Blocked: c.Blocked,
+	}
+}
+
+type adapterReviewDTO struct {
+	Adapter    string     `json:"adapter"`
+	Enabled    bool       `json:"enabled"`
+	ReviewedAt *time.Time `json:"reviewed_at"`
+	Note       *string    `json:"note"`
+}
+
+func toAdapterReview(a domain.AdapterReview) adapterReviewDTO {
+	return adapterReviewDTO{Adapter: a.Adapter, Enabled: a.Enabled, ReviewedAt: utcPtr(a.ReviewedAt), Note: a.Note}
 }

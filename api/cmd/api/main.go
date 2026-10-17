@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -80,6 +81,9 @@ func run() error {
 		Jobs:           database.NewJobRepository(pool),
 		Applications:   database.NewApplicationRepository(pool),
 		Annotations:    database.NewAnnotationRepository(pool),
+		Research:       database.NewResearchRepository(pool),
+		Companies:      database.NewCompanyRepository(pool),
+		CrawlSettings:  crawlSettings(cfg.Crawl),
 		Workspaces:     httptransport.MembershipAuthorizer{Workspaces: workspaces},
 	})
 	if !cfg.CookieSecure {
@@ -101,5 +105,22 @@ func main() {
 	if err := run(); err != nil {
 		slog.Error("API stopped", "error", err)
 		os.Exit(1)
+	}
+}
+
+// crawlSettings lists the worker's crawl settings for administrators. The
+// API reads the same variables as the worker (see compose.yaml).
+func crawlSettings(c config.Crawl) []httptransport.Setting {
+	return []httptransport.Setting{
+		{Name: "CRAWL_CONCURRENCY", Value: strconv.Itoa(c.Concurrency)},
+		{Name: "CRAWL_HOST_INTERVAL", Value: c.HostInterval.String()},
+		{Name: "CRAWL_VENDOR_CONCURRENCY", Value: strconv.Itoa(c.VendorConcurrency)},
+		{Name: "CRAWL_USER_AGENT_URL", Value: c.UserAgentURL},
+		{Name: "DISCOVERY_INTERVAL", Value: c.DiscoveryInterval.String()},
+		{Name: "COMPANY_SYNC_INTERVAL", Value: c.CompanySyncInterval.String()},
+		{Name: "RESEARCH_INTERVAL", Value: c.ResearchInterval.String()},
+		{Name: "JSONLD_MAX_PAGES", Value: strconv.Itoa(c.JSONLDMaxPages)},
+		{Name: "MATCH_MIN_SCORE", Value: strconv.Itoa(c.MatchMinScore)},
+		{Name: "CLOSED_JOB_RETENTION", Value: c.ClosedJobRetention.String()},
 	}
 }

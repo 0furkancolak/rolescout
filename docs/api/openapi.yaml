@@ -25,6 +25,9 @@ tags:
   - name: applications
   - name: tags
   - name: notes
+  - name: research
+  - name: companies
+  - name: admin
 
 paths:
   /healthz:
@@ -764,6 +767,394 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/InvalidInput" }
 
+  /api/v1/companies:
+    post:
+      tags: [companies]
+      summary: Add a company by its career page
+      description: |
+        Adds the company to the shared catalog (or returns it if it is already
+        there). Known job board URLs are recognised at once; other pages are
+        identified by the next research run.
+      operationId: addCompany
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [careers_url]
+              properties:
+                careers_url: { type: string, format: uri, maxLength: 2000 }
+                name: { type: string, maxLength: 100 }
+      responses:
+        "202":
+          description: The company is in the catalog.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/Company" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
+  /api/v1/admin/adapters:
+    get:
+      tags: [admin]
+      summary: List adapter-type reviews (administrator)
+      operationId: listAdapterReviews
+      responses:
+        "200":
+          description: Every adapter type and its review.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/AdapterReview" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/v1/admin/adapters/{adapter}:
+    patch:
+      tags: [admin]
+      summary: Review, enable or disable an adapter type (administrator)
+      operationId: reviewAdapter
+      parameters:
+        - name: adapter
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[a-z0-9_]+$" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [enabled]
+              properties:
+                enabled: { type: boolean }
+                note: { type: string, maxLength: 2000, description: Required to enable. }
+      responses:
+        "200":
+          description: The updated review.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/AdapterReview" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
+  /api/v1/admin/companies/{companyID}:
+    patch:
+      tags: [admin]
+      summary: Disable or re-enable a company for everyone (administrator)
+      operationId: setCompanyDisabled
+      parameters:
+        - $ref: "#/components/parameters/CompanyID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [disabled]
+              properties:
+                disabled: { type: boolean }
+      responses:
+        "200":
+          description: The company.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/Company" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/admin/settings:
+    get:
+      tags: [admin]
+      summary: Crawl settings in effect (administrator, read-only)
+      operationId: getCrawlSettings
+      responses:
+        "200":
+          description: Name and value of each crawl setting.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [name, value]
+                      properties:
+                        name: { type: string }
+                        value: { type: string }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/v1/workspaces/{workspaceID}/research-profiles:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+    get:
+      tags: [research]
+      summary: List research profiles
+      operationId: listResearchProfiles
+      responses:
+        "200":
+          description: The workspace's profiles, oldest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/ResearchProfile" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [research]
+      summary: Create a research profile
+      operationId: createResearchProfile
+      requestBody: { $ref: "#/components/requestBodies/ResearchProfileBody" }
+      responses:
+        "201":
+          description: The new profile.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ResearchProfile" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
+  /api/v1/workspaces/{workspaceID}/research-profiles/{profileID}:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+      - $ref: "#/components/parameters/ProfileID"
+    get:
+      tags: [research]
+      summary: Get a research profile
+      operationId: getResearchProfile
+      responses:
+        "200":
+          description: The profile.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ResearchProfile" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [research]
+      summary: Update a research profile
+      description: Fields that are absent keep their value.
+      operationId: updateResearchProfile
+      requestBody: { $ref: "#/components/requestBodies/ResearchProfileBody" }
+      responses:
+        "200":
+          description: The updated profile.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ResearchProfile" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
+    delete:
+      tags: [research]
+      summary: Delete a research profile and its runs and matches
+      operationId: deleteResearchProfile
+      responses:
+        "204": { description: Deleted. }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/workspaces/{workspaceID}/research-profiles/{profileID}/runs:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+      - $ref: "#/components/parameters/ProfileID"
+    post:
+      tags: [research]
+      summary: Start a research run now
+      operationId: startResearchRun
+      responses:
+        "202":
+          description: The queued run.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ResearchRun" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /api/v1/workspaces/{workspaceID}/research-runs:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+    get:
+      tags: [research]
+      summary: List research runs, newest first
+      operationId: listResearchRuns
+      parameters:
+        - name: profile
+          in: query
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Runs.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/ResearchRun" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
+  /api/v1/workspaces/{workspaceID}/research-runs/{runID}:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+      - $ref: "#/components/parameters/RunID"
+    get:
+      tags: [research]
+      summary: Get a research run with its stage progress
+      operationId: getResearchRun
+      responses:
+        "200":
+          description: The run.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ResearchRun" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/workspaces/{workspaceID}/research-runs/{runID}/events:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+      - $ref: "#/components/parameters/RunID"
+    get:
+      tags: [research]
+      summary: Read a run's log
+      description: Returns lines after `after`, oldest first. The newest 2000 lines of a run are kept.
+      operationId: listResearchRunEvents
+      parameters:
+        - name: after
+          in: query
+          schema: { type: integer, minimum: 0 }
+        - name: level
+          in: query
+          description: "`warn` returns warnings and errors, `error` only errors."
+          schema: { type: string, enum: [warn, error] }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 500, default: 200 }
+      responses:
+        "200":
+          description: Log lines.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/RunEvent" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
+  /api/v1/workspaces/{workspaceID}/research-runs/{runID}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+      - $ref: "#/components/parameters/RunID"
+    post:
+      tags: [research]
+      summary: Cancel a queued or running run
+      description: A queued run is cancelled at once; a running run stops at its next progress report.
+      operationId: cancelResearchRun
+      responses:
+        "202":
+          description: The run.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/ResearchRun" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /api/v1/workspaces/{workspaceID}/companies:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+    get:
+      tags: [companies]
+      summary: Browse the company catalog
+      description: Ordered by name. `blocked` tells whether this workspace blocked the company.
+      operationId: listCompanies
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 200 }
+        - name: ats
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/CompanyStatus" }
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: One page of companies.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, next_cursor]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Company" }
+                  next_cursor: { type: [string, "null"] }
+        "422": { $ref: "#/components/responses/InvalidInput" }
+  /api/v1/workspaces/{workspaceID}/company-blocks/{companyID}:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+      - $ref: "#/components/parameters/CompanyID"
+    put:
+      tags: [companies]
+      summary: Hide a company's jobs in this workspace
+      operationId: blockCompany
+      responses:
+        "204": { description: Blocked (also when it already was). }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [companies]
+      summary: Show a blocked company's jobs again
+      operationId: unblockCompany
+      responses:
+        "204": { description: Unblocked. }
+
 components:
   securitySchemes:
     sessionCookie:
@@ -785,6 +1176,21 @@ components:
       schema: { type: string, format: uuid }
     JobID:
       name: jobID
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ProfileID:
+      name: profileID
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    RunID:
+      name: runID
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    CompanyID:
+      name: companyID
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -815,7 +1221,36 @@ components:
             properties:
               body: { type: string, minLength: 1, maxLength: 10000 }
 
+    ResearchProfileBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            properties:
+              name: { type: string, minLength: 1, maxLength: 100 }
+              title_keywords: { $ref: "#/components/schemas/KeywordList" }
+              keywords: { $ref: "#/components/schemas/KeywordList" }
+              technologies: { $ref: "#/components/schemas/KeywordList" }
+              countries:
+                type: array
+                maxItems: 30
+                items: { type: string, pattern: "^[A-Za-z]{2}$" }
+              locations: { $ref: "#/components/schemas/KeywordList" }
+              excluded_keywords: { $ref: "#/components/schemas/KeywordList" }
+              remote: { $ref: "#/components/schemas/RemotePreference" }
+              seniority:
+                type: array
+                items: { type: string, enum: [intern, junior, mid, senior, lead] }
+              schedule_hours: { type: integer, minimum: 1, maximum: 336 }
+
   responses:
+    Forbidden:
+      description: "`forbidden`: only the installation administrator may do this."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
     Unauthenticated:
       description: "`unauthenticated`: no valid session cookie."
       content:
@@ -879,12 +1314,13 @@ components:
               message: must be an integer between 1 and 100
     User:
       type: object
-      required: [id, email, display_name, locale, created_at]
+      required: [id, email, display_name, locale, is_admin, created_at]
       properties:
         id: { type: string, format: uuid }
         email: { type: string, format: email }
         display_name: { type: string }
         locale: { type: string, enum: [tr, en] }
+        is_admin: { type: boolean, description: The installation administrator (the first account). }
         created_at: { type: string, format: date-time }
     Workspace:
       type: object
@@ -1017,3 +1453,102 @@ components:
         body: { type: string }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
+    KeywordList:
+      type: array
+      maxItems: 30
+      items: { type: string, maxLength: 60 }
+    RemotePreference:
+      type: string
+      enum: [any, remote_only, remote_or_hybrid, onsite_ok]
+    ResearchProfile:
+      type: object
+      required: [id, name, title_keywords, keywords, technologies, countries, locations,
+        excluded_keywords, remote, seniority, schedule_hours, last_run_at, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        title_keywords: { type: array, items: { type: string } }
+        keywords: { type: array, items: { type: string } }
+        technologies: { type: array, items: { type: string } }
+        countries: { type: array, items: { type: string } }
+        locations: { type: array, items: { type: string } }
+        excluded_keywords: { type: array, items: { type: string } }
+        remote: { $ref: "#/components/schemas/RemotePreference" }
+        seniority: { type: array, items: { type: string } }
+        schedule_hours: { type: integer }
+        last_run_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    StageProgress:
+      type: object
+      required: [state, total, done, failed, detail, note, started_at, finished_at]
+      properties:
+        state: { type: string, enum: [pending, running, done, skipped, failed] }
+        total: { type: integer }
+        done: { type: integer }
+        failed: { type: integer }
+        detail:
+          type: object
+          additionalProperties: { type: integer }
+          description: Counts such as companies per job board system or jobs collected.
+        note: { type: string }
+        started_at: { type: [string, "null"], format: date-time }
+        finished_at: { type: [string, "null"], format: date-time }
+    ResearchRun:
+      type: object
+      required: [id, profile_id, state, stage, stages, trigger, error, cancel_requested, summary,
+        queued_at, started_at, finished_at]
+      properties:
+        id: { type: string, format: uuid }
+        profile_id: { type: string, format: uuid }
+        state: { type: string, enum: [queued, running, succeeded, failed, cancelled] }
+        stage: { type: string, enum: [discovery, detection, collection, scoring, result] }
+        stages:
+          type: object
+          required: [discovery, detection, collection, scoring, result]
+          additionalProperties: { $ref: "#/components/schemas/StageProgress" }
+        trigger: { type: string, enum: [manual, schedule] }
+        error: { type: [string, "null"] }
+        cancel_requested: { type: boolean }
+        summary:
+          type: object
+          additionalProperties: { type: integer }
+          description: companies_known, companies_checked, companies_failed, jobs_collected, jobs_open, matches, new_matches.
+        queued_at: { type: string, format: date-time }
+        started_at: { type: [string, "null"], format: date-time }
+        finished_at: { type: [string, "null"], format: date-time }
+    RunEvent:
+      type: object
+      required: [id, at, level, stage, company, message]
+      properties:
+        id: { type: integer }
+        at: { type: string, format: date-time }
+        level: { type: string, enum: [info, warn, error] }
+        stage: { type: string }
+        company: { type: string }
+        message: { type: string }
+    CompanyStatus:
+      type: string
+      enum: [pending, active, empty, unreachable, blocked_by_robots, disabled]
+    Company:
+      type: object
+      required: [id, name, careers_url, ats, status, origin, open_jobs, last_checked_at, last_error, blocked]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        careers_url: { type: string, format: uri }
+        ats: { type: string, description: "Job board system: greenhouse, lever, ashby, workable, recruitee, personio, bamboohr, workday, jsonld or unknown." }
+        status: { $ref: "#/components/schemas/CompanyStatus" }
+        origin: { type: string, enum: [seed, hackernews, list, link, manual] }
+        open_jobs: { type: integer }
+        last_checked_at: { type: [string, "null"], format: date-time }
+        last_error: { type: [string, "null"] }
+        blocked: { type: boolean }
+    AdapterReview:
+      type: object
+      required: [adapter, enabled, reviewed_at, note]
+      properties:
+        adapter: { type: string }
+        enabled: { type: boolean }
+        reviewed_at: { type: [string, "null"], format: date-time }
+        note: { type: [string, "null"] }

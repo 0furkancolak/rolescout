@@ -14,6 +14,7 @@ import (
 
 	"example.com/rolescout/api/internal/auth"
 	"example.com/rolescout/api/internal/domain"
+	"example.com/rolescout/api/internal/infrastructure/database"
 )
 
 const testToken = "unit-test-session"
@@ -136,4 +137,24 @@ func expectError(t *testing.T, r testResponse, status int, code string) {
 	if r.errorCode() != code {
 		t.Fatalf("error code = %q, want %q; body: %s", r.errorCode(), code, r.Raw)
 	}
+}
+
+// fakeAuthAs accepts testToken as the given user.
+type fakeAuthAs domain.User
+
+func (f fakeAuthAs) Register(context.Context, database.RegisterParams) (domain.User, domain.Workspace, error) {
+	panic("unexpected")
+}
+func (f fakeAuthAs) Credentials(context.Context, string) (domain.User, string, error) {
+	panic("unexpected")
+}
+func (f fakeAuthAs) CreateSession(context.Context, []byte, string, time.Time) error {
+	panic("unexpected")
+}
+func (f fakeAuthAs) DeleteSession(context.Context, []byte) error { panic("unexpected") }
+func (f fakeAuthAs) UserBySession(_ context.Context, hash []byte) (domain.User, error) {
+	if bytes.Equal(hash, auth.HashSessionToken(testToken)) {
+		return domain.User(f), nil
+	}
+	return domain.User{}, domain.ErrNotFound
 }
