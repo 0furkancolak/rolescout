@@ -12,3 +12,6 @@ api/bin/
 
 # Database backups
 backups/
+
+# Brainstorming mockups
+.superpowers/
