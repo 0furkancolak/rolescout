@@ -11,6 +11,7 @@
 //	admin adapters enable|disable -adapter NAME
 //	admin companies list [-status STATUS] [-q TEXT]
 //	admin companies add -url CAREERS_URL [-name NAME]
+//	admin seeds check [-file FILE] [-write GOOD_FILE]
 package main
 
 import (
@@ -25,11 +26,13 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"text/tabwriter"
 	"time"
 
 	"example.com/rolescout/api/internal/config"
+	"example.com/rolescout/api/internal/discovery"
 	"example.com/rolescout/api/internal/domain"
 	"example.com/rolescout/api/internal/infrastructure/database"
 	"example.com/rolescout/api/internal/ingest"
@@ -42,6 +45,7 @@ var version = "dev"
 const usage = `usage: admin sources <list|add|review|enable|disable|sync|runs> [flags]
        admin adapters <list|review|enable|disable> [flags]
        admin companies <list|add> [flags]
+       admin seeds check [-file FILE] [-write GOOD_FILE]
        admin version
 
 Sources start disabled. A source can be enabled when it has its own review
@@ -63,12 +67,15 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 		fmt.Fprintln(out, version)
 		return nil
 	}
-	if len(args) < 2 || (args[0] != "sources" && args[0] != "adapters" && args[0] != "companies") {
+	if len(args) < 2 || (args[0] != "sources" && args[0] != "adapters" && args[0] != "companies" && args[0] != "seeds") {
 		return errors.New(usage)
 	}
 	cfg, err := config.Load()
 	if err != nil {
 		return err
+	}
+	if args[0] == "seeds" {
+		return seedsCommand(ctx, cfg, args[1:], out)
 	}
 	pool, err := database.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -397,4 +404,103 @@ func printRun(w io.Writer, r domain.IngestionRun) {
 		fmt.Fprintf(w, "  error=%q", *r.Error)
 	}
 	fmt.Fprintln(w)
+}
+
+// seedsCommand checks that seed career pages lead to a supported board with
+// jobs, so dead entries can be removed before a release.
+func seedsCommand(ctx context.Context, cfg config.Config, args []string, out io.Writer) error {
+	if len(args) == 0 || args[0] != "check" {
+		return errors.New(usage)
+	}
+	fs := flag.NewFlagSet("check", flag.ContinueOnError)
+	file := fs.String("file", "", "seed file to check (default: the embedded list)")
+	write := fs.String("write", "", "write the entries that passed to this file")
+	if err := fs.Parse(args[1:]); err != nil {
+		return err
+	}
+	var seeds []discovery.Seed
+	var err error
+	if *file == "" {
+		seeds, err = discovery.Seeds()
+	} else {
+		var data []byte
+		if data, err = os.ReadFile(*file); err == nil {
+			seeds, err = discovery.ParseSeeds(string(data))
+		}
+	}
+	if err != nil {
+		return err
+	}
+	crawler := adapters.NewCrawler(version, cfg.Crawl)
+	registry := adapters.Registry(crawler, adapters.Options{JSONLDMaxPages: 5})
+	detector := &discovery.Detector{Client: crawler}
+
+	type result struct {
+		line string
+		ok   bool
+		msg  string
+	}
+	results := make([]result, len(seeds))
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, cfg.Crawl.Concurrency)
+	for i, s := range seeds {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			line := s.URL
+			if s.Name != "" {
+				line += " | " + s.Name
+			}
+			results[i] = result{line: line}
+			det, err := detector.Detect(ctx, s.URL)
+			if err != nil {
+				results[i].msg = err.Error()
+				return
+			}
+			if det.Board.ATS == "unknown" {
+				results[i].msg = "no supported job board found"
+				return
+			}
+			adapter, err := registry.Get(det.Board.ATS)
+			if err != nil {
+				results[i].msg = err.Error()
+				return
+			}
+			fetchCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+			jobs, err := adapter.Fetch(fetchCtx, det.Board.Config)
+			cancel()
+			if err != nil {
+				results[i].msg = det.Board.ATS + ": " + err.Error()
+				return
+			}
+			// Some systems answer unknown boards with an empty list, so a
+			// seed must have at least one open job to prove it is real.
+			if len(jobs) == 0 {
+				results[i].msg = det.Board.ATS + ": no open jobs"
+				return
+			}
+			results[i].ok = true
+			results[i].msg = fmt.Sprintf("%-10s %4d jobs", det.Board.ATS, len(jobs))
+		}()
+	}
+	wg.Wait()
+
+	var good strings.Builder
+	passed := 0
+	for _, r := range results {
+		if r.ok {
+			passed++
+			good.WriteString(r.line + "\n")
+			fmt.Fprintf(out, "OK   %s  %s\n", r.msg, r.line)
+		} else {
+			fmt.Fprintf(out, "DEAD %s  (%s)\n", r.line, r.msg)
+		}
+	}
+	fmt.Fprintf(out, "%d of %d seeds lead to a supported job board.\n", passed, len(seeds))
+	if *write != "" {
+		return os.WriteFile(*write, []byte(good.String()), 0o644)
+	}
+	return nil
 }

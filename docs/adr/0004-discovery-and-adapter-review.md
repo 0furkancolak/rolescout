@@ -16,7 +16,7 @@ See the [design](../superpowers/specs/2026-10-17-career-page-research-design.md)
 ### Company catalog
 - `companies` is global: career pages are public information. Each company
   has a careers URL, the detected job board system (`ats`, `ats_id`), where it
-  was found (`commoncrawl`, `seed`, `link`, `manual`), a status (`pending`,
+  was found (`seed`, `hackernews`, `list`, `link`, `manual`), a status (`pending`,
   `active`, `empty`, `unreachable`, `blocked_by_robots`, `disabled`) and
   failure backoff (1 hour doubled per failure, at most 7 days).
 - A company with a detected board gets one job source (`job_sources.company_id`),
@@ -24,6 +24,32 @@ See the [design](../superpowers/specs/2026-10-17-career-page-research-design.md)
 - Workspaces can block companies (`workspace_company_blocks`); blocks are
   private to the workspace. A manually added company joins the global catalog
   without recording who added it.
+
+### Discovery sources
+All sources are free, need no key and allow automated access:
+- **Seed list** shipped in `api/internal/discovery/seeds/companies.txt`,
+  verified with `admin seeds check` (it keeps entries whose page leads to a
+  supported board that answers).
+- **Hacker News "Ask HN: Who is hiring?"** threads, read through the official
+  Hacker News API (`hacker-news.firebaseio.com`, whose robots.txt allows the
+  JSON endpoints). Each comment is one employer; its job board links, or its
+  first link, become candidates. The last 12 monthly threads are read on the
+  first run; later runs read new threads and re-read the current month's.
+- **Public company lists** in Markdown on GitHub, such as
+  `poteto/hiring-without-whiteboards` (over a thousand companies with career
+  page links).
+- **Link following**: boards linked from a career page join the catalog.
+- **Manual additions** by career page URL.
+
+Common Crawl was the first choice, but both `index.commoncrawl.org` and
+`data.commoncrawl.org` disallow all crawlers in robots.txt (checked
+2026-10-17), so RoleScout does not use them.
+
+A candidate that is a board URL becomes a company with a known board right
+away. Any other URL is detected: RoleScout reads the page (following one
+"careers"/"jobs"/"kariyer" link from a homepage), looks for embedded or linked
+boards, then for JobPosting JSON-LD on the page or up to three linked job
+pages.
 
 ### Review moves to the adapter type
 - `source_adapter_reviews` records a review per adapter type. A source can be
@@ -52,9 +78,11 @@ All outbound requests go through `internal/crawl`:
 - Responses are capped at 32 MiB; 429 and 5xx are temporary and retried with
   backoff, honouring `Retry-After`.
 - Conditional requests (`ETag`, `Last-Modified`) are used for pages read
-  repeatedly (robots.txt, Common Crawl metadata, JSON-LD job pages). Board
-  APIs are always read in full, because closing jobs that disappeared needs
-  the whole snapshot.
+  repeatedly where a body need not be re-read (robots.txt). Board APIs and
+  JSON-LD pages are always read in full, because closing jobs that
+  disappeared needs the whole snapshot.
+- `Crawl-delay` in robots.txt is honoured (capped at 60 s) by making that
+  host sequential.
 
 ### Retention
 Closed jobs that nobody saved or applied to are deleted after

@@ -26,7 +26,7 @@ func TestUpsertDiscoveredDedupesByBoard(t *testing.T) {
 	}
 	again, created, err := repo.UpsertDiscovered(ctx, CompanyParams{
 		Name: "Acme Inc", CareersURL: "https://job-boards.greenhouse.io/" + board, ATS: "greenhouse",
-		ATSID: strp(board), Origin: "commoncrawl",
+		ATSID: strp(board), Origin: "hackernews",
 	})
 	if err != nil || created || again.ID != c.ID {
 		t.Fatalf("second upsert: %+v created=%v err=%v", again, created, err)

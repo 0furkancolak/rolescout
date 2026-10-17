@@ -3,8 +3,12 @@ package main
 import (
 	"bytes"
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"example.com/rolescout/api/internal/infrastructure/database"
@@ -88,4 +92,42 @@ func regexpLine(out, a, b string) bool {
 		}
 	}
 	return false
+}
+
+func TestSeedsCheckReportsDeadAndOK(t *testing.T) {
+	var emptyHits atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/careers":
+			w.Write([]byte(`<html><script type="application/ld+json">{"@type":"JobPosting","title":"Dev","url":"` + "http://" + r.Host + `/careers/1","hiringOrganization":"Acme"}</script></html>`))
+		case "/empty":
+			// Detection sees a posting; by the time jobs are read it is gone.
+			if emptyHits.Add(1) == 1 {
+				w.Write([]byte(`<html><script type="application/ld+json">{"@type":"JobPosting","title":"Last"}</script></html>`))
+				return
+			}
+			w.Write([]byte(`<html></html>`))
+		case "/plain":
+			w.Write([]byte(`<html>Send us your CV</html>`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	dir := t.TempDir()
+	in := filepath.Join(dir, "seeds.txt")
+	out := filepath.Join(dir, "good.txt")
+	os.WriteFile(in, []byte("# test\n"+srv.URL+"/careers | Acme\n"+srv.URL+"/plain | Plain\n"+srv.URL+"/gone | Gone\n"+srv.URL+"/empty | Empty\n"), 0o600)
+	t.Setenv("DATABASE_URL", "postgres://unused")
+	report, err := runCLI(t, "seeds", "check", "-file", in, "-write", out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(report, "OK   jsonld") || !strings.Contains(report, "DEAD") || !strings.Contains(report, "1 of 4") {
+		t.Fatalf("report:\n%s", report)
+	}
+	good, _ := os.ReadFile(out)
+	if string(good) != srv.URL+"/careers | Acme\n" {
+		t.Errorf("written seeds = %q", good)
+	}
 }

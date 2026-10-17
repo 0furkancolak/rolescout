@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -37,6 +38,10 @@ type Detection struct {
 // redirect to one, an embedded board, or schema.org JobPosting data.
 // crawl.ErrDisallowed is returned when robots.txt forbids the page.
 func (d *Detector) Detect(ctx context.Context, careersURL string) (Detection, error) {
+	return d.detect(ctx, careersURL, true)
+}
+
+func (d *Detector) detect(ctx context.Context, careersURL string, followCareersLink bool) (Detection, error) {
 	if b, ok := ParseBoardURL(careersURL); ok {
 		return Detection{Board: b, FinalURL: careersURL}, nil
 	}
@@ -81,13 +86,28 @@ func (d *Detector) Detect(ctx context.Context, careersURL string) (Detection, er
 	}
 	if found {
 		det.Board = Board{ATS: "jsonld", ID: res.FinalURL, Config: map[string]any{"url": res.FinalURL}}
+		return det, nil
+	}
+	// A company homepage usually links to its career page.
+	if followCareersLink && len(page.careerLinks) > 0 {
+		next, err := d.detect(ctx, page.careerLinks[0], false)
+		if err == nil {
+			if next.Name == "" {
+				next.Name = det.Name
+			}
+			return next, nil
+		}
 	}
 	return det, nil
 }
 
+var careersText = regexp.MustCompile(`(?i)\b(careers?|jobs|kariyer|karriere|join[- ]us|work[- ]with[- ]us|open[- ](positions|roles)|we.?re[- ]hiring|stellenangebote|emplois?)\b`)
+
 type pageInfo struct {
 	name   string
 	boards []Board
+	// careerLinks are same-site links that look like a careers page.
+	careerLinks []string
 }
 
 // scanPage collects board URLs from script, iframe, link and anchor
@@ -122,6 +142,10 @@ func scanPage(body []byte, pageURL string) pageInfo {
 				if u, err := base.Parse(strings.TrimSpace(ref)); err == nil {
 					if b, ok := ParseBoardURL(u.String()); ok {
 						info.boards = append(info.boards, b)
+					} else if n.Data == "a" && strings.EqualFold(u.Host, base.Host) && u.Path != base.Path &&
+						(careersText.MatchString(u.Path) || careersText.MatchString(text(n))) {
+						u.Fragment = ""
+						info.careerLinks = append(info.careerLinks, u.String())
 					}
 				}
 			}
@@ -136,6 +160,22 @@ func scanPage(body []byte, pageURL string) pageInfo {
 		info.name = title
 	}
 	return info
+}
+
+// text returns the text inside n.
+func text(n *html.Node) string {
+	var b strings.Builder
+	var walk func(*html.Node)
+	walk = func(n *html.Node) {
+		if n.Type == html.TextNode {
+			b.WriteString(n.Data)
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			walk(c)
+		}
+	}
+	walk(n)
+	return b.String()
 }
 
 func attr(n *html.Node, name string) string {

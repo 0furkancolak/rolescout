@@ -132,3 +132,20 @@ func TestDetectRobotsBlocked(t *testing.T) {
 		t.Fatalf("err = %v, want ErrDisallowed", err)
 	}
 }
+
+func TestDetectFollowsCareersLinkFromHomepage(t *testing.T) {
+	d := sites(t, map[string]string{
+		"acme.example/":           `<html><a href="/about">About</a><a href="/tr/kariyer">Kariyer</a><a href="https://x.example/careers">Partner</a></html>`,
+		"acme.example/tr/kariyer": `<html><iframe src="https://jobs.lever.co/acme"></iframe></html>`,
+		"beta.example/":           `<html><a href="/jobs">Open positions</a></html>`,
+		"beta.example/jobs":       `<html><p>No openings</p></html>`,
+	})
+	got, err := d.Detect(ingesttest.Ctx(t), "http://acme.example/")
+	if err != nil || got.Board.ATS != "lever" || got.Board.ID != "acme" {
+		t.Fatalf("detection = %+v, err = %v", got, err)
+	}
+	got, err = d.Detect(ingesttest.Ctx(t), "http://beta.example/")
+	if err != nil || got.Board.ATS != "unknown" || got.FinalURL != "http://beta.example/jobs" {
+		t.Fatalf("unknown after following: %+v, err = %v", got, err)
+	}
+}
