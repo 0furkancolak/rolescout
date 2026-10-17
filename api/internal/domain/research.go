@@ -107,3 +107,11 @@ type Match struct {
 	New            bool
 	FirstMatchedAt time.Time
 }
+
+// WorkspaceJob is a job as one workspace sees it: whether it saved the job
+// and, when browsing a profile's results, the job's match.
+type WorkspaceJob struct {
+	Job   Job
+	Saved bool
+	Match *Match
+}

@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"example.com/rolescout/api/internal/domain"
+	"example.com/rolescout/api/internal/infrastructure/database"
 )
 
 // Response bodies use explicit DTOs so storage fields never leak by accident.
@@ -18,17 +19,20 @@ type pageResponse[T any] struct {
 }
 
 type jobDTO struct {
-	ID              string    `json:"id"`
-	Title           string    `json:"title"`
-	CompanyName     string    `json:"company_name"`
-	Location        *string   `json:"location"`
-	WorkArrangement string    `json:"work_arrangement"`
-	EmploymentType  string    `json:"employment_type"`
-	Seniority       string    `json:"seniority"`
-	Technologies    []string  `json:"technologies"`
-	Description     string    `json:"description"`
-	FirstSeenAt     time.Time `json:"first_seen_at"`
-	LastSeenAt      time.Time `json:"last_seen_at"`
+	ID              string     `json:"id"`
+	Title           string     `json:"title"`
+	CompanyName     string     `json:"company_name"`
+	CompanyID       *string    `json:"company_id"`
+	CountryCode     *string    `json:"country_code"`
+	ClosedAt        *time.Time `json:"closed_at"`
+	Location        *string    `json:"location"`
+	WorkArrangement string     `json:"work_arrangement"`
+	EmploymentType  string     `json:"employment_type"`
+	Seniority       string     `json:"seniority"`
+	Technologies    []string   `json:"technologies"`
+	Description     string     `json:"description"`
+	FirstSeenAt     time.Time  `json:"first_seen_at"`
+	LastSeenAt      time.Time  `json:"last_seen_at"`
 }
 
 func toJob(j domain.Job) jobDTO {
@@ -37,7 +41,8 @@ func toJob(j domain.Job) jobDTO {
 		tech = []string{}
 	}
 	return jobDTO{
-		ID: j.ID, Title: j.Title, CompanyName: j.CompanyName, Location: j.Location,
+		ID: j.ID, Title: j.Title, CompanyName: j.CompanyName, CompanyID: j.CompanyID, CountryCode: j.CountryCode,
+		ClosedAt: utcPtr(j.ClosedAt), Location: j.Location,
 		WorkArrangement: j.WorkArrangement, EmploymentType: j.EmploymentType,
 		Seniority: j.Seniority, Technologies: tech, Description: j.Description,
 		FirstSeenAt: j.FirstSeenAt.UTC(), LastSeenAt: j.LastSeenAt.UTC(),
@@ -343,4 +348,55 @@ type adapterReviewDTO struct {
 
 func toAdapterReview(a domain.AdapterReview) adapterReviewDTO {
 	return adapterReviewDTO{Adapter: a.Adapter, Enabled: a.Enabled, ReviewedAt: utcPtr(a.ReviewedAt), Note: a.Note}
+}
+
+type matchDTO struct {
+	Score   int                  `json:"score"`
+	New     bool                 `json:"new"`
+	Reasons []domain.MatchReason `json:"reasons"`
+}
+
+type workspaceJobDTO struct {
+	jobDTO
+	Saved bool      `json:"saved"`
+	Match *matchDTO `json:"match"`
+}
+
+func toWorkspaceJob(w domain.WorkspaceJob) workspaceJobDTO {
+	out := workspaceJobDTO{jobDTO: toJob(w.Job), Saved: w.Saved}
+	if w.Match != nil {
+		reasons := w.Match.Reasons
+		if reasons == nil {
+			reasons = []domain.MatchReason{}
+		}
+		out.Match = &matchDTO{Score: w.Match.Score, New: w.Match.New, Reasons: reasons}
+	}
+	return out
+}
+
+type facetCountDTO struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
+	Count int    `json:"count"`
+}
+
+type facetsDTO struct {
+	Posted       map[string]int  `json:"posted"`
+	Arrangement  map[string]int  `json:"arrangement"`
+	Seniority    map[string]int  `json:"seniority"`
+	Country      map[string]int  `json:"country"`
+	Technologies []facetCountDTO `json:"technologies"`
+	Companies    []facetCountDTO `json:"companies"`
+}
+
+func toFacets(f database.Facets) facetsDTO {
+	conv := func(in []database.FacetCount) []facetCountDTO {
+		out := make([]facetCountDTO, len(in))
+		for i, c := range in {
+			out[i] = facetCountDTO{Value: c.Value, Label: c.Label, Count: c.Count}
+		}
+		return out
+	}
+	return facetsDTO{Posted: f.Posted, Arrangement: f.Arrangement, Seniority: f.Seniority, Country: f.Country,
+		Technologies: conv(f.Technologies), Companies: conv(f.Companies)}
 }

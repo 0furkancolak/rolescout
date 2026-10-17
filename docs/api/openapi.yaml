@@ -1155,6 +1155,134 @@ paths:
       responses:
         "204": { description: Unblocked. }
 
+  /api/v1/workspaces/{workspaceID}/jobs:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+    get:
+      tags: [jobs]
+      summary: Browse jobs as this workspace sees them
+      description: |
+        Jobs from companies the workspace blocked and closed jobs (unless
+        `closed=true`) are left out. `sort=recent` orders by first seen,
+        `score` by match score (needs `profile`), `relevance` by full-text
+        rank (needs `q`, at most 2000 results).
+      operationId: listWorkspaceJobs
+      parameters:
+        - name: q
+          in: query
+          description: Full-text search (websearch syntax) over title, company, technologies and description.
+          schema: { type: string, maxLength: 200 }
+        - name: profile
+          in: query
+          description: Only the profile's matches, with their scores.
+          schema: { type: string, format: uuid }
+        - name: posted
+          in: query
+          schema: { type: string, enum: [24h, 7d, 30d] }
+        - name: arrangement
+          in: query
+          schema: { $ref: "#/components/schemas/WorkArrangement" }
+        - name: seniority
+          in: query
+          schema: { $ref: "#/components/schemas/Seniority" }
+        - name: employment_type
+          in: query
+          schema: { $ref: "#/components/schemas/EmploymentType" }
+        - name: technology
+          in: query
+          description: Repeat or comma-separate; a job must have all of them.
+          schema: { type: array, items: { type: string } }
+          explode: true
+        - name: country
+          in: query
+          schema: { type: array, items: { type: string, pattern: "^[A-Za-z]{2}$" } }
+          explode: true
+        - name: company
+          in: query
+          schema: { type: array, items: { type: string, format: uuid } }
+          explode: true
+        - name: closed
+          in: query
+          description: Include jobs that are no longer listed.
+          schema: { type: boolean, default: false }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [recent, score, relevance], default: recent }
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: One page of jobs.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, next_cursor]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/WorkspaceJob" }
+                  next_cursor: { type: [string, "null"] }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
+  /api/v1/workspaces/{workspaceID}/jobs/facets:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+    get:
+      tags: [jobs]
+      summary: Count jobs by filter values
+      description: Each dimension is counted with every other filter applied, but not its own.
+      operationId: getWorkspaceJobFacets
+      parameters:
+        - name: q
+          in: query
+          description: Full-text search (websearch syntax) over title, company, technologies and description.
+          schema: { type: string, maxLength: 200 }
+        - name: profile
+          in: query
+          description: Only the profile's matches, with their scores.
+          schema: { type: string, format: uuid }
+        - name: posted
+          in: query
+          schema: { type: string, enum: [24h, 7d, 30d] }
+        - name: arrangement
+          in: query
+          schema: { $ref: "#/components/schemas/WorkArrangement" }
+        - name: seniority
+          in: query
+          schema: { $ref: "#/components/schemas/Seniority" }
+        - name: employment_type
+          in: query
+          schema: { $ref: "#/components/schemas/EmploymentType" }
+        - name: technology
+          in: query
+          description: Repeat or comma-separate; a job must have all of them.
+          schema: { type: array, items: { type: string } }
+          explode: true
+        - name: country
+          in: query
+          schema: { type: array, items: { type: string, pattern: "^[A-Za-z]{2}$" } }
+          explode: true
+        - name: company
+          in: query
+          schema: { type: array, items: { type: string, format: uuid } }
+          explode: true
+        - name: closed
+          in: query
+          description: Include jobs that are no longer listed.
+          schema: { type: boolean, default: false }
+      responses:
+        "200":
+          description: Counts.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/JobFacets" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
+
 components:
   securitySchemes:
     sessionCookie:
@@ -1359,6 +1487,9 @@ components:
         id: { type: string, format: uuid }
         title: { type: string }
         company_name: { type: string }
+        company_id: { type: [string, "null"], format: uuid }
+        country_code: { type: [string, "null"], description: ISO 3166-1 alpha-2 when known. }
+        closed_at: { type: [string, "null"], format: date-time, description: Set when no source lists the job any more. }
         location: { type: [string, "null"] }
         work_arrangement: { $ref: "#/components/schemas/WorkArrangement" }
         employment_type: { $ref: "#/components/schemas/EmploymentType" }
@@ -1552,3 +1683,41 @@ components:
         enabled: { type: boolean }
         reviewed_at: { type: [string, "null"], format: date-time }
         note: { type: [string, "null"] }
+    WorkspaceJob:
+      allOf:
+        - $ref: "#/components/schemas/Job"
+        - type: object
+          required: [saved, match]
+          properties:
+            saved: { type: boolean }
+            match:
+              type: [object, "null"]
+              required: [score, new, reasons]
+              properties:
+                score: { type: integer, minimum: 0, maximum: 100 }
+                new: { type: boolean, description: First seen since the profile's previous run. }
+                reasons:
+                  type: array
+                  items:
+                    type: object
+                    required: [code]
+                    properties:
+                      code: { type: string, enum: [title, keyword, role, tech, remote, country, location, hybrid, seniority, fresh] }
+                      params: { type: object, additionalProperties: { type: string } }
+    FacetCount:
+      type: object
+      required: [value, label, count]
+      properties:
+        value: { type: string }
+        label: { type: string }
+        count: { type: integer }
+    JobFacets:
+      type: object
+      required: [posted, arrangement, seniority, country, technologies, companies]
+      properties:
+        posted: { type: object, additionalProperties: { type: integer }, description: Keys 24h, 7d and 30d. }
+        arrangement: { type: object, additionalProperties: { type: integer } }
+        seniority: { type: object, additionalProperties: { type: integer } }
+        country: { type: object, additionalProperties: { type: integer } }
+        technologies: { type: array, items: { $ref: "#/components/schemas/FacetCount" }, description: Top 20. }
+        companies: { type: array, items: { $ref: "#/components/schemas/FacetCount" }, description: "Top 20; value is the company ID." }

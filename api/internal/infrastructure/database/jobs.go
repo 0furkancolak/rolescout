@@ -252,14 +252,19 @@ func normalizeTechnologies(in []string) []string {
 	return out
 }
 
-// JobCursor marks the last job of a page in (last_seen_at, id) order.
+// JobCursor marks the last job of a page: (last_seen_at, id) for SearchJobs;
+// for WorkspaceJobs (first_seen_at, id) when sorting by recency, (score, id)
+// by score, or an offset by relevance.
 type JobCursor struct {
-	LastSeenAt time.Time
-	ID         string
+	LastSeenAt  time.Time `json:"l,omitzero"`
+	FirstSeenAt time.Time `json:"f,omitzero"`
+	Score       int       `json:"s,omitempty"`
+	Offset      int       `json:"o,omitempty"`
+	ID          string    `json:"i"`
 }
 
 // JobFilter selects jobs. Empty fields do not filter. Technologies must all be
-// present on a job.
+// present on a job. The fields after Limit apply to WorkspaceJobs and Facets.
 type JobFilter struct {
 	Query           string
 	WorkArrangement string
@@ -268,6 +273,16 @@ type JobFilter struct {
 	Technologies    []string
 	After           *JobCursor
 	Limit           int
+
+	WorkspaceID   string
+	ProfileID     string        // restricts to the profile's matches
+	PostedWithin  time.Duration // first seen within this long
+	Countries     []string
+	CompanyIDs    []string
+	IncludeClosed bool
+	// Sort is "recent" (first seen, newest first; the default), "score"
+	// (needs ProfileID) or "relevance" (needs Query).
+	Sort string
 }
 
 // escapeLike escapes LIKE wildcards so user input matches literally.

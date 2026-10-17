@@ -19,6 +19,8 @@ type JobStore interface {
 	SaveJob(ctx context.Context, workspaceID, jobID string, savedBy *string) error
 	UnsaveJob(ctx context.Context, workspaceID, jobID string) error
 	ListSavedJobs(ctx context.Context, workspaceID string) ([]domain.SavedJob, error)
+	WorkspaceJobs(ctx context.Context, f database.JobFilter) ([]domain.WorkspaceJob, bool, error)
+	Facets(ctx context.Context, f database.JobFilter) (database.Facets, error)
 }
 
 type ApplicationStore interface {
@@ -100,6 +102,8 @@ func RegisterAPIRoutes(app *fiber.App, d Deps) {
 	ws := private.Group("/workspaces/:workspaceID", h.requireWorkspace)
 	ws.Get("/members", h.listMembers)
 	ws.Post("/members", h.addMember)
+	ws.Get("/jobs", h.listWorkspaceJobs)
+	ws.Get("/jobs/facets", h.workspaceJobFacets)
 	ws.Get("/saved-jobs", h.listSavedJobs)
 	ws.Put("/saved-jobs/:jobID", h.saveJob)
 	ws.Delete("/saved-jobs/:jobID", h.unsaveJob)
