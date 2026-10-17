@@ -2,6 +2,7 @@ package research
 
 import (
 	"context"
+	"maps"
 	"sync"
 	"time"
 
@@ -63,6 +64,8 @@ func (r *reporter) flush(ctx context.Context) {
 	run := r.run
 	run.Stages = make(map[domain.Stage]domain.StageProgress, len(r.run.Stages))
 	for k, v := range r.run.Stages {
+		// Detail is a map that update keeps changing; save a copy.
+		v.Detail = maps.Clone(v.Detail)
 		run.Stages[k] = v
 	}
 	events := r.events
