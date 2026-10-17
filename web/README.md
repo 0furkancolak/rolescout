@@ -1,32 +1,53 @@
-# React + TypeScript + Vite
+# RoleScout Web
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React + TypeScript + Vite frontend for RoleScout. It talks to the Go API at
+`/api/v1` on the same origin, so the session cookie stays first-party.
 
-Currently, two official plugins are available:
+## Development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm ci
+npm run dev        # http://localhost:5173, proxies /api to http://127.0.0.1:8080
+npm run lint
+npm test
+npm run build
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Set `API_PROXY_TARGET` to point the dev server at another API address. In
+Docker, nginx serves the build and proxies `/api/` to the `api` service
+(`nginx.conf`).
+
+## Structure
+
+```
+src/
+  app/          router, providers, query client
+  components/   layout and shared UI (ui.tsx, styles.ts)
+  features/     one folder per feature, each with api.ts hooks and pages
+    auth/  workspaces/  jobs/  saved/  applications/
+  lib/          API client and types, i18n, labels
+  test/         test setup and helpers (mockApi, renderApp)
+```
+
+- Server state uses TanStack Query; each feature's `api.ts` owns its query
+  keys. Mutations invalidate the queries they affect.
+- Search filters and the application status filter live in the URL, so
+  views can be bookmarked and shared.
+- Forms use React Hook Form + Zod where client validation mirrors server rules
+  (sign-in, registration). The server stays the authority for every rule.
+- `lib/api.ts` mirrors the status transitions in
+  `api/internal/domain/rules.go`; update both together.
+
+## Languages
+
+UI strings live in `src/lib/messages.ts`. English is the reference and
+TypeScript requires Turkish to define the same keys. The language is taken
+from the saved choice, then the browser language, and can be switched in the
+header. Dates are stored in UTC and shown in the viewer's time zone.
+
+## Tests
+
+Tests live in `__tests__` folders next to the code they cover and run with
+Vitest and Testing Library. `src/test/utils.tsx` provides `mockApi`, an
+in-memory replacement for `fetch` keyed by `"METHOD /path"`, and `renderApp`,
+which renders the real routes at a given URL.

@@ -157,7 +157,7 @@ Notes:
 
 ## Phase 5 - Frontend Application
 
-Status: NOT_STARTED
+Status: DONE
 
 Goals:
 - Build the responsive Turkish and English application
@@ -165,21 +165,29 @@ Goals:
 - Integrate API queries and mutations
 
 Tasks:
-- [ ] Define frontend feature boundaries
-- [ ] Implement routing and layouts
-- [ ] Implement job search and filters
-- [ ] Implement job details and saved jobs
+- [x] Define frontend feature boundaries
+- [x] Implement routing and layouts
+- [x] Implement job search and filters
+- [x] Implement job details and saved jobs
 - [x] Implement application tracking views
-- [ ] Implement application history and notes
-- [ ] Implement loading, empty, and error states
-- [ ] Add accessibility and responsive checks
-- [ ] Add component and feature tests
+- [x] Implement application history and notes
+- [x] Implement loading, empty, and error states
+- [x] Add accessibility and responsive checks
+- [x] Add component and feature tests
 
 Exit criteria:
 - Core workflows are usable through the UI
 - API integration is verified
 - Responsive behavior and error states are tested
 - Production frontend build succeeds
+
+Notes:
+- Structure and conventions: web/README.md.
+- Verified against the Compose stack through nginx: registration, search with
+  filters and pagination, saving, tracking, attempts, notes and tags. No
+  horizontal overflow at 375px width.
+- No dependencies were added; shadcn/ui from the plan was not adopted because
+  a few Tailwind components cover the current screens.
 
 ## Phase 6 - Job Source Ingestion
 
