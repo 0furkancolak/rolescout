@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -33,6 +34,28 @@ type Config struct {
 	RegisterRateLimit int
 	// LogLevel is debug, info, warn or error.
 	LogLevel slog.Level
+	Crawl    Crawl
+}
+
+// Crawl configures company discovery, job collection and research runs.
+type Crawl struct {
+	// Concurrency is how many hosts are crawled in parallel.
+	Concurrency int
+	// HostInterval spaces requests to one ordinary host.
+	HostInterval time.Duration
+	// VendorConcurrency is the parallel request limit for a job board API
+	// host that serves many companies.
+	VendorConcurrency int
+	// UserAgentURL is linked from the User-Agent so site owners can find us.
+	UserAgentURL        string
+	DiscoveryInterval   time.Duration
+	CompanySyncInterval time.Duration
+	ResearchInterval    time.Duration
+	JSONLDMaxPages      int
+	MatchMinScore       int
+	// ClosedJobRetention is how long closed jobs nobody saved or applied to
+	// are kept; 0 keeps them forever.
+	ClosedJobRetention time.Duration
 }
 
 func Load() (Config, error) {
@@ -116,7 +139,13 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 
+	crawl, err := loadCrawl()
+	if err != nil {
+		return Config{}, err
+	}
+
 	return Config{
+		Crawl:             crawl,
 		HTTPHost:          host,
 		HTTPPort:          port,
 		DatabaseURL:       dbURL,
@@ -152,6 +181,75 @@ func boolEnv(name string, fallback bool) (bool, error) {
 	v, err := strconv.ParseBool(raw)
 	if err != nil {
 		return false, fmt.Errorf("invalid %s: use true or false", name)
+	}
+	return v, nil
+}
+
+func loadCrawl() (Crawl, error) {
+	c := Crawl{UserAgentURL: "https://github.com/0furkancolak/rolescout"}
+	var err error
+	if c.Concurrency, err = rangeEnv("CRAWL_CONCURRENCY", 16, 1, 256); err != nil {
+		return c, err
+	}
+	if c.VendorConcurrency, err = rangeEnv("CRAWL_VENDOR_CONCURRENCY", 4, 1, 32); err != nil {
+		return c, err
+	}
+	if c.JSONLDMaxPages, err = rangeEnv("JSONLD_MAX_PAGES", 200, 1, 10000); err != nil {
+		return c, err
+	}
+	if c.MatchMinScore, err = rangeEnv("MATCH_MIN_SCORE", 40, 0, 100); err != nil {
+		return c, err
+	}
+	durations := []struct {
+		name     string
+		dst      *time.Duration
+		fallback time.Duration
+		min      time.Duration
+		example  string
+	}{
+		{"CRAWL_HOST_INTERVAL", &c.HostInterval, time.Second, 100 * time.Millisecond, "1s"},
+		{"DISCOVERY_INTERVAL", &c.DiscoveryInterval, 168 * time.Hour, time.Hour, "168h"},
+		{"COMPANY_SYNC_INTERVAL", &c.CompanySyncInterval, 12 * time.Hour, time.Hour, "12h"},
+		{"RESEARCH_INTERVAL", &c.ResearchInterval, 12 * time.Hour, time.Hour, "12h"},
+	}
+	for _, d := range durations {
+		*d.dst = d.fallback
+		raw := os.Getenv(d.name)
+		if raw == "" {
+			continue
+		}
+		parsed, err := time.ParseDuration(raw)
+		if err != nil || parsed < d.min {
+			return c, fmt.Errorf("invalid %s: use a Go duration of at least %s, such as %s", d.name, d.min, d.example)
+		}
+		*d.dst = parsed
+	}
+	c.ClosedJobRetention = 2160 * time.Hour
+	if raw := os.Getenv("CLOSED_JOB_RETENTION"); raw != "" {
+		parsed, err := time.ParseDuration(raw)
+		if err != nil || (parsed != 0 && parsed < 24*time.Hour) {
+			return c, fmt.Errorf("invalid CLOSED_JOB_RETENTION: use 0 to keep closed jobs or a Go duration of at least 24h, such as 2160h")
+		}
+		c.ClosedJobRetention = parsed
+	}
+	if raw := os.Getenv("CRAWL_USER_AGENT_URL"); raw != "" {
+		u, err := url.Parse(raw)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+			return c, fmt.Errorf("invalid CRAWL_USER_AGENT_URL: use an absolute http(s) URL")
+		}
+		c.UserAgentURL = raw
+	}
+	return c, nil
+}
+
+func rangeEnv(name string, fallback, min, max int) (int, error) {
+	raw := os.Getenv(name)
+	if raw == "" {
+		return fallback, nil
+	}
+	v, err := strconv.Atoi(raw)
+	if err != nil || v < min || v > max {
+		return 0, fmt.Errorf("invalid %s: use a whole number from %d to %d", name, min, max)
 	}
 	return v, nil
 }

@@ -40,6 +40,24 @@ each service. `.env.example` lists the common ones.
 Per-source settings (adapter, configuration, sync interval) are stored in the
 database and managed with the `admin` CLI; see [sources](sources/README.md).
 
+## Crawling and research (worker)
+RoleScout fetches career pages and job board APIs itself. It identifies as
+`RoleScout/<version> (+CRAWL_USER_AGENT_URL)`, follows `robots.txt` and
+limits how fast it calls each host.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `CRAWL_CONCURRENCY` | `16` | Hosts crawled in parallel (1–256). |
+| `CRAWL_HOST_INTERVAL` | `1s` | Minimum gap between requests to one company site, at least `100ms`. |
+| `CRAWL_VENDOR_CONCURRENCY` | `4` | Parallel requests to one job board API host (Greenhouse, Lever…), which serves many companies; requests are at least 250 ms apart per connection. |
+| `CRAWL_USER_AGENT_URL` | project URL | Link in the User-Agent so site owners can find out who is crawling. |
+| `DISCOVERY_INTERVAL` | `168h` | How often the company catalog is grown from Common Crawl and seeds, at least `1h`. |
+| `COMPANY_SYNC_INTERVAL` | `12h` | Refresh interval for companies with matching jobs, at least `1h`. Others refresh every 3 days, companies without jobs weekly. |
+| `RESEARCH_INTERVAL` | `12h` | Default schedule of research profiles, at least `1h`. |
+| `JSONLD_MAX_PAGES` | `200` | Pages read per company career site without a supported job board (1–10000). |
+| `MATCH_MIN_SCORE` | `40` | Lowest score (0–100) stored as a match. |
+| `CLOSED_JOB_RETENTION` | `2160h` | Closed jobs nobody saved or applied to are deleted after this long; `0` keeps them. At least `24h` otherwise. |
+
 ## Admin CLI
 Uses `DATABASE_URL` only.
 

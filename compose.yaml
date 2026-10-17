@@ -62,6 +62,16 @@ services:
       DATABASE_URL: "postgres://${POSTGRES_USER:-rolescout}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-rolescout}?sslmode=disable"
       WORKER_TICK: ${WORKER_TICK:-1m}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      CRAWL_CONCURRENCY: ${CRAWL_CONCURRENCY:-16}
+      CRAWL_HOST_INTERVAL: ${CRAWL_HOST_INTERVAL:-1s}
+      CRAWL_VENDOR_CONCURRENCY: ${CRAWL_VENDOR_CONCURRENCY:-4}
+      CRAWL_USER_AGENT_URL: ${CRAWL_USER_AGENT_URL:-https://github.com/0furkancolak/rolescout}
+      DISCOVERY_INTERVAL: ${DISCOVERY_INTERVAL:-168h}
+      COMPANY_SYNC_INTERVAL: ${COMPANY_SYNC_INTERVAL:-12h}
+      RESEARCH_INTERVAL: ${RESEARCH_INTERVAL:-12h}
+      JSONLD_MAX_PAGES: ${JSONLD_MAX_PAGES:-200}
+      MATCH_MIN_SCORE: ${MATCH_MIN_SCORE:-40}
+      CLOSED_JOB_RETENTION: ${CLOSED_JOB_RETENTION:-2160h}
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
