@@ -24,6 +24,10 @@ docker compose up -d --build --wait
 | API liveness | http://127.0.0.1:8080/healthz |
 | API readiness (checks PostgreSQL) | http://127.0.0.1:8080/readyz |
 
+Open the web app or call `POST /api/v1/auth/register` to create the first
+account; later sign-ups are disabled unless `ALLOW_REGISTRATION=true`.
+`COOKIE_SECURE` must be `true` when RoleScout is served over HTTPS.
+
 The API applies pending SQL migrations from `api/migrations` on startup.
 Migration files are named `YYYYMMDDHHMMSS_description.sql`.
 
@@ -47,5 +51,5 @@ starting with `_`). Frontend tests live in `__tests__` folders.
 
 The REST API is described in [docs/api/openapi.yaml](docs/api/openapi.yaml)
 with conventions in [docs/api/README.md](docs/api/README.md).
-Data model decisions are recorded in [docs/adr](docs/adr).
+Data model and authentication decisions are recorded in [docs/adr](docs/adr).
 See [docs/PHASES.md](docs/PHASES.md) for the roadmap and current status.

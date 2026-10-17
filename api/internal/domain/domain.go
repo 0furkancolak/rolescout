@@ -15,6 +15,10 @@ var (
 	ErrConflict = errors.New("conflict")
 	// ErrInvalid means the input broke a data constraint.
 	ErrInvalid = errors.New("invalid input")
+	// ErrForbidden means the user may see the resource but not perform the action.
+	ErrForbidden = errors.New("forbidden")
+	// ErrRegistrationClosed means new accounts are disabled on this installation.
+	ErrRegistrationClosed = errors.New("registration closed")
 )
 
 type MembershipRole string
@@ -45,6 +49,19 @@ type WorkspaceMembership struct {
 	UserID      string
 	Role        MembershipRole
 	CreatedAt   time.Time
+}
+
+// WorkspaceMember is a membership together with the member's profile.
+type WorkspaceMember struct {
+	User      User
+	Role      MembershipRole
+	CreatedAt time.Time
+}
+
+// MemberWorkspace is a workspace as seen by one of its members.
+type MemberWorkspace struct {
+	Workspace Workspace
+	Role      MembershipRole
 }
 
 type JobSource struct {

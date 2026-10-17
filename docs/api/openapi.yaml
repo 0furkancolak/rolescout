@@ -5,14 +5,20 @@ info:
   summary: Job discovery and application tracking.
   description: |
     Conventions are described in docs/api/README.md.
-    Authentication is added in Phase 4; until then any existing workspace can be used.
+    Every /api/v1 operation except register, login and logout requires the
+    `rolescout_session` cookie and returns `401 unauthenticated` without a
+    valid one. Workspace operations additionally require membership.
   license:
     name: Apache-2.0
     identifier: Apache-2.0
 servers:
   - url: http://127.0.0.1:8080
     description: Local Docker Compose
+security:
+  - sessionCookie: []
 tags:
+  - name: auth
+  - name: workspaces
   - name: health
   - name: jobs
   - name: saved-jobs
@@ -26,6 +32,7 @@ paths:
       tags: [health]
       summary: Liveness check
       operationId: getHealth
+      security: []
       responses:
         "200":
           description: The process is running.
@@ -40,6 +47,7 @@ paths:
       tags: [health]
       summary: Readiness check including PostgreSQL
       operationId: getReadiness
+      security: []
       responses:
         "200":
           description: Ready to serve traffic.
@@ -58,6 +66,213 @@ paths:
                 type: object
                 properties:
                   status: { type: string, const: not_ready }
+
+  /api/v1/auth/register:
+    post:
+      tags: [auth]
+      summary: Create an account and sign in
+      description: |
+        Always allowed while the installation has no users. Afterwards it requires
+        `ALLOW_REGISTRATION=true`. Creates a personal workspace ("Kişisel" or
+        "Personal" by locale) and sets the session cookie.
+      operationId: register
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email, password, display_name]
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+                password: { type: string, minLength: 12, maxLength: 128 }
+                display_name: { type: string, minLength: 1, maxLength: 100 }
+                locale: { type: string, enum: [tr, en], default: tr }
+      responses:
+        "201":
+          description: Registered and signed in.
+          headers:
+            Set-Cookie: { $ref: "#/components/headers/SessionCookie" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/User" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403":
+          description: "`registration_closed`: sign-ups are disabled."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
+  /api/v1/auth/login:
+    post:
+      tags: [auth]
+      summary: Sign in
+      description: Starts a new session on every successful login.
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email, password]
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        "200":
+          description: Signed in.
+          headers:
+            Set-Cookie: { $ref: "#/components/headers/SessionCookie" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/User" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401":
+          description: "`invalid_credentials`: same response for unknown emails and wrong passwords."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+  /api/v1/auth/logout:
+    post:
+      tags: [auth]
+      summary: Sign out
+      description: Revokes the current session if any and clears the cookie. Always succeeds.
+      operationId: logout
+      security: []
+      responses:
+        "204": { description: Signed out. }
+  /api/v1/auth/me:
+    get:
+      tags: [auth]
+      summary: The signed-in user
+      operationId: getMe
+      responses:
+        "200":
+          description: The user.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/User" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /api/v1/workspaces:
+    get:
+      tags: [workspaces]
+      summary: Workspaces the user belongs to, oldest first
+      operationId: listWorkspaces
+      responses:
+        "200":
+          description: Workspaces.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Workspace" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+    post:
+      tags: [workspaces]
+      summary: Create a workspace owned by the user
+      operationId: createWorkspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 100 }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/Workspace" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
+  /api/v1/workspaces/{workspaceID}/members:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+    get:
+      tags: [workspaces]
+      summary: List members, owners first
+      operationId: listMembers
+      responses:
+        "200":
+          description: Members.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Member" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [workspaces]
+      summary: Add an existing user by email (owners only)
+      operationId: addMember
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+                role: { type: string, enum: [owner, member], default: member }
+      responses:
+        "201":
+          description: Added.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/Member" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: "`forbidden`: only owners can add members."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
 
   /api/v1/jobs:
     get:
@@ -548,6 +763,18 @@ paths:
         "422": { $ref: "#/components/responses/InvalidInput" }
 
 components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: rolescout_session
+      description: HttpOnly, SameSite=Lax session cookie set by register and login.
+
+  headers:
+    SessionCookie:
+      description: "`rolescout_session=<token>; Path=/; HttpOnly; SameSite=Lax; Secure` (Secure unless COOKIE_SECURE=false)."
+      schema: { type: string }
+
   parameters:
     WorkspaceID:
       name: workspaceID
@@ -587,6 +814,11 @@ components:
               body: { type: string, minLength: 1, maxLength: 10000 }
 
   responses:
+    Unauthenticated:
+      description: "`unauthenticated`: no valid session cookie."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
     BadRequest:
       description: "`bad_request`: the body is missing, not JSON, or has unknown fields."
       content:
@@ -619,7 +851,8 @@ components:
           properties:
             code:
               type: string
-              enum: [bad_request, not_found, conflict, invalid_transition, invalid_input,
+              enum: [bad_request, unauthenticated, invalid_credentials, forbidden,
+                registration_closed, not_found, conflict, invalid_transition, invalid_input,
                 method_not_allowed, payload_too_large, internal, error]
             message: { type: string }
             fields:
@@ -637,6 +870,32 @@ components:
           fields:
             - field: limit
               message: must be an integer between 1 and 100
+    User:
+      type: object
+      required: [id, email, display_name, locale, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        display_name: { type: string }
+        locale: { type: string, enum: [tr, en] }
+        created_at: { type: string, format: date-time }
+    Workspace:
+      type: object
+      required: [id, name, role, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        role: { type: string, enum: [owner, member], description: The caller's role. }
+        created_at: { type: string, format: date-time }
+    Member:
+      type: object
+      required: [user_id, email, display_name, role, joined_at]
+      properties:
+        user_id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        display_name: { type: string }
+        role: { type: string, enum: [owner, member] }
+        joined_at: { type: string, format: date-time }
     WorkArrangement:
       type: string
       enum: [onsite, hybrid, remote, unknown]

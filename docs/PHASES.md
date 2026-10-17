@@ -99,7 +99,7 @@ Exit criteria:
 
 ## Phase 3 - API Contracts and Core Backend
 
-Status: IN_PROGRESS
+Status: DONE
 
 Goals:
 - Define REST API conventions
@@ -125,13 +125,12 @@ Exit criteria:
 
 Notes:
 - Contract: docs/api/openapi.yaml, conventions: docs/api/README.md.
-- Validation and workspace isolation are tested. Authorization is only a
-  workspace-existence hook (WorkspaceAuthorizer) until Phase 4, so the
-  authorization exit criterion is verified there.
+- Validation and workspace isolation are tested. The authorization exit
+  criterion was verified with Phase 4's membership-based authorizer.
 
 ## Phase 4 - Authentication and Workspace Isolation
 
-Status: NOT_STARTED
+Status: DONE
 
 Goals:
 - Implement authentication
@@ -139,17 +138,22 @@ Goals:
 - Enforce tenant and resource isolation
 
 Tasks:
-- [ ] Choose and document the authentication approach
-- [ ] Implement authentication lifecycle
-- [ ] Implement authorization policies
-- [ ] Enforce workspace membership
-- [ ] Test cross-user and cross-workspace access
-- [ ] Add security-focused tests
+- [x] Choose and document the authentication approach
+- [x] Implement authentication lifecycle
+- [x] Implement authorization policies
+- [x] Enforce workspace membership
+- [x] Test cross-user and cross-workspace access
+- [x] Add security-focused tests
 
 Exit criteria:
 - Protected endpoints require valid authentication
 - Resource access is authorized on the server
 - Isolation tests pass
+
+Notes:
+- Decision record: docs/adr/0002-authentication.md (email + password,
+  Argon2id, server-side sessions; first user may always register).
+- Login rate limiting and password reset are deferred (Phase 7 and later).
 
 ## Phase 5 - Frontend Application
 

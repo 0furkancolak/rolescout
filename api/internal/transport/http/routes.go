@@ -43,32 +43,50 @@ type AnnotationStore interface {
 	ListNotes(ctx context.Context, workspaceID, applicationID string) ([]domain.Note, error)
 }
 
-// WorkspaceAuthorizer decides whether the current request may act in a
-// workspace. It must return domain.ErrNotFound when it may not, so callers
-// cannot probe for other workspaces. Phase 4 replaces the default
-// existence check with a membership check for the authenticated user.
+// WorkspaceAuthorizer decides whether the authenticated user may act in a
+// workspace and returns their role. It must return domain.ErrNotFound when
+// they may not, so callers cannot probe for other workspaces.
 type WorkspaceAuthorizer interface {
-	AuthorizeWorkspace(c fiber.Ctx, workspaceID string) error
+	AuthorizeWorkspace(c fiber.Ctx, workspaceID string) (domain.MembershipRole, error)
 }
 
 type Deps struct {
-	Jobs         JobStore
-	Applications ApplicationStore
-	Annotations  AnnotationStore
-	Workspaces   WorkspaceAuthorizer
+	Auth           AuthStore
+	AuthConfig     AuthConfig
+	WorkspaceStore WorkspaceStore
+	Jobs           JobStore
+	Applications   ApplicationStore
+	Annotations    AnnotationStore
+	Workspaces     WorkspaceAuthorizer
 }
 
-const workspaceIDLocal = "workspaceID"
+const (
+	workspaceIDLocal   = "workspaceID"
+	workspaceRoleLocal = "workspaceRole"
+)
 
 // RegisterAPIRoutes mounts the v1 REST API under /api/v1.
 func RegisterAPIRoutes(app *fiber.App, d Deps) {
 	h := &handlers{Deps: d}
 	v1 := app.Group("/api/v1")
 
-	v1.Get("/jobs", h.searchJobs)
-	v1.Get("/jobs/:jobID", h.getJob)
+	// Public routes are registered before the authentication middleware.
+	v1.Post("/auth/register", h.register)
+	v1.Post("/auth/login", h.login)
+	v1.Post("/auth/logout", h.logout)
 
-	ws := v1.Group("/workspaces/:workspaceID", h.requireWorkspace)
+	private := v1.Group("", h.requireUser)
+	private.Get("/auth/me", h.me)
+
+	private.Get("/jobs", h.searchJobs)
+	private.Get("/jobs/:jobID", h.getJob)
+
+	private.Get("/workspaces", h.listWorkspaces)
+	private.Post("/workspaces", h.createWorkspace)
+
+	ws := private.Group("/workspaces/:workspaceID", h.requireWorkspace)
+	ws.Get("/members", h.listMembers)
+	ws.Post("/members", h.addMember)
 	ws.Get("/saved-jobs", h.listSavedJobs)
 	ws.Put("/saved-jobs/:jobID", h.saveJob)
 	ws.Delete("/saved-jobs/:jobID", h.unsaveJob)
@@ -101,31 +119,16 @@ func (h *handlers) requireWorkspace(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	if err := h.Workspaces.AuthorizeWorkspace(c, id); err != nil {
+	role, err := h.Workspaces.AuthorizeWorkspace(c, id)
+	if err != nil {
 		return err
 	}
 	c.Locals(workspaceIDLocal, id)
+	c.Locals(workspaceRoleLocal, role)
 	return c.Next()
 }
 
 func workspaceID(c fiber.Ctx) string {
 	id, _ := c.Locals(workspaceIDLocal).(string)
 	return id
-}
-
-// actorID identifies the user performing the request. It is nil until
-// authentication is added in Phase 4.
-func actorID(fiber.Ctx) *string { return nil }
-
-// ExistingWorkspace is the pre-authentication WorkspaceAuthorizer: any existing
-// workspace may be used.
-type ExistingWorkspace struct {
-	Workspaces interface {
-		Get(ctx context.Context, id string) (domain.Workspace, error)
-	}
-}
-
-func (e ExistingWorkspace) AuthorizeWorkspace(c fiber.Ctx, workspaceID string) error {
-	_, err := e.Workspaces.Get(c.Context(), workspaceID)
-	return err
 }

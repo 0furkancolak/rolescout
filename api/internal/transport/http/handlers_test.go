@@ -38,11 +38,13 @@ func (f *fakeApplications) ChangeStatus(_ context.Context, _, _ string, _ domain
 	return domain.Application{}, f.changeErr
 }
 
-type authorizer func(workspaceID string) error
+type authorizer func(workspaceID string) (domain.MembershipRole, error)
 
-func (a authorizer) AuthorizeWorkspace(_ fiber.Ctx, id string) error { return a(id) }
+func (a authorizer) AuthorizeWorkspace(_ fiber.Ctx, id string) (domain.MembershipRole, error) {
+	return a(id)
+}
 
-var allowAll = authorizer(func(string) error { return nil })
+var allowAll = authorizer(func(string) (domain.MembershipRole, error) { return domain.RoleOwner, nil })
 
 const wsPath = "/api/v1/workspaces/11111111-1111-1111-1111-111111111111"
 
@@ -115,7 +117,7 @@ func TestMalformedIDsAreNotFound(t *testing.T) {
 }
 
 func TestWorkspaceAuthorizerGuardsRoutes(t *testing.T) {
-	denied := authorizer(func(string) error { return domain.ErrNotFound })
+	denied := authorizer(func(string) (domain.MembershipRole, error) { return "", domain.ErrNotFound })
 	// Nil stores: reaching a handler would panic.
 	app := newTestApp(Deps{Workspaces: denied})
 	r := call(t, app, "POST", wsPath+"/applications", map[string]string{"job_id": "x"})
@@ -171,4 +173,29 @@ func TestStoreErrorsMapToStatusCodes(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPrivateRoutesRequireSession(t *testing.T) {
+	app := newTestApp(Deps{Workspaces: allowAll})
+	for _, tc := range []struct {
+		name string
+		cl   client
+	}{
+		{"no cookie", anonymous},
+		{"unknown token", client{token: "forged"}},
+	} {
+		for _, path := range []string{"/api/v1/auth/me", "/api/v1/jobs", "/api/v1/workspaces", wsPath + "/applications", "/api/v1/unknown"} {
+			r := tc.cl.call(t, app, "GET", path, nil)
+			if r.Status != 401 || r.errorCode() != "unauthenticated" {
+				t.Errorf("%s GET %s = %d %s, want 401 unauthenticated", tc.name, path, r.Status, r.errorCode())
+			}
+		}
+	}
+}
+
+func TestMembersCannotManageMembers(t *testing.T) {
+	member := authorizer(func(string) (domain.MembershipRole, error) { return domain.RoleMember, nil })
+	app := newTestApp(Deps{Workspaces: member})
+	r := call(t, app, "POST", wsPath+"/members", map[string]string{"email": "x@example.com"})
+	expectError(t, r, 403, "forbidden")
 }

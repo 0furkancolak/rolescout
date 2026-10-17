@@ -55,6 +55,14 @@ func classify(err error) (int, errorDetail) {
 		}
 	case errors.As(err, &transition):
 		return fiber.StatusConflict, errorDetail{Code: "invalid_transition", Message: transition.Error()}
+	case errors.Is(err, errUnauthenticated):
+		return fiber.StatusUnauthorized, errorDetail{Code: "unauthenticated", Message: "Sign in to continue."}
+	case errors.Is(err, errInvalidCredentials):
+		return fiber.StatusUnauthorized, errorDetail{Code: "invalid_credentials", Message: "The email or password is incorrect."}
+	case errors.Is(err, domain.ErrRegistrationClosed):
+		return fiber.StatusForbidden, errorDetail{Code: "registration_closed", Message: "Registration is disabled on this server."}
+	case errors.Is(err, domain.ErrForbidden):
+		return fiber.StatusForbidden, errorDetail{Code: "forbidden", Message: "You are not allowed to perform this action."}
 	case errors.Is(err, domain.ErrNotFound):
 		return fiber.StatusNotFound, errorDetail{Code: "not_found", Message: "The resource was not found."}
 	case errors.Is(err, domain.ErrConflict):

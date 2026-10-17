@@ -28,6 +28,10 @@ Every error uses one shape:
 | Status | Code | Meaning |
 | --- | --- | --- |
 | 400 | `bad_request` | Missing or malformed JSON body |
+| 401 | `unauthenticated` | No valid session cookie |
+| 401 | `invalid_credentials` | Wrong email or password |
+| 403 | `forbidden` | Member attempted an owner-only action |
+| 403 | `registration_closed` | Sign-ups are disabled |
 | 404 | `not_found` | Not found in this workspace, or malformed ID |
 | 409 | `conflict` | Duplicate (application for a job, tag name) |
 | 409 | `invalid_transition` | Status change not allowed by the workflow |
@@ -44,12 +48,23 @@ Every error uses one shape:
 - Workspace collections (applications, saved jobs, tags, notes) are not
   paginated yet because they are bounded by one workspace's activity.
 
+## Authentication
+- `POST /api/v1/auth/register` and `/auth/login` set the `rolescout_session`
+  cookie (HttpOnly, SameSite=Lax, Secure unless `COOKIE_SECURE=false`).
+  `/auth/logout` revokes the session. Details: docs/adr/0002-authentication.md.
+- Every other `/api/v1` route returns `401 unauthenticated` without a valid
+  session, including unknown routes, so route names are not revealed.
+- Login failures always return `401 invalid_credentials`, whether the email
+  exists or not.
+- Registration is open while the installation has no users; afterwards it
+  needs `ALLOW_REGISTRATION=true`, otherwise `403 registration_closed`.
+
 ## Workspaces and authorization
-Workspace data lives under `/api/v1/workspaces/{workspaceID}`. Every route
-there passes through `WorkspaceAuthorizer`; until Phase 4 it only checks that
-the workspace exists. Resources from another workspace always return `404`, never
-`403`, so IDs cannot be probed. `created_by`/`author_id` fields are `null`
-until authentication exists.
+Workspace data lives under `/api/v1/workspaces/{workspaceID}` and requires
+membership. Resources of workspaces the user does not belong to always return
+`404`, never `403`, so IDs cannot be probed. Members can read and change all
+workspace data; only owners can add members (`403 forbidden` for members).
+`created_by`, `saved_by` and `author_id` record the signed-in user.
 
 ## Business rules
 Application status transitions and the effect of recording an attempt are

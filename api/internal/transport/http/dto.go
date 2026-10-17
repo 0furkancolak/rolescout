@@ -176,3 +176,41 @@ func statusPtr(s *domain.ApplicationStatus) *string {
 	v := string(*s)
 	return &v
 }
+
+type userDTO struct {
+	ID          string    `json:"id"`
+	Email       string    `json:"email"`
+	DisplayName string    `json:"display_name"`
+	Locale      string    `json:"locale"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+func toUser(u domain.User) userDTO {
+	return userDTO{ID: u.ID, Email: u.Email, DisplayName: u.DisplayName, Locale: u.Locale, CreatedAt: u.CreatedAt.UTC()}
+}
+
+type workspaceDTO struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	Role      string    `json:"role"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func toWorkspace(w domain.MemberWorkspace) workspaceDTO {
+	return workspaceDTO{ID: w.Workspace.ID, Name: w.Workspace.Name, Role: string(w.Role), CreatedAt: w.Workspace.CreatedAt.UTC()}
+}
+
+type memberDTO struct {
+	UserID      string    `json:"user_id"`
+	Email       string    `json:"email"`
+	DisplayName string    `json:"display_name"`
+	Role        string    `json:"role"`
+	JoinedAt    time.Time `json:"joined_at"`
+}
+
+func toMember(m domain.WorkspaceMember) memberDTO {
+	return memberDTO{
+		UserID: m.User.ID, Email: m.User.Email, DisplayName: m.User.DisplayName,
+		Role: string(m.Role), JoinedAt: m.CreatedAt.UTC(),
+	}
+}

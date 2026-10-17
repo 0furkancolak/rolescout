@@ -50,12 +50,23 @@ func run() error {
 	})
 
 	httptransport.RegisterHealthRoutes(app, pool)
+	workspaces := database.NewWorkspaceRepository(pool)
 	httptransport.RegisterAPIRoutes(app, httptransport.Deps{
-		Jobs:         database.NewJobRepository(pool),
-		Applications: database.NewApplicationRepository(pool),
-		Annotations:  database.NewAnnotationRepository(pool),
-		Workspaces:   httptransport.ExistingWorkspace{Workspaces: database.NewWorkspaceRepository(pool)},
+		Auth: database.NewAuthRepository(pool),
+		AuthConfig: httptransport.AuthConfig{
+			SessionTTL:        cfg.SessionTTL,
+			CookieSecure:      cfg.CookieSecure,
+			AllowRegistration: cfg.AllowRegistration,
+		},
+		WorkspaceStore: workspaces,
+		Jobs:           database.NewJobRepository(pool),
+		Applications:   database.NewApplicationRepository(pool),
+		Annotations:    database.NewAnnotationRepository(pool),
+		Workspaces:     httptransport.MembershipAuthorizer{Workspaces: workspaces},
 	})
+	if !cfg.CookieSecure {
+		log.Printf("warning: COOKIE_SECURE=false; session cookies are sent over plain HTTP")
+	}
 
 	addr := fmt.Sprintf("%s:%d", cfg.HTTPHost, cfg.HTTPPort)
 	log.Printf("RoleScout API listening on %s", addr)
