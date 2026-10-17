@@ -78,6 +78,7 @@ docker compose run --rm admin companies list -status pending
 | `recruitee` | Recruitee careers site API | [recruitee.md](recruitee.md) |
 | `personio` | Personio XML job feed | [personio.md](personio.md) |
 | `bamboohr` | BambooHR careers list | [bamboohr.md](bamboohr.md) |
+| `jsonld` | schema.org JobPosting data on company career sites | [jsonld.md](jsonld.md) |
 | `workday` | Workday career site endpoint, **off until reviewed** | [workday.md](workday.md) |
 
 SmartRecruiters is not supported: the robots.txt of its API host disallows all

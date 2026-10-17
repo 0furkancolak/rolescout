@@ -24,6 +24,7 @@ import (
 	"example.com/rolescout/api/internal/infrastructure/database/dbtest"
 	"example.com/rolescout/api/internal/ingest"
 	"example.com/rolescout/api/internal/ingest/greenhouse"
+	"example.com/rolescout/api/internal/ingest/jsonld"
 )
 
 var testPool *pgxpool.Pool
@@ -296,5 +297,76 @@ func TestCloseFailedSourcesAfterSevenDays(t *testing.T) {
 	}
 	if get(recent.ID).ClosedAt != nil {
 		t.Error("job of a source failing for 6 days must stay open")
+	}
+}
+
+func TestDedupeAcrossGreenhouseAndJSONLD(t *testing.T) {
+	if testPool == nil {
+		t.Skip("TEST_DATABASE_URL is not set")
+	}
+	ctx := context.Background()
+	sources := database.NewSourceRepository(testPool)
+	jobs := database.NewJobRepository(testPool)
+	companies := database.NewCompanyRepository(testPool)
+	title := uniq("Full Stack Engineer ")
+
+	gh := &board{}
+	gh.body.Store(`{"jobs":[{"id":7,"title":"` + title + `","absolute_url":"https://boards.greenhouse.io/acme/jobs/7","content":"","location":{"name":"Berlin, Germany"}}]}`)
+	ghSrv := httptest.NewServer(gh)
+	defer ghSrv.Close()
+	site := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			http.NotFound(w, r)
+			return
+		}
+		fmt.Fprintf(w, `<html><script type="application/ld+json">{"@type":"JobPosting","title":%q,
+			"url":"https://acme.example/careers/7","hiringOrganization":{"name":"Acme"},
+			"jobLocation":{"address":{"addressLocality":"Berlin","addressCountry":"Germany"}}}</script></html>`, title)
+	}))
+	defer site.Close()
+
+	company, _, err := companies.UpsertDiscovered(ctx, database.CompanyParams{
+		Name: "Acme", CareersURL: site.URL + "/careers/" + uniq("x"), ATS: "jsonld", Origin: "seed",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	crawler := testCrawler()
+	runner := &ingest.Runner{
+		Sources: sources, Listings: jobs, Companies: companies,
+		Adapters: ingest.Registry{
+			"greenhouse": &greenhouse.Adapter{BaseURL: ghSrv.URL, Client: crawler},
+			"jsonld":     jsonld.New(crawler, 5),
+		},
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	ghSource, err := sources.Create(ctx, database.SourceParams{
+		Key: uniq("gh-"), Name: "Acme", BaseURL: "https://boards.greenhouse.io/acme", Adapter: "greenhouse",
+		Config: map[string]any{"board_token": "acme", "company": "Acme"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ldSource, err := companies.AttachSource(ctx, company.ID, database.SourceParams{
+		Name: "Acme", BaseURL: site.URL, Adapter: "jsonld", Config: map[string]any{"url": site.URL + "/careers"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range []domain.JobSource{ghSource, ldSource} {
+		if run, err := runner.Sync(ctx, s); err != nil || run.UpsertedCount != 1 {
+			t.Fatalf("sync %s: %+v %v", s.Adapter, run, err)
+		}
+	}
+	found, _, err := jobs.SearchJobs(ctx, database.JobFilter{Query: title, Limit: 10})
+	if err != nil || len(found) != 1 {
+		t.Fatalf("jobs = %d, err = %v; want one deduplicated job", len(found), err)
+	}
+	if found[0].CompanyID == nil || *found[0].CompanyID != company.ID {
+		t.Errorf("company link = %v", found[0].CompanyID)
+	}
+	listings, _ := jobs.ListListings(ctx, found[0].ID)
+	if len(listings) != 2 {
+		t.Errorf("listings = %d, want 2", len(listings))
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"example.com/rolescout/api/internal/ingest/ashby"
 	"example.com/rolescout/api/internal/ingest/bamboohr"
 	"example.com/rolescout/api/internal/ingest/greenhouse"
+	"example.com/rolescout/api/internal/ingest/jsonld"
 	"example.com/rolescout/api/internal/ingest/lever"
 	"example.com/rolescout/api/internal/ingest/personio"
 	"example.com/rolescout/api/internal/ingest/recruitee"
@@ -40,6 +41,7 @@ func Registry(c *crawl.Client, o Options) ingest.Registry {
 		"ashby":      ashby.New(c),
 		"bamboohr":   bamboohr.New(c),
 		"greenhouse": greenhouse.New(c),
+		"jsonld":     jsonld.New(c, o.JSONLDMaxPages),
 		"lever":      lever.New(c),
 		"personio":   personio.New(c),
 		"recruitee":  recruitee.New(c),
