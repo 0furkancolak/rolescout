@@ -82,10 +82,13 @@ func (e temporaryError) Error() string { return e.err.Error() }
 func (e temporaryError) Unwrap() error { return e.err }
 
 // IsTemporary reports whether a later attempt may succeed: network errors,
-// timeouts, 429 and 5xx responses.
+// timeouts (including an expired request context), 429 and 5xx responses.
 func IsTemporary(err error) bool {
 	if err == nil || errors.Is(err, context.Canceled) {
 		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
 	}
 	var se *StatusError
 	if errors.As(err, &se) {

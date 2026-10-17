@@ -1,18 +1,35 @@
-// Package adapters lists the source adapters this build supports.
+// Package adapters lists the source adapters this build supports and builds
+// the polite HTTP client they share.
 package adapters
 
 import (
+	"example.com/rolescout/api/internal/config"
+	"example.com/rolescout/api/internal/crawl"
 	"example.com/rolescout/api/internal/ingest"
 	"example.com/rolescout/api/internal/ingest/greenhouse"
 )
 
-// UserAgent identifies RoleScout to sources.
-const UserAgent = "RoleScout/0.1 (self-hosted job tracker; +https://github.com/0furkancolak/rolescout)"
+// Options configures adapters that need more than the HTTP client.
+type Options struct {
+	// JSONLDMaxPages bounds the pages read per career site by "jsonld".
+	JSONLDMaxPages int
+}
+
+// NewCrawler returns the HTTP client for discovery and ingestion, identified
+// as RoleScout/<version>.
+func NewCrawler(version string, cfg config.Crawl) *crawl.Client {
+	return crawl.New(crawl.Options{
+		UserAgent:         "RoleScout/" + version + " (self-hosted job search; +" + cfg.UserAgentURL + ")",
+		HostInterval:      cfg.HostInterval,
+		VendorHosts:       crawl.DefaultVendorHosts,
+		VendorConcurrency: cfg.VendorConcurrency,
+	})
+}
 
 // Registry returns every adapter. Adding an adapter requires an access review
-// documented in docs/sources/.
-func Registry() ingest.Registry {
+// documented in docs/sources/ and an adapter-type review (ADR 0004).
+func Registry(c *crawl.Client, o Options) ingest.Registry {
 	return ingest.Registry{
-		"greenhouse": greenhouse.New(UserAgent),
+		"greenhouse": greenhouse.New(c),
 	}
 }

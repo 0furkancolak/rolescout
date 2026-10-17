@@ -163,10 +163,14 @@ type Job struct {
 	Seniority       string
 	Technologies    []string
 	Description     string
-	FirstSeenAt     time.Time
-	LastSeenAt      time.Time
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	CompanyID       *string
+	CountryCode     *string
+	// ClosedAt is set when no source lists the job any more.
+	ClosedAt    *time.Time
+	FirstSeenAt time.Time
+	LastSeenAt  time.Time
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 // JobListing is one occurrence of a job on a source.
@@ -180,6 +184,9 @@ type JobListing struct {
 	SourceUpdatedAt *time.Time
 	FirstIngestedAt time.Time
 	LastIngestedAt  time.Time
+	// ClosedAt is set when the listing was missing from its source's latest
+	// successful snapshot.
+	ClosedAt *time.Time
 }
 
 type SavedJob struct {

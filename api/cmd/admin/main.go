@@ -80,7 +80,7 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 		sources:   database.NewSourceRepository(pool),
 		jobs:      database.NewJobRepository(pool),
 		companies: database.NewCompanyRepository(pool),
-		adapters:  adapters.Registry(),
+		adapters:  adapters.Registry(adapters.NewCrawler(version, cfg.Crawl), adapters.Options{JSONLDMaxPages: cfg.Crawl.JSONLDMaxPages}),
 		out:       out,
 	}
 	switch args[0] {
@@ -355,10 +355,11 @@ func (c *cli) sync(ctx context.Context, key string) error {
 		return database.ErrSourceNotReviewed
 	}
 	runner := &ingest.Runner{
-		Sources:  c.sources,
-		Listings: c.jobs,
-		Adapters: c.adapters,
-		Logger:   slog.New(slog.NewTextHandler(os.Stderr, nil)),
+		Sources:   c.sources,
+		Listings:  c.jobs,
+		Companies: c.companies,
+		Adapters:  c.adapters,
+		Logger:    slog.New(slog.NewTextHandler(os.Stderr, nil)),
 	}
 	run, err := runner.Sync(ctx, s)
 	printRun(c.out, run)

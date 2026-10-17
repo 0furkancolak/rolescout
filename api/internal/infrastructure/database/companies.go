@@ -26,7 +26,7 @@ func NewCompanyRepository(pool *pgxpool.Pool) *CompanyRepository {
 const companyColumns = `c.id, c.name, c.domain, c.careers_url, c.ats, c.ats_id, c.origin, c.status,
 	c.last_checked_at, c.last_error, c.failure_count, c.next_check_at,
 	(SELECT s.id FROM job_sources s WHERE s.company_id = c.id),
-	(SELECT count(*) FROM jobs j WHERE j.company_id = c.id)::int,
+	(SELECT count(*) FROM jobs j WHERE j.company_id = c.id AND j.closed_at IS NULL)::int,
 	c.created_at, c.updated_at`
 
 func scanCompany(row pgx.Row, extra ...any) (domain.Company, error) {

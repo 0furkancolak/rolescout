@@ -1,0 +1,254 @@
+# name	ISO 3166-1 alpha-2. Names are matched as whole words, case-insensitively.
+# Countries (English, Turkish and common local names)
+turkey	TR
+türkiye	TR
+turkiye	TR
+türkei	TR
+germany	DE
+almanya	DE
+deutschland	DE
+united kingdom	GB
+uk	GB
+england	GB
+scotland	GB
+wales	GB
+great britain	GB
+ingiltere	GB
+united states	US
+united states of america	US
+usa	US
+us	US
+amerika	US
+abd	US
+canada	CA
+kanada	CA
+netherlands	NL
+the netherlands	NL
+hollanda	NL
+nederland	NL
+france	FR
+fransa	FR
+spain	ES
+ispanya	ES
+españa	ES
+portugal	PT
+portekiz	PT
+italy	IT
+italya	IT
+ireland	IE
+irlanda	IE
+belgium	BE
+belçika	BE
+switzerland	CH
+isviçre	CH
+austria	AT
+avusturya	AT
+poland	PL
+polonya	PL
+czech republic	CZ
+czechia	CZ
+çekya	CZ
+romania	RO
+romanya	RO
+bulgaria	BG
+bulgaristan	BG
+greece	GR
+yunanistan	GR
+hungary	HU
+macaristan	HU
+sweden	SE
+isveç	SE
+norway	NO
+norveç	NO
+denmark	DK
+danimarka	DK
+finland	FI
+finlandiya	FI
+estonia	EE
+estonya	EE
+latvia	LV
+lithuania	LT
+ukraine	UA
+ukrayna	UA
+serbia	RS
+croatia	HR
+slovenia	SI
+slovakia	SK
+cyprus	CY
+kıbrıs	CY
+israel	IL
+united arab emirates	AE
+uae	AE
+birleşik arap emirlikleri	AE
+saudi arabia	SA
+suudi arabistan	SA
+qatar	QA
+katar	QA
+egypt	EG
+mısır	EG
+india	IN
+hindistan	IN
+pakistan	PK
+singapore	SG
+singapur	SG
+japan	JP
+japonya	JP
+china	CN
+çin	CN
+hong kong	HK
+south korea	KR
+korea	KR
+taiwan	TW
+vietnam	VN
+philippines	PH
+indonesia	ID
+malaysia	MY
+thailand	TH
+australia	AU
+avustralya	AU
+new zealand	NZ
+brazil	BR
+brezilya	BR
+brasil	BR
+mexico	MX
+meksika	MX
+argentina	AR
+arjantin	AR
+chile	CL
+colombia	CO
+peru	PE
+uruguay	UY
+south africa	ZA
+nigeria	NG
+kenya	KE
+morocco	MA
+azerbaijan	AZ
+azerbaycan	AZ
+georgia	GE
+gürcistan	GE
+kazakhstan	KZ
+kazakistan	KZ
+# Cities
+istanbul	TR
+ankara	TR
+izmir	TR
+bursa	TR
+antalya	TR
+kocaeli	TR
+gebze	TR
+eskişehir	TR
+eskisehir	TR
+konya	TR
+adana	TR
+kayseri	TR
+trabzon	TR
+berlin	DE
+munich	DE
+münchen	DE
+hamburg	DE
+frankfurt	DE
+cologne	DE
+köln	DE
+stuttgart	DE
+düsseldorf	DE
+dusseldorf	DE
+leipzig	DE
+london	GB
+manchester	GB
+edinburgh	GB
+cambridge	GB
+oxford	GB
+bristol	GB
+birmingham	GB
+new york	US
+new york city	US
+nyc	US
+san francisco	US
+seattle	US
+boston	US
+austin	US
+chicago	US
+los angeles	US
+denver	US
+atlanta	US
+miami	US
+washington dc	US
+toronto	CA
+vancouver	CA
+montreal	CA
+ottawa	CA
+amsterdam	NL
+rotterdam	NL
+utrecht	NL
+eindhoven	NL
+the hague	NL
+paris	FR
+lyon	FR
+madrid	ES
+barcelona	ES
+valencia	ES
+lisbon	PT
+lisboa	PT
+porto	PT
+milan	IT
+rome	IT
+dublin	IE
+brussels	BE
+zurich	CH
+zürich	CH
+geneva	CH
+vienna	AT
+wien	AT
+warsaw	PL
+krakow	PL
+kraków	PL
+wroclaw	PL
+prague	CZ
+bucharest	RO
+sofia	BG
+athens	GR
+budapest	HU
+stockholm	SE
+oslo	NO
+copenhagen	DK
+helsinki	FI
+tallinn	EE
+riga	LV
+vilnius	LT
+kyiv	UA
+kiev	UA
+belgrade	RS
+zagreb	HR
+tel aviv	IL
+dubai	AE
+abu dhabi	AE
+riyadh	SA
+doha	QA
+cairo	EG
+bangalore	IN
+bengaluru	IN
+mumbai	IN
+pune	IN
+hyderabad	IN
+new delhi	IN
+chennai	IN
+singapore	SG
+tokyo	JP
+seoul	KR
+taipei	TW
+sydney	AU
+melbourne	AU
+auckland	NZ
+são paulo	BR
+sao paulo	BR
+rio de janeiro	BR
+mexico city	MX
+buenos aires	AR
+bogotá	CO
+bogota	CO
+santiago	CL
+cape town	ZA
+lagos	NG
+nairobi	KE
+baku	AZ
+tbilisi	GE

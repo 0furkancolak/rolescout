@@ -108,3 +108,52 @@ func TestTruncateKeepsValidUTF8(t *testing.T) {
 		t.Fatalf("truncate = %q", got)
 	}
 }
+
+func TestArrangementHintOverridesInference(t *testing.T) {
+	raw := RawListing{ExternalID: "1", URL: "https://x.example/1", Title: "Engineer", Company: "Acme",
+		Location: "Berlin", Arrangement: "remote", CountryCode: "de"}
+	l, err := Normalize("s", raw, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if l.WorkArrangement != "remote" {
+		t.Errorf("arrangement = %s, want remote", l.WorkArrangement)
+	}
+	if l.CountryCode == nil || *l.CountryCode != "DE" {
+		t.Errorf("country = %v, want DE", l.CountryCode)
+	}
+	raw.Arrangement, raw.CountryCode = "sometimes", "Germany"
+	l, _ = Normalize("s", raw, time.Now())
+	if l.WorkArrangement != "unknown" || l.CountryCode == nil || *l.CountryCode != "DE" {
+		t.Errorf("invalid hints: arrangement %s country %v", l.WorkArrangement, l.CountryCode)
+	}
+}
+
+func TestInferCountry(t *testing.T) {
+	for in, want := range map[string]string{
+		"Istanbul, Türkiye":      "TR",
+		"İstanbul":               "TR",
+		"Ankara, Turkey":         "TR",
+		"Remote - Germany":       "DE",
+		"London, UK":             "GB",
+		"London, United Kingdom": "GB",
+		"Remote":                 "",
+		"":                       "",
+		"Georgia, US":            "US",
+		"New York, NY":           "US",
+		"San Francisco, CA, USA": "US",
+		"Amsterdam":              "NL",
+		"Remote (EMEA)":          "",
+		"Berlin or Munich":       "DE",
+		"Toronto, ON, Canada":    "CA",
+		"Bengaluru, India":       "IN",
+		"Work in Berlin":         "DE",
+		"Paris, France; Remote":  "FR",
+		"São Paulo, Brazil":      "BR",
+		"Warsaw, PL":             "PL",
+	} {
+		if got := InferCountry(in); got != want {
+			t.Errorf("InferCountry(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

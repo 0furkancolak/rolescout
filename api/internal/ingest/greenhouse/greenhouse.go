@@ -6,24 +6,18 @@ package greenhouse
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
 	"net/url"
 	"regexp"
 	"strconv"
 	"time"
 
+	"example.com/rolescout/api/internal/crawl"
 	"example.com/rolescout/api/internal/ingest"
 )
 
-const (
-	DefaultBaseURL = "https://boards-api.greenhouse.io"
-	// maxResponseBytes guards against unexpectedly large responses.
-	maxResponseBytes = 32 << 20
-)
+const DefaultBaseURL = "https://boards-api.greenhouse.io"
 
 var boardTokenPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,100}$`)
 
@@ -33,13 +27,12 @@ var boardTokenPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,100}$`)
 //
 // company is optional; the board's own name is used when it is missing.
 type Adapter struct {
-	BaseURL   string
-	Client    *http.Client
-	UserAgent string
+	BaseURL string
+	Client  *crawl.Client
 }
 
-func New(userAgent string) *Adapter {
-	return &Adapter{BaseURL: DefaultBaseURL, Client: &http.Client{Timeout: 60 * time.Second}, UserAgent: userAgent}
+func New(c *crawl.Client) *Adapter {
+	return &Adapter{BaseURL: DefaultBaseURL, Client: c}
 }
 
 func (a *Adapter) Validate(config map[string]any) error {
@@ -118,41 +111,7 @@ func (a *Adapter) Fetch(ctx context.Context, config map[string]any) ([]ingest.Ra
 }
 
 func (a *Adapter) get(ctx context.Context, path string, dst any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, a.BaseURL+path, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Accept", "application/json")
-	if a.UserAgent != "" {
-		req.Header.Set("User-Agent", a.UserAgent)
-	}
-	res, err := a.Client.Do(req)
-	if err != nil {
-		// Timeouts and connection errors may pass on a later attempt.
-		return ingest.Retryable(err)
-	}
-	defer res.Body.Close()
-
-	switch {
-	case res.StatusCode == http.StatusNotFound:
-		return errors.New("board not found (check board_token)")
-	case res.StatusCode == http.StatusTooManyRequests || res.StatusCode >= 500:
-		return ingest.Retryable(fmt.Errorf("greenhouse responded %s", res.Status))
-	case res.StatusCode != http.StatusOK:
-		return fmt.Errorf("greenhouse responded %s", res.Status)
-	}
-
-	body, err := io.ReadAll(io.LimitReader(res.Body, maxResponseBytes+1))
-	if err != nil {
-		return ingest.Retryable(fmt.Errorf("read response: %w", err))
-	}
-	if len(body) > maxResponseBytes {
-		return fmt.Errorf("response is larger than %d bytes", maxResponseBytes)
-	}
-	if err := json.Unmarshal(body, dst); err != nil {
-		return fmt.Errorf("decode response: %w", err)
-	}
-	return nil
+	return ingest.FetchJSON(ctx, a.Client, a.BaseURL+path, dst)
 }
 
 func utc(t *time.Time) *time.Time {

@@ -20,24 +20,30 @@ func NewJobRepository(pool *pgxpool.Pool) *JobRepository {
 }
 
 const jobColumns = `id, dedupe_key, title, company_name, location, work_arrangement,
-	employment_type, seniority, technologies, description, first_seen_at,
-	last_seen_at, created_at, updated_at`
+	employment_type, seniority, technologies, description, company_id, country_code,
+	closed_at, first_seen_at, last_seen_at, created_at, updated_at`
+
+// jobDest lists scan destinations in jobColumns order.
+func jobDest(j *domain.Job) []any {
+	return []any{&j.ID, &j.DedupeKey, &j.Title, &j.CompanyName, &j.Location,
+		&j.WorkArrangement, &j.EmploymentType, &j.Seniority, &j.Technologies,
+		&j.Description, &j.CompanyID, &j.CountryCode, &j.ClosedAt,
+		&j.FirstSeenAt, &j.LastSeenAt, &j.CreatedAt, &j.UpdatedAt}
+}
 
 func scanJob(row pgx.Row) (domain.Job, error) {
 	var j domain.Job
-	err := row.Scan(&j.ID, &j.DedupeKey, &j.Title, &j.CompanyName, &j.Location,
-		&j.WorkArrangement, &j.EmploymentType, &j.Seniority, &j.Technologies,
-		&j.Description, &j.FirstSeenAt, &j.LastSeenAt, &j.CreatedAt, &j.UpdatedAt)
+	err := row.Scan(jobDest(&j)...)
 	return j, err
 }
 
 const listingColumns = `id, job_id, source_id, external_id, url, source_posted_at,
-	source_updated_at, first_ingested_at, last_ingested_at`
+	source_updated_at, first_ingested_at, last_ingested_at, closed_at`
 
 func scanListing(row pgx.Row) (domain.JobListing, error) {
 	var l domain.JobListing
 	err := row.Scan(&l.ID, &l.JobID, &l.SourceID, &l.ExternalID, &l.URL,
-		&l.SourcePostedAt, &l.SourceUpdatedAt, &l.FirstIngestedAt, &l.LastIngestedAt)
+		&l.SourcePostedAt, &l.SourceUpdatedAt, &l.FirstIngestedAt, &l.LastIngestedAt, &l.ClosedAt)
 	return l, err
 }
 
@@ -65,6 +71,10 @@ type IngestedListing struct {
 	Seniority       string
 	Technologies    []string
 	Description     string
+	// CompanyID links the job to a discovered company; CountryCode is ISO
+	// 3166-1 alpha-2. Both keep their stored value when nil.
+	CompanyID   *string
+	CountryCode *string
 }
 
 // UpsertListing idempotently records a listing and its canonical job. Ingesting
@@ -84,10 +94,11 @@ func (r *JobRepository) UpsertListing(ctx context.Context, in IngestedListing) (
 		var err error
 		job, err = scanJob(tx.QueryRow(ctx, `
 			INSERT INTO jobs (dedupe_key, title, company_name, location, work_arrangement,
-				employment_type, seniority, technologies, description, first_seen_at, last_seen_at)
+				employment_type, seniority, technologies, description, first_seen_at, last_seen_at,
+				company_id, country_code)
 			VALUES ($1, $2, $3, $4, COALESCE(NULLIF($5, ''), 'unknown'),
 				COALESCE(NULLIF($6, ''), 'unknown'), COALESCE(NULLIF($7, ''), 'unknown'),
-				$8, $9, $10, $10)
+				$8, $9, $10, $10, $11, $12)
 			ON CONFLICT (dedupe_key) DO UPDATE SET
 				title = EXCLUDED.title,
 				company_name = EXCLUDED.company_name,
@@ -98,10 +109,14 @@ func (r *JobRepository) UpsertListing(ctx context.Context, in IngestedListing) (
 				technologies = EXCLUDED.technologies,
 				description = EXCLUDED.description,
 				first_seen_at = LEAST(jobs.first_seen_at, EXCLUDED.first_seen_at),
-				last_seen_at = GREATEST(jobs.last_seen_at, EXCLUDED.last_seen_at)
+				last_seen_at = GREATEST(jobs.last_seen_at, EXCLUDED.last_seen_at),
+				company_id = COALESCE(EXCLUDED.company_id, jobs.company_id),
+				country_code = COALESCE(EXCLUDED.country_code, jobs.country_code),
+				closed_at = NULL
 			RETURNING `+jobColumns,
 			in.DedupeKey, in.Title, in.CompanyName, in.Location, in.WorkArrangement,
 			in.EmploymentType, in.Seniority, technologies, in.Description, seenAt,
+			in.CompanyID, in.CountryCode,
 		))
 		if err != nil {
 			return translate(err, "upsert job")
@@ -116,7 +131,8 @@ func (r *JobRepository) UpsertListing(ctx context.Context, in IngestedListing) (
 				url = EXCLUDED.url,
 				source_posted_at = EXCLUDED.source_posted_at,
 				source_updated_at = EXCLUDED.source_updated_at,
-				last_ingested_at = GREATEST(job_source_listings.last_ingested_at, EXCLUDED.last_ingested_at)
+				last_ingested_at = GREATEST(job_source_listings.last_ingested_at, EXCLUDED.last_ingested_at),
+				closed_at = NULL
 			RETURNING `+listingColumns,
 			job.ID, in.SourceID, in.ExternalID, in.URL, in.SourcePostedAt,
 			in.SourceUpdatedAt, seenAt,
@@ -124,6 +140,82 @@ func (r *JobRepository) UpsertListing(ctx context.Context, in IngestedListing) (
 		return translate(err, "upsert job listing")
 	})
 	return job, listing, err
+}
+
+// CloseMissing closes the source's open listings whose external ID is not in
+// seenExternalIDs, and closes jobs that have no open listing left. It returns
+// how many jobs were closed.
+func (r *JobRepository) CloseMissing(ctx context.Context, sourceID string, seenExternalIDs []string, at time.Time) (int64, error) {
+	if seenExternalIDs == nil {
+		seenExternalIDs = []string{}
+	}
+	var closed int64
+	err := inTx(ctx, r.pool, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			UPDATE job_source_listings SET closed_at = $3
+			WHERE source_id = $1 AND closed_at IS NULL AND NOT (external_id = ANY($2::text[]))
+			RETURNING job_id`, sourceID, seenExternalIDs, at.UTC())
+		if err != nil {
+			return translate(err, "close missing listings")
+		}
+		jobIDs, err := pgx.CollectRows(rows, pgx.RowTo[string])
+		if err != nil {
+			return translate(err, "close missing listings")
+		}
+		closed, err = closeJobsWithoutOpenListings(ctx, tx, jobIDs, at)
+		return err
+	})
+	return closed, err
+}
+
+func closeJobsWithoutOpenListings(ctx context.Context, tx pgx.Tx, jobIDs []string, at time.Time) (int64, error) {
+	if len(jobIDs) == 0 {
+		return 0, nil
+	}
+	tag, err := tx.Exec(ctx, `
+		UPDATE jobs j SET closed_at = $2
+		WHERE j.id = ANY($1::uuid[]) AND j.closed_at IS NULL
+		  AND NOT EXISTS (SELECT 1 FROM job_source_listings l WHERE l.job_id = j.id AND l.closed_at IS NULL)`,
+		jobIDs, at.UTC())
+	if err != nil {
+		return 0, translate(err, "close jobs")
+	}
+	return tag.RowsAffected(), nil
+}
+
+// CloseFailedSources closes the listings of sources that have only failed
+// since their last successful run (or their first run) more than
+// failingSince ago, so jobs of vanished career pages do not stay open forever.
+func (r *JobRepository) CloseFailedSources(ctx context.Context, failingSince time.Duration) (int64, error) {
+	var closed int64
+	now := time.Now().UTC()
+	err := inTx(ctx, r.pool, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			WITH runs AS (
+				SELECT source_id,
+					max(started_at) FILTER (WHERE status = 'succeeded') AS last_success,
+					max(started_at) FILTER (WHERE status = 'failed') AS last_failure,
+					min(started_at) AS first_run
+				FROM ingestion_runs GROUP BY source_id
+			), dead AS (
+				SELECT source_id FROM runs
+				WHERE last_failure > COALESCE(last_success, '-infinity')
+				  AND COALESCE(last_success, first_run) < $1::timestamptz - make_interval(secs => $2)
+			)
+			UPDATE job_source_listings SET closed_at = $1
+			WHERE closed_at IS NULL AND source_id IN (SELECT source_id FROM dead)
+			RETURNING job_id`, now, failingSince.Seconds())
+		if err != nil {
+			return translate(err, "close listings of failing sources")
+		}
+		jobIDs, err := pgx.CollectRows(rows, pgx.RowTo[string])
+		if err != nil {
+			return translate(err, "close listings of failing sources")
+		}
+		closed, err = closeJobsWithoutOpenListings(ctx, tx, jobIDs, now)
+		return err
+	})
+	return closed, err
 }
 
 func (r *JobRepository) GetJob(ctx context.Context, id string) (domain.Job, error) {
@@ -256,10 +348,7 @@ func (r *JobRepository) ListSavedJobs(ctx context.Context, workspaceID string) (
 	saved, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.SavedJob, error) {
 		var s domain.SavedJob
 		var j domain.Job
-		err := row.Scan(&s.WorkspaceID, &s.SavedBy, &s.CreatedAt,
-			&j.ID, &j.DedupeKey, &j.Title, &j.CompanyName, &j.Location,
-			&j.WorkArrangement, &j.EmploymentType, &j.Seniority, &j.Technologies,
-			&j.Description, &j.FirstSeenAt, &j.LastSeenAt, &j.CreatedAt, &j.UpdatedAt)
+		err := row.Scan(append([]any{&s.WorkspaceID, &s.SavedBy, &s.CreatedAt}, jobDest(&j)...)...)
 		s.JobID, s.Job = j.ID, &j
 		return s, err
 	})

@@ -59,6 +59,22 @@ func Normalize(sourceID string, raw RawListing, seenAt time.Time) (database.Inge
 		locPtr = &location
 	}
 	searchText := strings.ToLower(title + "\n" + description)
+	arrangement := workArrangement(title, location)
+	switch raw.Arrangement {
+	case "remote", "hybrid", "onsite":
+		arrangement = raw.Arrangement
+	}
+	country := strings.ToUpper(strings.TrimSpace(raw.CountryCode))
+	if !countryCode.MatchString(country) {
+		country = InferCountry(raw.CountryCode)
+	}
+	if country == "" {
+		country = InferCountry(location)
+	}
+	var countryPtr *string
+	if country != "" {
+		countryPtr = &country
+	}
 
 	return database.IngestedListing{
 		SourceID:        sourceID,
@@ -71,7 +87,8 @@ func Normalize(sourceID string, raw RawListing, seenAt time.Time) (database.Inge
 		Title:           title,
 		CompanyName:     company,
 		Location:        locPtr,
-		WorkArrangement: workArrangement(title, location),
+		WorkArrangement: arrangement,
+		CountryCode:     countryPtr,
 		EmploymentType:  employmentType(raw.EmploymentType, title),
 		Seniority:       seniority(title),
 		Technologies:    technologies(strings.ToLower(title), searchText),

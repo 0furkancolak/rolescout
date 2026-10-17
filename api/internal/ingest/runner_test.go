@@ -17,7 +17,7 @@ import (
 
 type fakeSources struct {
 	mu       sync.Mutex
-	running  bool
+	running  map[string]bool
 	finished []domain.IngestionRun
 	due      []domain.JobSource
 	stale    int
@@ -28,11 +28,14 @@ func (f *fakeSources) Due(context.Context, time.Time) ([]domain.JobSource, error
 func (f *fakeSources) StartRun(_ context.Context, sourceID string) (domain.IngestionRun, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if f.running {
+	if f.running == nil {
+		f.running = map[string]bool{}
+	}
+	if f.running[sourceID] {
 		return domain.IngestionRun{}, domain.ErrConflict
 	}
-	f.running = true
-	return domain.IngestionRun{ID: "run-1", SourceID: sourceID, Status: domain.RunRunning}, nil
+	f.running[sourceID] = true
+	return domain.IngestionRun{ID: "run-" + sourceID, SourceID: sourceID, Status: domain.RunRunning}, nil
 }
 
 func (f *fakeSources) FinishRun(ctx context.Context, run domain.IngestionRun) (domain.IngestionRun, error) {
@@ -41,7 +44,7 @@ func (f *fakeSources) FinishRun(ctx context.Context, run domain.IngestionRun) (d
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.running = false
+	delete(f.running, run.SourceID)
 	f.finished = append(f.finished, run)
 	return run, nil
 }
@@ -52,16 +55,50 @@ func (f *fakeSources) FailStaleRuns(context.Context, time.Duration) (int64, erro
 }
 
 type fakeListings struct {
-	stored []database.IngestedListing
-	failOn string
+	mu          sync.Mutex
+	stored      []database.IngestedListing
+	failOn      string
+	closedCalls [][]string
+	closeFailed int
 }
 
 func (f *fakeListings) UpsertListing(_ context.Context, in database.IngestedListing) (domain.Job, domain.JobListing, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if in.ExternalID == f.failOn {
 		return domain.Job{}, domain.JobListing{}, fmt.Errorf("store: %w", domain.ErrInvalid)
 	}
 	f.stored = append(f.stored, in)
 	return domain.Job{}, domain.JobListing{}, nil
+}
+
+func (f *fakeListings) CloseMissing(_ context.Context, _ string, seen []string, _ time.Time) (int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.closedCalls = append(f.closedCalls, seen)
+	return 0, nil
+}
+
+func (f *fakeListings) CloseFailedSources(context.Context, time.Duration) (int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.closeFailed++
+	return 0, nil
+}
+
+type fakeCompanies struct {
+	mu       sync.Mutex
+	outcomes map[string]domain.RunStatus
+}
+
+func (f *fakeCompanies) RecordSyncOutcome(_ context.Context, companyID string, run domain.IngestionRun) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.outcomes == nil {
+		f.outcomes = map[string]domain.RunStatus{}
+	}
+	f.outcomes[companyID] = run.Status
+	return nil
 }
 
 type fakeAdapter struct {
@@ -177,7 +214,7 @@ func TestSyncFailsWhenEveryListingFails(t *testing.T) {
 func TestSyncSkipsSourceThatIsAlreadyRunning(t *testing.T) {
 	adapter := &fakeAdapter{results: []func() ([]RawListing, error){ok(listing("1"))}}
 	r, sources, _ := newRunner(adapter)
-	sources.running = true
+	sources.running = map[string]bool{source.ID: true}
 	if _, err := r.Sync(context.Background(), source); err != nil {
 		t.Fatal(err)
 	}
@@ -217,7 +254,7 @@ func TestRunDueSyncsEachDueSourceAndFailsStaleRuns(t *testing.T) {
 	other := source
 	other.ID, other.Key, other.Adapter = "src-2", "unknown", "missing"
 	sources.due = []domain.JobSource{source, other}
-	if err := r.RunDue(context.Background()); err != nil {
+	if err := r.RunDue(context.Background(), RunDueOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	if sources.stale != 1 || len(sources.finished) != 2 {
@@ -225,5 +262,99 @@ func TestRunDueSyncsEachDueSourceAndFailsStaleRuns(t *testing.T) {
 	}
 	if sources.finished[1].Status != domain.RunFailed || !strings.Contains(*sources.finished[1].Error, "unknown source adapter") {
 		t.Fatalf("unknown adapters must fail their run: %+v", sources.finished[1])
+	}
+}
+
+func TestSyncClosesMissingListingsAfterSuccess(t *testing.T) {
+	bad := listing("bad")
+	bad.Title = ""
+	adapter := &fakeAdapter{results: []func() ([]RawListing, error){ok(listing("1"), bad, listing("2"))}}
+	r, _, listings := newRunner(adapter)
+	if _, err := r.Sync(context.Background(), source); err != nil {
+		t.Fatal(err)
+	}
+	if len(listings.closedCalls) != 1 {
+		t.Fatalf("CloseMissing calls = %d, want 1", len(listings.closedCalls))
+	}
+	// A listing that failed validation is still in the snapshot: not closed.
+	got := strings.Join(listings.closedCalls[0], ",")
+	if got != "1,bad,2" {
+		t.Errorf("seen IDs = %s, want 1,bad,2", got)
+	}
+}
+
+func TestFailedFetchDoesNotClose(t *testing.T) {
+	adapter := &fakeAdapter{results: []func() ([]RawListing, error){fail(errors.New("board not found"))}}
+	r, _, listings := newRunner(adapter)
+	r.Sync(context.Background(), source)
+	if len(listings.closedCalls) != 0 {
+		t.Fatal("a failed fetch must not close listings")
+	}
+}
+
+func TestAllListingsFailingDoesNotClose(t *testing.T) {
+	adapter := &fakeAdapter{results: []func() ([]RawListing, error){ok(listing("1"))}}
+	r, _, listings := newRunner(adapter)
+	listings.failOn = "1"
+	r.Sync(context.Background(), source)
+	if len(listings.closedCalls) != 0 {
+		t.Fatal("a failed run must not close listings")
+	}
+}
+
+type slowAdapter struct{ delay time.Duration }
+
+func (a slowAdapter) Validate(map[string]any) error { return nil }
+func (a slowAdapter) Fetch(ctx context.Context, cfg map[string]any) ([]RawListing, error) {
+	time.Sleep(a.delay)
+	return []RawListing{listing(cfg["id"].(string))}, nil
+}
+
+func TestRunDueParallel(t *testing.T) {
+	r, sources, _ := newRunner(slowAdapter{delay: 50 * time.Millisecond})
+	r.Adapters = Registry{"slow": slowAdapter{delay: 50 * time.Millisecond}}
+	companies := &fakeCompanies{}
+	r.Companies = companies
+	for i := range 10 {
+		id := fmt.Sprintf("s%d", i)
+		s := domain.JobSource{ID: id, Key: id, Adapter: "slow", Config: map[string]any{"id": id}}
+		if i%2 == 0 {
+			co := "co-" + id
+			s.CompanyID = &co
+		}
+		sources.due = append(sources.due, s)
+	}
+	var mu sync.Mutex
+	results := 0
+	start := time.Now()
+	err := r.RunDue(context.Background(), RunDueOptions{Concurrency: 5, OnResult: func(_ domain.JobSource, run domain.IngestionRun, err error) {
+		mu.Lock()
+		defer mu.Unlock()
+		if err != nil || run.Status != domain.RunSucceeded {
+			t.Errorf("run %+v err %v", run, err)
+		}
+		results++
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d := time.Since(start); d > 200*time.Millisecond {
+		t.Errorf("10 syncs of 50ms with concurrency 5 took %v", d)
+	}
+	if results != 10 || len(sources.finished) != 10 {
+		t.Fatalf("results=%d finished=%d", results, len(sources.finished))
+	}
+	if len(companies.outcomes) != 5 || companies.outcomes["co-s0"] != domain.RunSucceeded {
+		t.Fatalf("company outcomes = %v", companies.outcomes)
+	}
+}
+
+func TestRunDueClosesFailedSources(t *testing.T) {
+	r, _, listings := newRunner(&fakeAdapter{results: []func() ([]RawListing, error){ok()}})
+	if err := r.RunDue(context.Background(), RunDueOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if listings.closeFailed != 1 {
+		t.Fatalf("CloseFailedSources calls = %d, want 1", listings.closeFailed)
 	}
 }

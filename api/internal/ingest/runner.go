@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"example.com/rolescout/api/internal/domain"
@@ -20,6 +21,13 @@ type SourceStore interface {
 
 type ListingStore interface {
 	UpsertListing(ctx context.Context, in database.IngestedListing) (domain.Job, domain.JobListing, error)
+	CloseMissing(ctx context.Context, sourceID string, seenExternalIDs []string, at time.Time) (int64, error)
+	CloseFailedSources(ctx context.Context, failingSince time.Duration) (int64, error)
+}
+
+// CompanyOutcomes records sync results on the company a source belongs to.
+type CompanyOutcomes interface {
+	RecordSyncOutcome(ctx context.Context, companyID string, run domain.IngestionRun) error
 }
 
 // Runner synchronizes sources. Every synchronization is recorded as an
@@ -30,6 +38,8 @@ type Runner struct {
 	Listings ListingStore
 	Adapters Registry
 	Logger   *slog.Logger
+	// Companies, when set, is told the outcome of every company source sync.
+	Companies CompanyOutcomes
 
 	// MaxAttempts is how often a retryable fetch error is tried (default 3).
 	MaxAttempts int
@@ -39,7 +49,18 @@ type Runner struct {
 	FetchTimeout time.Duration
 	// StaleAfter is when a running run is considered abandoned (default 1 hour).
 	StaleAfter time.Duration
-	Now        func() time.Time
+	// CloseFailedAfter closes the listings of a source that has only failed
+	// for this long (default 7 days).
+	CloseFailedAfter time.Duration
+	Now              func() time.Time
+}
+
+// RunDueOptions controls one pass over due sources.
+type RunDueOptions struct {
+	// Concurrency is how many sources sync at once (default 1).
+	Concurrency int
+	// OnResult is called after each sync, possibly from several goroutines.
+	OnResult func(source domain.JobSource, run domain.IngestionRun, err error)
 }
 
 func (r *Runner) defaults() {
@@ -55,6 +76,9 @@ func (r *Runner) defaults() {
 	if r.StaleAfter <= 0 {
 		r.StaleAfter = time.Hour
 	}
+	if r.CloseFailedAfter <= 0 {
+		r.CloseFailedAfter = 7 * 24 * time.Hour
+	}
 	if r.Now == nil {
 		r.Now = time.Now
 	}
@@ -64,12 +88,12 @@ func (r *Runner) defaults() {
 }
 
 // Loop runs due sources every interval until ctx is canceled.
-func (r *Runner) Loop(ctx context.Context, interval time.Duration) {
+func (r *Runner) Loop(ctx context.Context, interval time.Duration, o RunDueOptions) {
 	r.defaults()
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
-		if err := r.RunDue(ctx); err != nil && ctx.Err() == nil {
+		if err := r.RunDue(ctx, o); err != nil && ctx.Err() == nil {
 			r.Logger.Error("ingestion tick failed", "error", err)
 		}
 		select {
@@ -80,27 +104,52 @@ func (r *Runner) Loop(ctx context.Context, interval time.Duration) {
 	}
 }
 
-// RunDue synchronizes every source that is due, one after another.
-func (r *Runner) RunDue(ctx context.Context) error {
+// RunDue synchronizes every source that is due, o.Concurrency at a time.
+func (r *Runner) RunDue(ctx context.Context, o RunDueOptions) error {
 	r.defaults()
 	if n, err := r.Sources.FailStaleRuns(ctx, r.StaleAfter); err != nil {
 		return err
 	} else if n > 0 {
 		r.Logger.Warn("marked abandoned ingestion runs as failed", "count", n)
 	}
+	if n, err := r.Listings.CloseFailedSources(ctx, r.CloseFailedAfter); err != nil {
+		return err
+	} else if n > 0 {
+		r.Logger.Info("closed jobs of sources failing for a long time", "jobs", n)
+	}
 	sources, err := r.Sources.Due(ctx, r.Now())
 	if err != nil {
 		return err
 	}
+	concurrency := max(o.Concurrency, 1)
+	work := make(chan domain.JobSource)
+	var wg sync.WaitGroup
+	for range min(concurrency, max(len(sources), 1)) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for source := range work {
+				run, err := r.Sync(ctx, source)
+				if err != nil {
+					r.Logger.Error("source sync failed", "source", source.Key, "error", err)
+				}
+				if o.OnResult != nil {
+					o.OnResult(source, run, err)
+				}
+			}
+		}()
+	}
+feed:
 	for _, source := range sources {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		if _, err := r.Sync(ctx, source); err != nil {
-			r.Logger.Error("source sync failed", "source", source.Key, "error", err)
+		select {
+		case work <- source:
+		case <-ctx.Done():
+			break feed
 		}
 	}
-	return nil
+	close(work)
+	wg.Wait()
+	return ctx.Err()
 }
 
 // Sync fetches and stores one source's listings and records the run. The
@@ -146,6 +195,11 @@ func (r *Runner) Sync(ctx context.Context, source domain.JobSource) (domain.Inge
 	} else {
 		log.Info("source sync finished", attrs...)
 	}
+	if r.Companies != nil && source.CompanyID != nil {
+		if err := r.Companies.RecordSyncOutcome(finishCtx, *source.CompanyID, saved); err != nil {
+			log.Error("record company sync outcome", "error", err)
+		}
+	}
 	return saved, runErr
 }
 
@@ -180,6 +234,7 @@ func (r *Runner) sync(ctx context.Context, source domain.JobSource, run *domain.
 		run.FetchedCount++
 
 		listing, err := Normalize(source.ID, item, seenAt)
+		listing.CompanyID = source.CompanyID
 		if err == nil {
 			_, _, err = r.Listings.UpsertListing(ctx, listing)
 		}
@@ -200,6 +255,19 @@ func (r *Runner) sync(ctx context.Context, source domain.JobSource, run *domain.
 			return errors.New(msg)
 		}
 		run.Error = &msg
+	}
+	// The snapshot is complete: listings it no longer contains are closed.
+	ids := make([]string, 0, len(seen))
+	for _, item := range raw {
+		if seen[item.ExternalID] {
+			ids = append(ids, item.ExternalID)
+			seen[item.ExternalID] = false
+		}
+	}
+	if closed, err := r.Listings.CloseMissing(ctx, source.ID, ids, seenAt); err != nil {
+		return fmt.Errorf("close missing listings: %w", err)
+	} else if closed > 0 {
+		log.Info("closed jobs no longer listed", "jobs", closed)
 	}
 	return nil
 }

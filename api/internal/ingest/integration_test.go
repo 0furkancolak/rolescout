@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"log"
 	"log/slog"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"example.com/rolescout/api/internal/crawl"
 	"example.com/rolescout/api/internal/domain"
 	"example.com/rolescout/api/internal/infrastructure/database"
 	"example.com/rolescout/api/internal/infrastructure/database/dbtest"
@@ -54,6 +56,10 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+func testCrawler() *crawl.Client {
+	return crawl.New(crawl.Options{UserAgent: "RoleScout/test", HostInterval: time.Millisecond})
+}
+
 func uniq(prefix string) string {
 	b := make([]byte, 4)
 	_, _ = rand.Read(b)
@@ -67,6 +73,10 @@ type board struct {
 }
 
 func (b *board) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/robots.txt" {
+		http.NotFound(w, r)
+		return
+	}
 	if b.fails.Load() > 0 {
 		b.fails.Add(-1)
 		w.WriteHeader(http.StatusServiceUnavailable)
@@ -91,7 +101,7 @@ func TestIngestionIsIdempotentAndDeduplicatesAcrossSources(t *testing.T) {
 	srv := httptest.NewServer(gh)
 	defer srv.Close()
 
-	adapter := &greenhouse.Adapter{BaseURL: srv.URL, Client: srv.Client()}
+	adapter := &greenhouse.Adapter{BaseURL: srv.URL, Client: testCrawler()}
 	runner := &ingest.Runner{
 		Sources: sources, Listings: jobs,
 		Adapters: ingest.Registry{"greenhouse": adapter},
@@ -151,5 +161,140 @@ func TestIngestionIsIdempotentAndDeduplicatesAcrossSources(t *testing.T) {
 	runs, err := sources.ListRuns(ctx, first.ID, 10)
 	if err != nil || len(runs) != 2 || runs[0].Status != domain.RunSucceeded {
 		t.Fatalf("runs: err=%v %+v", err, runs)
+	}
+}
+
+func TestSyncClosesAndReopensJobs(t *testing.T) {
+	if testPool == nil {
+		t.Skip("TEST_DATABASE_URL is not set")
+	}
+	ctx := context.Background()
+	sources := database.NewSourceRepository(testPool)
+	jobs := database.NewJobRepository(testPool)
+	companies := database.NewCompanyRepository(testPool)
+
+	a, b := uniq("Closing A "), uniq("Closing B ")
+	jobJSON := func(id int, title string) string {
+		return fmt.Sprintf(`{"id":%d,"title":%q,"absolute_url":"https://boards.greenhouse.io/acme/jobs/%d","content":"","location":{"name":"Berlin, Germany"}}`, id, title, id)
+	}
+	gh := &board{}
+	gh.body.Store(`{"jobs":[` + jobJSON(1, a) + `,` + jobJSON(2, b) + `]}`)
+	srv := httptest.NewServer(gh)
+	defer srv.Close()
+
+	company, _, err := companies.UpsertDiscovered(ctx, database.CompanyParams{
+		Name: "Acme", CareersURL: "https://boards.greenhouse.io/" + uniq("acme"), ATS: "greenhouse", Origin: "seed",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	src, err := companies.AttachSource(ctx, company.ID, database.SourceParams{
+		Name: "Acme", BaseURL: company.CareersURL, Adapter: "greenhouse",
+		Config: map[string]any{"board_token": "acme", "company": "Acme"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner := &ingest.Runner{
+		Sources: sources, Listings: jobs, Companies: companies,
+		Adapters: ingest.Registry{"greenhouse": &greenhouse.Adapter{BaseURL: srv.URL, Client: testCrawler()}},
+		Logger:   slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Backoff:  func(int) time.Duration { return time.Millisecond },
+	}
+	find := func(title string) domain.Job {
+		t.Helper()
+		found, _, err := jobs.SearchJobs(ctx, database.JobFilter{Query: title, Limit: 10})
+		if err != nil || len(found) != 1 {
+			t.Fatalf("search %q: %v %d", title, err, len(found))
+		}
+		return found[0]
+	}
+
+	if _, err := runner.Sync(ctx, src); err != nil {
+		t.Fatal(err)
+	}
+	jobA := find(a)
+	if jobA.CompanyID == nil || *jobA.CompanyID != company.ID || jobA.CountryCode == nil || *jobA.CountryCode != "DE" || jobA.ClosedAt != nil {
+		t.Fatalf("job after first sync: %+v", jobA)
+	}
+	co, _ := companies.Get(ctx, company.ID)
+	if co.Status != domain.CompanyActive || co.OpenJobs != 2 {
+		t.Fatalf("company after sync: %+v", co)
+	}
+
+	gh.body.Store(`{"jobs":[` + jobJSON(1, a) + `]}`)
+	if _, err := runner.Sync(ctx, src); err != nil {
+		t.Fatal(err)
+	}
+	if find(b).ClosedAt == nil || find(a).ClosedAt != nil {
+		t.Fatal("B must be closed and A open after B disappeared")
+	}
+	if co, _ = companies.Get(ctx, company.ID); co.OpenJobs != 1 {
+		t.Fatalf("open jobs = %d, want 1", co.OpenJobs)
+	}
+
+	// A failed fetch keeps everything as it is.
+	gh.fails.Store(10)
+	runner.Sync(ctx, src)
+	gh.fails.Store(0)
+	if find(a).ClosedAt != nil {
+		t.Fatal("a failed sync must not close jobs")
+	}
+
+	gh.body.Store(`{"jobs":[` + jobJSON(1, a) + `,` + jobJSON(2, b) + `]}`)
+	if _, err := runner.Sync(ctx, src); err != nil {
+		t.Fatal(err)
+	}
+	if find(b).ClosedAt != nil {
+		t.Fatal("B must reopen when listed again")
+	}
+}
+
+func TestCloseFailedSourcesAfterSevenDays(t *testing.T) {
+	if testPool == nil {
+		t.Skip("TEST_DATABASE_URL is not set")
+	}
+	ctx := context.Background()
+	sources := database.NewSourceRepository(testPool)
+	jobs := database.NewJobRepository(testPool)
+
+	setup := func(lastSuccessDaysAgo int) domain.Job {
+		s, err := sources.Create(ctx, database.SourceParams{Key: uniq("dead-"), Name: "Dead", BaseURL: "https://x.example", Adapter: "greenhouse"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		job, _, err := jobs.UpsertListing(ctx, database.IngestedListing{
+			SourceID: s.ID, ExternalID: "1", URL: "https://x.example/1", DedupeKey: uniq("dk"),
+			Title: uniq("Dead job "), CompanyName: "Dead",
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = testPool.Exec(ctx, `
+			INSERT INTO ingestion_runs (source_id, status, started_at, finished_at, error) VALUES
+			($1, 'succeeded', NOW() - make_interval(days => $2), NOW() - make_interval(days => $2), NULL),
+			($1, 'failed', NOW() - INTERVAL '1 hour', NOW() - INTERVAL '1 hour', 'board not found')`,
+			s.ID, lastSuccessDaysAgo)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return job
+	}
+	old, recent := setup(8), setup(6)
+	if _, err := jobs.CloseFailedSources(ctx, 7*24*time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	get := func(id string) domain.Job {
+		j, err := jobs.GetJob(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return j
+	}
+	if get(old.ID).ClosedAt == nil {
+		t.Error("job of a source failing for 8 days must be closed")
+	}
+	if get(recent.ID).ClosedAt != nil {
+		t.Error("job of a source failing for 6 days must stay open")
 	}
 }

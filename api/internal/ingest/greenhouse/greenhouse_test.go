@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"example.com/rolescout/api/internal/crawl"
 	"example.com/rolescout/api/internal/ingest"
 )
 
@@ -18,9 +19,16 @@ const jobsJSON = `{"jobs":[{"id":127817,"title":"Senior Go Engineer","updated_at
 
 func server(t *testing.T, handler http.HandlerFunc) *Adapter {
 	t.Helper()
-	srv := httptest.NewServer(handler)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/robots.txt" {
+			http.NotFound(w, r)
+			return
+		}
+		handler(w, r)
+	}))
 	t.Cleanup(srv.Close)
-	return &Adapter{BaseURL: srv.URL, Client: srv.Client(), UserAgent: "test-agent"}
+	c := crawl.New(crawl.Options{UserAgent: "test-agent", HostInterval: time.Millisecond})
+	return &Adapter{BaseURL: srv.URL, Client: c}
 }
 
 func TestFetchReadsBoardAndJobs(t *testing.T) {
@@ -114,7 +122,7 @@ func TestFetchRejectsMalformedJSON(t *testing.T) {
 }
 
 func TestValidate(t *testing.T) {
-	a := New("ua")
+	a := New(crawl.New(crawl.Options{UserAgent: "ua"}))
 	for _, bad := range []map[string]any{
 		{},
 		{"board_token": ""},

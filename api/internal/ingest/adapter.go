@@ -26,6 +26,12 @@ type RawListing struct {
 	EmploymentType  string
 	PostedAt        *time.Time
 	SourceUpdatedAt *time.Time
+	// CountryCode is the ISO 3166-1 alpha-2 country when the source states
+	// it; otherwise it is inferred from Location.
+	CountryCode string
+	// Arrangement is "remote", "hybrid" or "onsite" when the source states
+	// it; it takes precedence over inference.
+	Arrangement string
 }
 
 // Adapter fetches the current listings of one configured source.

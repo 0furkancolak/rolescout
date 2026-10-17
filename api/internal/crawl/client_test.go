@@ -307,3 +307,12 @@ func TestNetworkErrorIsTemporary(t *testing.T) {
 		t.Fatalf("err = %v, temporary = %v", err, IsTemporary(err))
 	}
 }
+
+func TestDeadlineIsTemporaryButCancelIsNot(t *testing.T) {
+	if !IsTemporary(context.DeadlineExceeded) {
+		t.Error("an expired deadline may pass on a later attempt")
+	}
+	if IsTemporary(context.Canceled) {
+		t.Error("cancellation is final")
+	}
+}
