@@ -59,3 +59,21 @@ Tests live in `__tests__` folders next to the code they cover and run with
 Vitest and Testing Library. `src/test/utils.tsx` provides `mockApi`, an
 in-memory replacement for `fetch` keyed by `"METHOD /path"`, and `renderApp`,
 which renders the real routes at a given URL.
+
+## Design tokens
+
+Colours, radii and shadows are semantic tokens defined once in
+`src/lib/tokens.ts` and repeated in `src/index.css` (`@theme static` for
+light, a `.dark` block for dark). A test keeps the two in step and checks the
+WCAG contrast of every text/background pair: 4.5:1 for text, 3:1 for
+`line-strong` and `focus`. `line` is decorative only (hairlines between cards);
+controls such as inputs must use `line-strong`. Use the utilities
+(`bg-canvas`, `bg-surface`, `text-ink`, `text-ink-muted`, `border-line`,
+`rounded-card`, `shadow-card`, ...) and never a raw colour in new code.
+
+| token | light | dark |
+|---|---|---|
+| canvas / surface / raised | `#f5f1ea` / `#fffdf9` / `#ffffff` | `#121110` / `#1b1a18` / `#262421` |
+| ink / ink-muted | `#17171a` / `#625d55` | `#f3eee6` / `#a8a096` |
+| sage, amber, lavender (fills) | `#a9cdb4`, `#f0c777`, `#cbc3f2` | `#2f4a3a`, `#4f3b12`, `#3d3768` |
+| the same, deep (text) | `#35604a`, `#8a5a06`, `#4e4390` | `#9fd0ae`, `#f0c777`, `#cbc3f2` |

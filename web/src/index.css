@@ -2,6 +2,62 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/*
+ * Design tokens. Values mirror src/lib/tokens.ts (a test keeps them in step and
+ * checks their contrast). "static" keeps every variable even when unused, so
+ * the .dark block below can override them.
+ */
+@theme static {
+  /* tokens:light */
+  --color-canvas: #f5f1ea;
+  --color-surface: #fffdf9;
+  --color-raised: #ffffff;
+  --color-ink: #17171a;
+  --color-ink-muted: #625d55;
+  --color-ink-inverse: #fffdf9;
+  --color-line: #e6dfd3;
+  --color-line-strong: #8a8171;
+  --color-sage: #a9cdb4;
+  --color-sage-deep: #35604a;
+  --color-amber: #f0c777;
+  --color-amber-deep: #8a5a06;
+  --color-lavender: #cbc3f2;
+  --color-lavender-deep: #4e4390;
+  --color-danger: #b4412f;
+  --color-danger-soft: #f6ddd7;
+  --color-focus: #4e4390;
+  /* tokens:end */
+  --radius-card: 1.5rem;
+  --radius-hero: 2rem;
+  --radius-control: 0.875rem;
+  --shadow-card: 0 1px 2px rgb(60 45 20 / 0.05), 0 8px 24px rgb(60 45 20 / 0.06);
+  --shadow-raised: 0 2px 4px rgb(60 45 20 / 0.06), 0 16px 40px rgb(60 45 20 / 0.1);
+}
+
+.dark {
+  /* tokens:dark */
+  --color-canvas: #121110;
+  --color-surface: #1b1a18;
+  --color-raised: #262421;
+  --color-ink: #f3eee6;
+  --color-ink-muted: #a8a096;
+  --color-ink-inverse: #17171a;
+  --color-line: #34312c;
+  --color-line-strong: #8a8379;
+  --color-sage: #2f4a3a;
+  --color-sage-deep: #9fd0ae;
+  --color-amber: #4f3b12;
+  --color-amber-deep: #f0c777;
+  --color-lavender: #3d3768;
+  --color-lavender-deep: #cbc3f2;
+  --color-danger: #f09a8a;
+  --color-danger-soft: #3a211c;
+  --color-focus: #cbc3f2;
+  /* tokens:end */
+  --shadow-card: 0 0 0 1px var(--color-line);
+  --shadow-raised: 0 0 0 1px var(--color-line-strong);
+}
+
 :root {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", sans-serif;
