@@ -234,8 +234,10 @@ func (c *Client) do(ctx context.Context, method, path string, payload []byte) ([
 	switch {
 	case resp.StatusCode >= 500:
 		return nil, fmt.Errorf("%w: HTTP %d", ErrUnavailable, resp.StatusCode)
-	case resp.StatusCode == http.StatusTooManyRequests:
-		return nil, fmt.Errorf("%w: HTTP 429", ErrUnavailable)
+	case resp.StatusCode == http.StatusTooManyRequests, resp.StatusCode == http.StatusUnauthorized,
+		resp.StatusCode == http.StatusForbidden, resp.StatusCode == http.StatusNotFound, resp.StatusCode == http.StatusRequestTimeout:
+		// A missing model or bad key is a server-side problem, not this job's.
+		return nil, fmt.Errorf("%w: HTTP %d", ErrUnavailable, resp.StatusCode)
 	case resp.StatusCode >= 400:
 		return nil, fmt.Errorf("%w: HTTP %d", ErrBadResponse, resp.StatusCode)
 	}

@@ -76,7 +76,7 @@ export function UserMenu() {
         ref={trigger}
         type="button"
         aria-expanded={open}
-        aria-controls="account-menu"
+        aria-controls={open ? "account-menu" : undefined}
         aria-label={`${t("nav.account")}: ${name}`}
         onClick={() => setOpen((o) => !o)}
         className="flex min-h-12 w-full items-center gap-3 rounded-control px-2 py-1.5 text-left hover:bg-canvas focus-visible:outline-2 focus-visible:outline-focus"

@@ -110,11 +110,9 @@ function Body({
         <Button variant="secondary" busy={checking} onClick={onCheck}>
           {t("localAi.test")}
         </Button>
-        {probe && (
-          <span role="status" className="text-sm text-ink">
-            {probe.probe_ok ? t("localAi.probeOk", { ms: probe.probe_ms }) : t("localAi.probeFail")}
-          </span>
-        )}
+        <span role="status" className="text-sm text-ink">
+          {probe && !checking ? (probe.probe_ok ? t("localAi.probeOk", { ms: probe.probe_ms }) : t("localAi.probeFail")) : null}
+        </span>
         {error != null && (
           <p role="alert" className="text-sm text-danger">
             {isApiError(error, "rate_limited") ? t("localAi.rateLimited") : t("common.error")}

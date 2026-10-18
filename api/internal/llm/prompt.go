@@ -1,6 +1,7 @@
 package llm
 
 import (
+	"regexp"
 	"strings"
 	"unicode/utf8"
 )
@@ -22,10 +23,13 @@ Rules:
 
 const strictSuffix = "\nYour previous answer was not valid JSON for the schema. Reply with only valid JSON, with no text before or after it."
 
+var fenceTags = regexp.MustCompile(`(?i)</?\s*job_description\s*>`)
+
 // BuildPrompt returns the system and user messages. The description is cut at
 // a paragraph boundary so it fits maxChars runes.
 func BuildPrompt(title, company, description string, maxChars int) (system, user string) {
-	body := cutAtParagraph(strings.TrimSpace(description), maxChars)
+	// A posting must not be able to close the data fence itself.
+	body := cutAtParagraph(strings.TrimSpace(fenceTags.ReplaceAllString(description, "")), maxChars)
 	var b strings.Builder
 	b.WriteString("Title: ")
 	b.WriteString(truncateRunes(cleanText(title), 200))

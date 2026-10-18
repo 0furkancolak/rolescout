@@ -21,6 +21,13 @@ export function Segmented<T extends string>({
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
 
   function onKeyDown(e: KeyboardEvent) {
+    if (e.key === "Home" || e.key === "End") {
+      e.preventDefault();
+      const to = e.key === "Home" ? 0 : options.length - 1;
+      onChange(options[to].value);
+      refs.current[to]?.focus();
+      return;
+    }
     const step = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
     if (!step) return;
     e.preventDefault();

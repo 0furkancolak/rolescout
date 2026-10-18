@@ -35,6 +35,8 @@ func TestValidateSeniorityNeedsACueInTheText(t *testing.T) {
 		{"junior", "Developer", "Entry level role.", "junior"},
 		{"intern", "Yazılım Stajyeri", "x", "intern"},
 		{"mid", "Developer", "3 years of experience", "unknown"},
+		{"mid", "Developer", "We are a mid-sized company.", "unknown"},
+		{"lead", "Engineer", "You will lead a small team and our staff is friendly.", "unknown"},
 		{"mid", "Mid-level Developer", "x", "mid"},
 		{"lead", "Tech Lead", "x", "lead"},
 		{"unknown", "Senior Dev", "x", "unknown"},

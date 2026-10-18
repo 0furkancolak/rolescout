@@ -70,10 +70,12 @@ func (c *Checker) Status(ctx context.Context, probe bool) (Status, error) {
 		return Status{}, nil
 	}
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	if !probe && !c.lastTime.IsZero() && c.now().Sub(c.lastTime) < statusCacheTTL {
-		return c.last, nil
+		cached := c.last
+		c.mu.Unlock()
+		return cached, nil
 	}
+	c.mu.Unlock() // never hold the lock across network or database calls
 
 	now := c.now()
 	s := Status{
@@ -99,7 +101,9 @@ func (c *Checker) Status(ctx context.Context, probe bool) (Status, error) {
 		main, _ := c.Repo.RecentOK(ctx, c.Config.Model, since)
 		s.Degraded = fb > 0 && main == 0
 	}
+	c.mu.Lock()
 	c.last, c.lastTime = s, now
+	c.mu.Unlock()
 	return s, nil
 }
 

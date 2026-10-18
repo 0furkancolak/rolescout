@@ -17,6 +17,8 @@ type Dropped struct {
 
 const maxTechnologies = 25
 
+var urlPattern = regexp.MustCompile(`(?i)https?://|www\.|\b[a-z0-9-]+\.(com|net|org|io|co|app|dev)\b/?`)
+
 var (
 	currencyPattern = regexp.MustCompile(`^[A-Z]{3}$`)
 	countryPattern  = regexp.MustCompile(`^[A-Z]{2}$`)
@@ -26,6 +28,10 @@ var (
 // seniorityCues are words that must appear in the title or description for the
 // model's seniority claim to stand. The model reading "3 years of experience"
 // and answering "mid" is a guess, not something the posting states.
+// seniorityTitleOnly are cues too common in prose ("you will lead", "our staff",
+// "mid-sized") to trust outside the title.
+var seniorityTitleOnly = map[string]bool{"mid": true, "lead": true, "junior": false}
+
 var seniorityCues = map[string][]string{
 	"intern": {"intern", "internship", "stajyer*", "staj", "trainee", "working student"},
 	"junior": {"junior", "jr", "entry level", "entry-level", "graduate", "new grad", "yeni mezun"},
@@ -65,8 +71,14 @@ func Validate(e Enrichment, title, description string, resolveCountry func(place
 	if e.Seniority == "principal" {
 		e.Seniority = "lead"
 	}
-	if e.Seniority != "unknown" && !hasCue(text, seniorityCues[e.Seniority]) {
-		e.Seniority = "unknown"
+	if e.Seniority != "unknown" {
+		scope := text
+		if seniorityTitleOnly[e.Seniority] {
+			scope = strings.ToLower(title)
+		}
+		if !hasCue(scope, seniorityCues[e.Seniority]) {
+			e.Seniority = "unknown"
+		}
 	}
 
 	e.Technologies = groundTechnologies(e.Technologies, text, &d)
@@ -93,6 +105,12 @@ func Validate(e Enrichment, title, description string, resolveCountry func(place
 	e.Languages = cleanLanguages(e.Languages)
 	e.RemotePolicy = truncateRunes(placeholderToEmpty(cleanText(e.RemotePolicy)), 120)
 	e.Summary = truncateRunes(placeholderToEmpty(cleanText(e.Summary)), 300)
+	if urlPattern.MatchString(e.Summary) {
+		e.Summary = ""
+	}
+	if urlPattern.MatchString(e.RemotePolicy) {
+		e.RemotePolicy = ""
+	}
 	return e, d
 }
 

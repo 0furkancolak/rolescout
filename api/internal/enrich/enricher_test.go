@@ -328,3 +328,13 @@ func TestExplanationsAreSkippedWhileDegradedAndOnInvalidText(t *testing.T) {
 		t.Fatalf("an ungrounded explanation was stored: %+v %v", res, repo2.explained)
 	}
 }
+
+func TestMissingModelKeepsJobsQueuedAndOpensTheBreaker(t *testing.T) {
+	h := newHarness(t)
+	h.srv.Script(llmtest.Scripted{Status: 404})
+	h.repo.queue = tasks(10)
+	h.e.Tick(context.Background())
+	if len(h.repo.saved) != 0 || !h.e.Breaker.Open() {
+		t.Fatalf("404 must not burn job attempts and must open the breaker: saved %d open %v", len(h.repo.saved), h.e.Breaker.Open())
+	}
+}

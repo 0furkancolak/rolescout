@@ -220,3 +220,13 @@ func TestProbeSendsOneTokenRequest(t *testing.T) {
 		t.Fatalf("body = %s", srv.Requests()[0].Body)
 	}
 }
+
+func TestMissingModelOrBadKeyIsUnavailableNotBadOutput(t *testing.T) {
+	for _, status := range []int{401, 403, 404, 408, 429} {
+		srv := llmtest.New(t)
+		srv.Script(llmtest.Scripted{Status: status})
+		if _, err := newTestClient(t, srv).Complete(context.Background(), Request{User: "u"}); !errors.Is(err, ErrUnavailable) {
+			t.Errorf("HTTP %d: err = %v, want ErrUnavailable", status, err)
+		}
+	}
+}

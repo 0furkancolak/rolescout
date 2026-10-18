@@ -47,9 +47,11 @@ JOIN job_enrichments e ON e.description_hash = j.description_hash AND e.status =
     AND e.model = $1 AND e.prompt_version = $2 AND e.schema_version = $3
 WHERE j.closed_at IS NULL AND btrim(j.description) <> ''
   AND NOT EXISTS (SELECT 1 FROM job_enrichments x WHERE x.job_id = j.id AND x.description_hash = j.description_hash
-      AND x.model = $1 AND x.prompt_version = $2 AND x.schema_version = $3)
+      AND x.model = $1 AND x.prompt_version = $2 AND x.schema_version = $3 AND x.status = 'ok')
 ORDER BY j.id, e.created_at DESC
-ON CONFLICT (job_id, description_hash, model, prompt_version, schema_version) DO NOTHING`,
+ON CONFLICT (job_id, description_hash, model, prompt_version, schema_version) DO UPDATE
+  SET status = 'ok', data = EXCLUDED.data, error = NULL, next_attempt_at = NULL, updated_at = NOW()
+  WHERE job_enrichments.status <> 'ok'`,
 		model, promptVersion, schemaVersion)
 	if err != nil {
 		return nil, err

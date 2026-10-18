@@ -52,6 +52,9 @@ func Explain(ctx context.Context, c Completer, f JobFacts) (string, error) {
 		return "", ErrInvalidOutput
 	}
 	text := cleanText(out.Explanation)
+	if urlPattern.MatchString(text) {
+		return "", ErrInvalidOutput
+	}
 	if text == "" || utf8.RuneCountInString(text) > 300 || sentences(text) > 2 || !explainGrounded(text, f, user) {
 		return "", ErrInvalidOutput
 	}
