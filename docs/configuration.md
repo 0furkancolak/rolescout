@@ -59,6 +59,26 @@ limits how fast it calls each host.
 | `MATCH_MIN_SCORE` | `40` | Lowest score (0–100) stored as a match. |
 | `CLOSED_JOB_RETENTION` | `2160h` | Closed jobs nobody saved or applied to are deleted after this long; `0` keeps them. At least `24h` otherwise. |
 
+## Local language model (optional)
+Off by default. When on, a worker loop reads job descriptions with a small model
+running on your own machine and extracts salary, remote policy, extra
+technologies and a short summary. Nothing is sent to a hosted service. See
+[ADR 0005](adr/0005-local-llm-enrichment.md); setup steps are in
+[local AI](local-ai.md) once written.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `LLM_ENABLED` | `false` | Turn the enricher on. Everything else works without it. |
+| `LLM_BASE_URL` | `http://host.docker.internal:11434/v1` | OpenAI-compatible endpoint (Ollama, llama.cpp `llama-server`, LM Studio). Use `http://127.0.0.1:11434/v1` when the worker runs on the host. Docker on a Mac cannot use the GPU, so the model server runs on the host. |
+| `LLM_MODEL` | `qwen3:4b-instruct-2507-q4_K_M` | Model name as the server knows it. Required when enabled. |
+| `LLM_FALLBACK_MODEL` | `qwen3:1.7b-q4_K_M` | Smaller model used while the main one keeps timing out; set empty to disable. |
+| `LLM_API_KEY` | empty | Sent as a bearer token when set (llama.cpp `--api-key`). |
+| `LLM_TIMEOUT` | `60s` | Limit for one model request, at least `1s`. |
+| `LLM_CONCURRENCY` | `1` | Parallel requests (1–4). Keep 1 on a laptop. |
+| `LLM_BATCH` | `25` | Jobs enriched per worker tick (1–500). |
+| `LLM_MAX_INPUT_CHARS` | `6000` | Description text sent per job (500–50000); longer text is cut at a paragraph. |
+| `LLM_MAX_OUTPUT_TOKENS` | `400` | Reply limit per job (50–4000). |
+
 ## Admin CLI
 Uses `DATABASE_URL` only.
 

@@ -35,6 +35,26 @@ type Config struct {
 	// LogLevel is debug, info, warn or error.
 	LogLevel slog.Level
 	Crawl    Crawl
+	LLM      LLM
+}
+
+// LLM configures the optional local language model that enriches job
+// descriptions. It is off unless Enabled is true.
+type LLM struct {
+	Enabled bool
+	// BaseURL is an OpenAI-compatible endpoint ending in /v1.
+	BaseURL       string
+	Model         string
+	FallbackModel string
+	// APIKey is sent as a bearer token when set (llama.cpp --api-key).
+	APIKey string
+	// Timeout bounds one model request.
+	Timeout     time.Duration
+	Concurrency int
+	// Batch is how many jobs one worker tick sends to the model.
+	Batch           int
+	MaxInputChars   int
+	MaxOutputTokens int
 }
 
 // Crawl configures company discovery, job collection and research runs.
@@ -147,8 +167,14 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 
+	llmCfg, err := loadLLM()
+	if err != nil {
+		return Config{}, err
+	}
+
 	return Config{
 		Crawl:             crawl,
+		LLM:               llmCfg,
 		HTTPHost:          host,
 		HTTPPort:          port,
 		DatabaseURL:       dbURL,
@@ -244,6 +270,56 @@ func loadCrawl() (Crawl, error) {
 			return c, fmt.Errorf("invalid CRAWL_USER_AGENT_URL: use an absolute http(s) URL")
 		}
 		c.UserAgentURL = raw
+	}
+	return c, nil
+}
+
+func loadLLM() (LLM, error) {
+	c := LLM{
+		BaseURL: "http://host.docker.internal:11434/v1", Model: "qwen3:4b-instruct-2507-q4_K_M",
+		FallbackModel: "qwen3:1.7b-q4_K_M",
+	}
+	var err error
+	if c.Enabled, err = boolEnv("LLM_ENABLED", false); err != nil {
+		return c, err
+	}
+	if raw := os.Getenv("LLM_BASE_URL"); raw != "" {
+		u, err := url.Parse(strings.TrimSpace(raw))
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+			return c, fmt.Errorf("invalid LLM_BASE_URL: use an absolute http(s) URL such as http://127.0.0.1:11434/v1")
+		}
+		c.BaseURL = strings.TrimRight(strings.TrimSpace(raw), "/")
+	}
+	if raw := os.Getenv("LLM_MODEL"); raw != "" {
+		c.Model = strings.TrimSpace(raw)
+	}
+	if c.Enabled && c.Model == "" {
+		return c, fmt.Errorf("invalid LLM_MODEL: set a model name while LLM_ENABLED is true")
+	}
+	// An explicitly empty fallback turns degraded mode off.
+	if raw, ok := os.LookupEnv("LLM_FALLBACK_MODEL"); ok {
+		c.FallbackModel = strings.TrimSpace(raw)
+	}
+	c.APIKey = os.Getenv("LLM_API_KEY")
+	c.Timeout = 60 * time.Second
+	if raw := os.Getenv("LLM_TIMEOUT"); raw != "" {
+		d, err := time.ParseDuration(raw)
+		if err != nil || d < time.Second {
+			return c, fmt.Errorf("invalid LLM_TIMEOUT: use a Go duration of at least 1s, such as 60s")
+		}
+		c.Timeout = d
+	}
+	if c.Concurrency, err = rangeEnv("LLM_CONCURRENCY", 1, 1, 4); err != nil {
+		return c, err
+	}
+	if c.Batch, err = rangeEnv("LLM_BATCH", 25, 1, 500); err != nil {
+		return c, err
+	}
+	if c.MaxInputChars, err = rangeEnv("LLM_MAX_INPUT_CHARS", 6000, 500, 50000); err != nil {
+		return c, err
+	}
+	if c.MaxOutputTokens, err = rangeEnv("LLM_MAX_OUTPUT_TOKENS", 400, 50, 4000); err != nil {
+		return c, err
 	}
 	return c, nil
 }

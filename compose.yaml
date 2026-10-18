@@ -48,6 +48,16 @@ services:
       RESEARCH_INTERVAL: ${RESEARCH_INTERVAL:-12h}
       JSONLD_MAX_PAGES: ${JSONLD_MAX_PAGES:-200}
       MATCH_MIN_SCORE: ${MATCH_MIN_SCORE:-40}
+      LLM_ENABLED: ${LLM_ENABLED:-false}
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:11434/v1}
+      LLM_MODEL: ${LLM_MODEL:-qwen3:4b-instruct-2507-q4_K_M}
+      LLM_FALLBACK_MODEL: ${LLM_FALLBACK_MODEL-qwen3:1.7b-q4_K_M}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_TIMEOUT: ${LLM_TIMEOUT:-60s}
+      LLM_CONCURRENCY: ${LLM_CONCURRENCY:-1}
+      LLM_BATCH: ${LLM_BATCH:-25}
+      LLM_MAX_INPUT_CHARS: ${LLM_MAX_INPUT_CHARS:-6000}
+      LLM_MAX_OUTPUT_TOKENS: ${LLM_MAX_OUTPUT_TOKENS:-400}
       CLOSED_JOB_RETENTION: ${CLOSED_JOB_RETENTION:-2160h}
     ports:
       - "127.0.0.1:${API_HOST_PORT:-8080}:8080"
@@ -84,7 +94,19 @@ services:
       RESEARCH_INTERVAL: ${RESEARCH_INTERVAL:-12h}
       JSONLD_MAX_PAGES: ${JSONLD_MAX_PAGES:-200}
       MATCH_MIN_SCORE: ${MATCH_MIN_SCORE:-40}
+      LLM_ENABLED: ${LLM_ENABLED:-false}
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:11434/v1}
+      LLM_MODEL: ${LLM_MODEL:-qwen3:4b-instruct-2507-q4_K_M}
+      LLM_FALLBACK_MODEL: ${LLM_FALLBACK_MODEL-qwen3:1.7b-q4_K_M}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_TIMEOUT: ${LLM_TIMEOUT:-60s}
+      LLM_CONCURRENCY: ${LLM_CONCURRENCY:-1}
+      LLM_BATCH: ${LLM_BATCH:-25}
+      LLM_MAX_INPUT_CHARS: ${LLM_MAX_INPUT_CHARS:-6000}
+      LLM_MAX_OUTPUT_TOKENS: ${LLM_MAX_OUTPUT_TOKENS:-400}
       CLOSED_JOB_RETENTION: ${CLOSED_JOB_RETENTION:-2160h}
+    # Lets the worker reach a model server (Ollama) running on the host.
+    extra_hosts: ["host.docker.internal:host-gateway"]
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]

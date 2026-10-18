@@ -2,6 +2,7 @@ package config
 
 import (
 	"log/slog"
+	"os"
 	"testing"
 	"time"
 )
@@ -171,5 +172,97 @@ func TestLoadRejectsInvalidCrawlSettings(t *testing.T) {
 				t.Fatalf("%s=%s accepted", name, value)
 			}
 		})
+	}
+}
+
+var llmVars = []string{
+	"LLM_ENABLED", "LLM_BASE_URL", "LLM_MODEL", "LLM_FALLBACK_MODEL", "LLM_API_KEY", "LLM_TIMEOUT",
+	"LLM_CONCURRENCY", "LLM_BATCH", "LLM_MAX_INPUT_CHARS", "LLM_MAX_OUTPUT_TOKENS",
+}
+
+// clearLLM unsets every LLM variable for the test (restored afterwards), so a
+// default really is a default; an empty LLM_FALLBACK_MODEL means "none".
+func clearLLM(t *testing.T) {
+	t.Helper()
+	for _, v := range llmVars {
+		t.Setenv(v, "")
+		os.Unsetenv(v)
+	}
+}
+
+func TestLoadLLMDefaultsToOff(t *testing.T) {
+	clearLLM(t)
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := LLM{
+		BaseURL: "http://host.docker.internal:11434/v1", Model: "qwen3:4b-instruct-2507-q4_K_M",
+		FallbackModel: "qwen3:1.7b-q4_K_M", Timeout: 60 * time.Second, Concurrency: 1, Batch: 25,
+		MaxInputChars: 6000, MaxOutputTokens: 400,
+	}
+	if cfg.LLM != want {
+		t.Fatalf("llm defaults = %+v, want %+v", cfg.LLM, want)
+	}
+}
+
+func TestLoadLLMSettings(t *testing.T) {
+	clearLLM(t)
+	t.Setenv("LLM_ENABLED", "true")
+	t.Setenv("LLM_BASE_URL", "http://127.0.0.1:8081/v1")
+	t.Setenv("LLM_MODEL", "tiny")
+	t.Setenv("LLM_FALLBACK_MODEL", "")
+	t.Setenv("LLM_API_KEY", "k")
+	t.Setenv("LLM_TIMEOUT", "5s")
+	t.Setenv("LLM_CONCURRENCY", "2")
+	t.Setenv("LLM_BATCH", "100")
+	t.Setenv("LLM_MAX_INPUT_CHARS", "3000")
+	t.Setenv("LLM_MAX_OUTPUT_TOKENS", "200")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := LLM{
+		Enabled: true, BaseURL: "http://127.0.0.1:8081/v1", Model: "tiny", APIKey: "k", Timeout: 5 * time.Second,
+		Concurrency: 2, Batch: 100, MaxInputChars: 3000, MaxOutputTokens: 200,
+	}
+	if cfg.LLM != want {
+		t.Fatalf("llm = %+v, want %+v", cfg.LLM, want)
+	}
+}
+
+func TestLoadRejectsInvalidLLMSettings(t *testing.T) {
+	for name, env := range map[string]map[string]string{
+		"relative url":      {"LLM_BASE_URL": "localhost:11434/v1"},
+		"not http":          {"LLM_BASE_URL": "ftp://localhost/v1"},
+		"no host":           {"LLM_BASE_URL": "http:///v1"},
+		"concurrency 9":     {"LLM_CONCURRENCY": "9"},
+		"concurrency 0":     {"LLM_CONCURRENCY": "0"},
+		"batch 501":         {"LLM_BATCH": "501"},
+		"batch 0":           {"LLM_BATCH": "0"},
+		"zero timeout":      {"LLM_TIMEOUT": "0s"},
+		"bad timeout":       {"LLM_TIMEOUT": "soon"},
+		"tiny input":        {"LLM_MAX_INPUT_CHARS": "10"},
+		"output too big":    {"LLM_MAX_OUTPUT_TOKENS": "100000"},
+		"enabled no model":  {"LLM_ENABLED": "true", "LLM_MODEL": " "},
+		"bad enabled value": {"LLM_ENABLED": "maybe"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			clearLLM(t)
+			for k, v := range env {
+				t.Setenv(k, v)
+			}
+			if _, err := Load(); err == nil {
+				t.Fatalf("Load accepted %v", env)
+			}
+		})
+	}
+}
+
+func TestEmptyModelIsFineWhileDisabled(t *testing.T) {
+	clearLLM(t)
+	t.Setenv("LLM_MODEL", " ")
+	if _, err := Load(); err != nil {
+		t.Fatalf("disabled with empty model: %v", err)
 	}
 }
