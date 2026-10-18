@@ -33,6 +33,15 @@ include breaking changes, which are called out.
   of company sources, `admin adapters`, `admin companies` and
   `admin seeds check` commands.
 
+- Optional local AI enrichment (`LLM_ENABLED`, off by default): a small model on
+  your own computer (Qwen3 through Ollama or llama.cpp) reads job descriptions
+  in a separate worker loop, with grounded and validated output, a circuit
+  breaker, a description-hash cache, AI-marked salary, remote policy, summary and
+  technologies, one-line match explanations, Settings → Local AI, and
+  `admin llm check|eval|enrich`. See docs/local-ai.md and ADR 0005.
+- Labelled evaluation set (30 English and 30 Turkish postings) and
+  `scripts/llm-bench.sh` / `scripts/llm-eval.sh` to measure a model.
+
 ### Changed
 - Source reviews are recorded per adapter type (ADR 0004); a source can be
   enabled when its adapter type is reviewed and enabled.

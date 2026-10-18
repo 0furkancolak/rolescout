@@ -1,0 +1,662 @@
+[
+ {
+  "id": "en-01",
+  "lang": "en",
+  "title": "Full Stack Developer Intern",
+  "company": "Acme Labs",
+  "description": "Acme Labs is hiring a Full Stack Developer Intern to join our product team.\n\nYou will work with PostgreSQL, TypeScript, AWS and React to build and run customer-facing services.\n\nWork from anywhere in the EU, fully remote.\n\nBenefits include a learning budget, equity and 28 days of leave.\n\nSalary range: $95,000 - $110,000 per year.",
+  "expect": {
+   "seniority": "intern",
+   "work_arrangement": "remote",
+   "country_code": "",
+   "technologies": [
+    "aws",
+    "postgresql",
+    "react",
+    "typescript"
+   ],
+   "salary_min": 95000,
+   "salary_max": 110000,
+   "salary_currency": "USD",
+   "salary_period": "year"
+  }
+ },
+ {
+  "id": "en-02",
+  "lang": "en",
+  "title": "Senior Backend Engineer",
+  "company": "Northwind",
+  "description": "Northwind is hiring a Senior Backend Engineer to join our product team.\n\nYou will work with gRPC, Docker, PostgreSQL, Kubernetes and Redis to build and run customer-facing services.\n\nThe role is on-site in Berlin, Germany.\n\nBenefits include a learning budget, equity and 28 days of leave.",
+  "expect": {
+   "seniority": "senior",
+   "work_arrangement": "onsite",
+   "country_code": "DE",
+   "technologies": [
+    "docker",
+    "grpc",
+    "kubernetes",
+    "postgresql",
+    "redis"
+   ],
+   "salary_min": null,
+   "salary_max": null,
+   "salary_currency": "",
+   "salary_period": "unknown"
+  }
+ },
+ {
+  "id": "en-03",
+  "lang": "en",
+  "title": "Frontend Engineer",
+  "company": "Globex",
+  "description": "Globex is hiring a frontend engineer to join our product team.\n\nYou will work with Vue, TypeScript, JavaScript and Angular to build and run customer-facing services.\n\nWe expect 5+ years of professional experience.\n\nThis is a fully remote role.\n\nBenefits include a learning budget, equity and 28 days of leave.\n\nThe salary is £60,000 to £65,000 per annum.",
+  "expect": {
+   "seniority": "unknown",
+   "work_arrangement": "remote",
+   "country_code": "",
+   "technologies": [
+    "angular",
+    "javascript",
+    "typescript",
+    "vue"
+   ],
+   "salary_min": 60000,
+   "salary_max": 65000,
+   "salary_currency": "GBP",
+   "salary_period": "year"
+  }
+ },
+ {
+  "id": "en-04",
+  "lang": "en",
+  "title": "Senior Machine Learning Engineer",
+  "company": "Initech",
+  "description": "Initech is hiring a Senior Machine Learning Engineer to join our product team.\n\nYou will work with Python, AWS, TensorFlow and Spark to build and run customer-facing services.\n\nThe role is on-site in Austin, the United States.\n\nBenefits include a learning budget, equity and 28 days of leave.\n\nSalary range: $80,000 - $115,000 per year.",
+  "expect": {
+   "seniority": "senior",
+   "work_arrangement": "onsite",
+   "country_code": "US",
+   "technologies": [
+    "aws",
+    "python",
+    "spark",
+    "tensorflow"
+   ],
+   "salary_min": 80000,
+   "salary_max": 115000,
+   "salary_currency": "USD",
+   "salary_period": "year"
+  }
+ },
+ {
+  "id": "en-05",
+  "lang": "en",
+  "title": "Data Engineer",
+  "company": "Umbrella Systems",
+  "description": "Umbrella Systems is hiring a data engineer to join our product team.\n\nYou will work with Snowflake, BigQuery and Python to build and run customer-facing services.\n\nWe expect 5+ years of professional experience.\n\nOur team collaborates closely and values clear writing.\n\nBenefits include a learning budget, equity and 28 days of leave.",
+  "expect": {
+   "seniority": "unknown",
+   "work_arrangement": "unknown",
+   "country_code": "",
+   "technologies": [
+    "bigquery",
+    "python",
+    "snowflake"
+   ],
+   "salary_min": null,
+   "salary_max": null,
+   "salary_currency": "",
+   "salary_period": "unknown"
+  }
+ },
+ {
+  "id": "en-06",
+  "lang": "en",
+  "title": "Mid-level Software Engineer",
+  "company": "Hooli",
+  "description": "Hooli is hiring a Mid-level Software Engineer to join our product team.\n\nYou will work with Java, Docker, Kotlin and Python to build and run customer-facing services.\n\nHybrid: 2 days a week in our Austin office.\n\nBenefits include a learning budget, equity and 28 days of leave.\n\nPay: €5,000 - €5,500 per month.",
+  "expect": {
+   "seniority": "mid",
+   "work_arrangement": "hybrid",
+   "country_code": "US",
+   "technologies": [
+    "docker",
+    "java",
+    "kotlin",
+    "python"
+   ],
+   "salary_min": 5000,
+   "salary_max": 5500,
+   "salary_currency": "EUR",
+   "salary_period": "month"
+  }
+ },
+ {
+  "id": "en-07",
+  "lang": "en",
+  "title": "Software Engineer",
+  "company": "Stark Software",
+  "description": "Stark Software is hiring a software engineer to join our product team.\n\nYou will work with Java, Python and Kotlin to build and run customer-facing services.\n\nWe expect 2+ years of professional experience.\n\nOur team collaborates closely and values clear writing.\n\nBenefits include a learning budget, equity and 28 days of leave.\n\nThe salary is £55,000 to £70,000 per annum.",
+  "expect": {
+   "seniority": "unknown",
+   "work_arrangement": "unknown",
+   "country_code": "",
+   "technologies": [
+    "java",
+    "kotlin",
+    "python"
+   ],
+   "salary_min": 55000,
+   "salary_max": 70000,
+   "salary_currency": "GBP",
+   "salary_period": "year"
+  }
+ },
+ {
+  "id": "en-08",
+  "lang": "en",
+  "title": "Senior Machine Learning Engineer",
+  "company": "Wayne Digital",
+  "description": "Wayne Digital is hiring a Senior Machine Learning Engineer to join our product team.\n\nYou will work with Spark, PyTorch, TensorFlow, Python and Docker to build and run customer-facing services.\n\nThe role is on-site in Warsaw, Poland.\n\nBenefits include a learning budget, equity and 28 days of leave.",
+  "expect": {
+   "seniority": "senior",
+   "work_arrangement": "onsite",
+   "country_code": "PL",
+   "technologies": [
+    "docker",
+    "python",
+    "pytorch",
+    "spark",
+    "tensorflow"
+   ],
+   "salary_min": null,
+   "salary_max": null,
+   "salary_currency": "",
+   "salary_period": "unknown"
+  }
+ },
+ {
+  "id": "en-09",
+  "lang": "en",
+  "title": "Senior Mobile Developer",
+  "company": "Aperture",
+  "description": "Aperture is hiring a Senior Mobile Developer to join our product team.\n\nYou will work with GraphQL, TypeScript and Kotlin to build and run customer-facing services.\n\nThis is a fully remote role.\n\nBenefits include a learning budget, equity and 28 days of leave.",
+  "expect": {
+   "seniority": "senior",
+   "work_arrangement": "remote",
+   "country_code": "",
+   "technologies": [
+    "graphql",
+    "kotlin",
+    "typescript"
+   ],
+   "salary_min": null,
+   "salary_max": null,
+   "salary_currency": "",
+   "salary_period": "unknown"
+  }
+ },
+ {
+  "id": "en-10",
+  "lang": "en",
+  "title": "Tech Lead Mobile Developer",
+  "company": "Vandelay",
+  "description": "Vandelay is hiring a Tech Lead Mobile Developer to join our product team.\n\nYou will work with TypeScript, GraphQL, React and Swift to build and run customer-facing services.\n\nThis is a fully remote role.\n\nBenefits include a learning budget, equity and 28 days of leave.",
+  "expect": {
+   "seniority": "lead",
+   "work_arrangement": "remote",
+   "country_code": "",
+   "technologies": [
+    "graphql",
+    "react",
+    "swift",
+    "typescript"
+   ],
+   "salary_min": null,
+   "salary_max": null,
+   "salary_currency": "",
+   "salary_period": "unknown"
+  }
+ },
+ {
+  "id": "en-11",
+  "lang": "en",
+  "title": "DevOps Engineer",
+  "company": "Cyberdyne",
+  "description": "Cyberdyne is hiring a devops engineer to join our product team.\n\nYou will work with Terraform, AWS, Docker and Azure to build and run customer-facing services.\n\nWe expect 4+ years of professional experience.\n\nOur team collaborates closely and values clear writing.\n\nBenefits include a learning budget, equity and 28 days of leave.",
+  "expect": {
+   "seniority": "unknown",
+   "work_arrangement": "unknown",
+   "country_code": "",
+   "technologies": [
+    "aws",
+    "azure",
+    "docker",
+    "terraform"
+   ],
+   "salary_min": null,
+   "salary_max": null,
+   "salary_currency": "",
+   "salary_period": "unknown"
+  }
+ },
+ {
+  "id": "en-12",
+  "lang": "en",
+  "title": "Senior Frontend Engineer",
+  "company": "Soylent Tech",
+  "description": "Soylent Tech is hiring a Senior Frontend Engineer to join our product team.\n\nYou will work with Angular, JavaScript and Vue to build and run customer-facing services.\n\nHybrid: 3 days a week in our Dublin office.\n\nBenefits include a learning budget, equity and 28 days of leave.",
+  "expect": {
+   "seniority": "senior",
+   "work_arrangement": "hybrid",
+   "country_code": "IE",
+   "technologies": [
+    "angular",
+    "javascript",
+    "vue"
+   ],
+   "salary_min": null,
+   "salary_max": null,
+   "salary_currency": "",
+   "salary_period": "unknown"
+  }
+ },
+ {
+  "id": "en-13",
+  "lang": "en",
+  "title": "Tech Lead Backend Engineer",
+  "company": "Massive Dynamic",
+  "description": "Massive Dynamic is hiring a Tech Lead Backend Engineer to join our product team.\n\nYou will work with Go, Java, Kafka and Docker to build and run customer-facing services.\n\nThe role is on-site in Dublin, Ireland.\n\nBenefits include a learning budget, equity and 28 days of leave.\n\nSalary range: $85,000 - $120,000 per year.",
+  "expect": {
+   "seniority": "lead",
+   "work_arrangement": "onsite",
+   "country_code": "IE",
+   "technologies": [
+    "docker",
+    "go",
+    "java",
+    "kafka"
+   ],
+   "salary_min": 85000,
+   "salary_max": 120000,
+   "salary_currency": "USD",
+   "salary_period": "year"
+  }
+ },
+ {
+  "id": "en-14",
+  "lang": "en",
+  "title": "Machine Learning Engineer",
+  "company": "Gringotts Pay",
+  "description": "Gringotts Pay is hiring a machine learning engineer to join our product team.\n\nYou will work with PyTorch, Docker, Spark, TensorFlow and Python to build and run customer-facing services.\n\nWe expect 6+ years of professional experience.\n\nThe role is on-site in Austin, the United States.\n\nBenefits include a learning budget, equity and 28 days of leave.\n\nCompensation: €95k - €110k a year.",
+  "expect": {
+   "seniority": "unknown",
+   "work_arrangement": "onsite",
+   "country_code": "US",
+   "technologies": [
+    "docker",
+    "python",
+    "pytorch",
+    "spark",
+    "tensorflow"
+   ],
+   "salary_min": 95000,
+   "salary_max": 110000,
+   "salary_currency": "EUR",
+   "salary_period": "year"
+  }
+ },
+ {
+  "id": "en-15",
+  "lang": "en",
+  "title": "Senior DevOps Engineer",
+  "company": "Tyrell Cloud",
+  "description": "Tyrell Cloud is hiring a Senior DevOps Engineer to join our product team.\n\nYou will work with Jenkins, Docker, Ansible, Linux and Kubernetes to build and run customer-facing services.\n\nHybrid: 2 days a week in our Dublin office.\n\nBenefits include a learning budget, equity and 28 days of leave.\n\nCompensation: €70k - €80k a year.",
+  "expect": {
+   "seniority": "senior",
+   "work_arrangement": "hybrid",
+   "country_code": "IE",
+   "technologies": [
+    "ansible",
+    "docker",
+    "jenkins",
+    "kubernetes",
+    "linux"
+   ],
+   "salary_min": 70000,
+   "salary_max": 80000,
+   "salary_currency": "EUR",
+   "salary_period": "year"
+  }
+ },
+ {
+  "id": "en-16",
+  "lang": "en",
+  "title": "Full Stack Developer",
+  "company": "Acme Labs",
+  "description": "Acme Labs is hiring a full stack developer to join our product team.\n\nYou will work with PostgreSQL, React and AWS to build and run customer-facing services.\n\nWe expect 6+ years of professional experience.\n\nThe role is on-site in Berlin, Germany.\n\nBenefits include a learning budget, equity and 28 days of leave.\n\nPay: €4,500 - €5,000 per month.",
+  "expect": {
+   "seniority": "unknown",
+   "work_arrangement": "onsite",
+   "country_code": "DE",
+   "technologies": [
+    "aws",
+    "postgresql",
+    "react"
+   ],
+   "salary_min": 4500,
+   "salary_max": 5000,
+   "salary_currency": "EUR",
+   "salary_period": "month"
+  }
+ },
+ {
+  "id": "en-17",
+  "lang": "en",
+  "title": "Mid-level Machine Learning Engineer",
+  "company": "Northwind",
+  "description": "Northwind is hiring a Mid-level Machine Learning Engineer to join our product team.\n\nYou will work with Spark, PyTorch, Python and Docker to build and run customer-facing services.\n\nOur team collaborates closely and values clear writing.\n\nBenefits include a learning budget, equity and 28 days of leave.\n\nPay: €6,500 - €7,000 per month.",
+  "expect": {
+   "seniority": "mid",
+   "work_arrangement": "unknown",
+   "country_code": "",
+   "technologies": [
+    "docker",
+    "python",
+    "pytorch",
+    "spark"
+   ],
+   "salary_min": 6500,
+   "salary_max": 7000,
+   "salary_currency": "EUR",
+   "salary_period": "month"
+  }
+ },
+ {
+  "id": "en-18",
+  "lang": "en",
+  "title": "Junior Full Stack Developer",
+  "company": "Globex",
+  "description": "Globex is hiring a Junior Full Stack Developer to join our product team.\n\nYou will work with Docker, AWS, React, TypeScript and GraphQL to build and run customer-facing services.\n\nHybrid: 3 days a week in our Austin office.\n\nBenefits include a learning budget, equity and 28 days of leave.\n\nCompensation: €75k - €100k a year.",
+  "expect": {
+   "seniority": "junior",
+   "work_arrangement": "hybrid",
+   "country_code": "US",
+   "technologies": [
+    "aws",
+    "docker",
+    "graphql",
+    "react",
+    "typescript"
+   ],
+   "salary_min": 75000,
+   "salary_max": 100000,
+   "salary_currency": "EUR",
+   "salary_period": "year"
+  }
+ },
+ {
+  "id": "en-19",
+  "lang": "en",
+  "title": "Data Engineer",
+  "company": "Initech",
+  "description": "Initech is hiring a data engineer to join our product team.\n\nYou will work with PostgreSQL, BigQuery and Kafka to build and run customer-facing services.\n\nWe expect 6+ years of professional experience.\n\nThis is a fully remote role.\n\nBenefits include a learning budget, equity and 28 days of leave.",
+  "expect": {
+   "seniority": "unknown",
+   "work_arrangement": "remote",
+   "country_code": "",
+   "technologies": [
+    "bigquery",
+    "kafka",
+    "postgresql"
+   ],
+   "salary_min": null,
+   "salary_max": null,
+   "salary_currency": "",
+   "salary_period": "unknown"
+  }
+ },
+ {
+  "id": "en-20",
+  "lang": "en",
+  "title": "Mid-level Data Engineer",
+  "company": "Umbrella Systems",
+  "description": "Umbrella Systems is hiring a Mid-level Data Engineer to join our product team.\n\nYou will work with PostgreSQL, Spark, Snowflake and Python to build and run customer-facing services.\n\nHybrid: 2 days a week in our London office.\n\nBenefits include a learning budget, equity and 28 days of leave.",
+  "expect": {
+   "seniority": "mid",
+   "work_arrangement": "hybrid",
+   "country_code": "GB",
+   "technologies": [
+    "postgresql",
+    "python",
+    "snowflake",
+    "spark"
+   ],
+   "salary_min": null,
+   "salary_max": null,
+   "salary_currency": "",
+   "salary_period": "unknown"
+  }
+ },
+ {
+  "id": "en-21",
+  "lang": "en",
+  "title": "DevOps Engineer",
+  "company": "Hooli",
+  "description": "Hooli is hiring a devops engineer to join our product team.\n\nYou will work with Ansible, Docker, Jenkins and Azure to build and run customer-facing services.\n\nWe expect 3+ years of professional experience.\n\nOur team collaborates closely and values clear writing.\n\nBenefits include a learning budget, equity and 28 days of leave.\n\nSalary range: $125,000 - $160,000 per year.",
+  "expect": {
+   "seniority": "unknown",
+   "work_arrangement": "unknown",
+   "country_code": "",
+   "technologies": [
+    "ansible",
+    "azure",
+    "docker",
+    "jenkins"
+   ],
+   "salary_min": 125000,
+   "salary_max": 160000,
+   "salary_currency": "USD",
+   "salary_period": "year"
+  }
+ },
+ {
+  "id": "en-22",
+  "lang": "en",
+  "title": "Backend Engineer",
+  "company": "Stark Software",
+  "description": "Stark Software is hiring a backend engineer to join our product team.\n\nYou will work with Go, Kubernetes and Python to build and run customer-facing services.\n\nWe expect 2+ years of professional experience.\n\nThis is a fully remote role.\n\nBenefits include a learning budget, equity and 28 days of leave.\n\nSalary range: $130,000 - $145,000 per year.",
+  "expect": {
+   "seniority": "unknown",
+   "work_arrangement": "remote",
+   "country_code": "",
+   "technologies": [
+    "go",
+    "kubernetes",
+    "python"
+   ],
+   "salary_min": 130000,
+   "salary_max": 145000,
+   "salary_currency": "USD",
+   "salary_period": "year"
+  }
+ },
+ {
+  "id": "en-23",
+  "lang": "en",
+  "title": "Junior Mobile Developer",
+  "company": "Wayne Digital",
+  "description": "Wayne Digital is hiring a Junior Mobile Developer to join our product team.\n\nYou will work with Swift, Kotlin, React, TypeScript and GraphQL to build and run customer-facing services.\n\nThe role is on-site in Amsterdam, the Netherlands.\n\nBenefits include a learning budget, equity and 28 days of leave.\n\nThe salary is £55,000 to £65,000 per annum.",
+  "expect": {
+   "seniority": "junior",
+   "work_arrangement": "onsite",
+   "country_code": "NL",
+   "technologies": [
+    "graphql",
+    "kotlin",
+    "react",
+    "swift",
+    "typescript"
+   ],
+   "salary_min": 55000,
+   "salary_max": 65000,
+   "salary_currency": "GBP",
+   "salary_period": "year"
+  }
+ },
+ {
+  "id": "en-24",
+  "lang": "en",
+  "title": "Junior Mobile Developer",
+  "company": "Aperture",
+  "description": "Aperture is hiring a Junior Mobile Developer to join our product team.\n\nYou will work with React, TypeScript, Swift, Kotlin and GraphQL to build and run customer-facing services.\n\nOur team collaborates closely and values clear writing.\n\nBenefits include a learning budget, equity and 28 days of leave.",
+  "expect": {
+   "seniority": "junior",
+   "work_arrangement": "unknown",
+   "country_code": "",
+   "technologies": [
+    "graphql",
+    "kotlin",
+    "react",
+    "swift",
+    "typescript"
+   ],
+   "salary_min": null,
+   "salary_max": null,
+   "salary_currency": "",
+   "salary_period": "unknown"
+  }
+ },
+ {
+  "id": "en-25",
+  "lang": "en",
+  "title": "Junior Full Stack Developer",
+  "company": "Vandelay",
+  "description": "Vandelay is hiring a Junior Full Stack Developer to join our product team.\n\nYou will work with GraphQL, TypeScript and Node.js to build and run customer-facing services.\n\nWork from anywhere in the EU, fully remote.\n\nBenefits include a learning budget, equity and 28 days of leave.\n\nPay: €6,000 - €7,000 per month.",
+  "expect": {
+   "seniority": "junior",
+   "work_arrangement": "remote",
+   "country_code": "",
+   "technologies": [
+    "graphql",
+    "node.js",
+    "typescript"
+   ],
+   "salary_min": 6000,
+   "salary_max": 7000,
+   "salary_currency": "EUR",
+   "salary_period": "month"
+  }
+ },
+ {
+  "id": "en-26",
+  "lang": "en",
+  "title": "Tech Lead Backend Engineer",
+  "company": "Cyberdyne",
+  "description": "Cyberdyne is hiring a Tech Lead Backend Engineer to join our product team.\n\nYou will work with Redis, Java, Python, Kubernetes and Go to build and run customer-facing services.\n\nThis is a fully remote role.\n\nBenefits include a learning budget, equity and 28 days of leave.\n\nCompensation: €80k - €95k a year.",
+  "expect": {
+   "seniority": "lead",
+   "work_arrangement": "remote",
+   "country_code": "",
+   "technologies": [
+    "go",
+    "java",
+    "kubernetes",
+    "python",
+    "redis"
+   ],
+   "salary_min": 80000,
+   "salary_max": 95000,
+   "salary_currency": "EUR",
+   "salary_period": "year"
+  }
+ },
+ {
+  "id": "en-27",
+  "lang": "en",
+  "title": "Senior DevOps Engineer",
+  "company": "Soylent Tech",
+  "description": "Soylent Tech is hiring a Senior DevOps Engineer to join our product team.\n\nYou will work with Kubernetes, Azure, Jenkins and Docker to build and run customer-facing services.\n\nThe role is on-site in Berlin, Germany.\n\nBenefits include a learning budget, equity and 28 days of leave.\n\nCompensation: €75k - €90k a year.",
+  "expect": {
+   "seniority": "senior",
+   "work_arrangement": "onsite",
+   "country_code": "DE",
+   "technologies": [
+    "azure",
+    "docker",
+    "jenkins",
+    "kubernetes"
+   ],
+   "salary_min": 75000,
+   "salary_max": 90000,
+   "salary_currency": "EUR",
+   "salary_period": "year"
+  }
+ },
+ {
+  "id": "en-28",
+  "lang": "en",
+  "title": "Senior Machine Learning Engineer",
+  "company": "Massive Dynamic",
+  "description": "Massive Dynamic is hiring a Senior Machine Learning Engineer to join our product team.\n\nYou will work with AWS, Python, Docker and Spark to build and run customer-facing services.\n\nHybrid: 2 days a week in our Austin office.\n\nBenefits include a learning budget, equity and 28 days of leave.",
+  "expect": {
+   "seniority": "senior",
+   "work_arrangement": "hybrid",
+   "country_code": "US",
+   "technologies": [
+    "aws",
+    "docker",
+    "python",
+    "spark"
+   ],
+   "salary_min": null,
+   "salary_max": null,
+   "salary_currency": "",
+   "salary_period": "unknown"
+  }
+ },
+ {
+  "id": "en-29",
+  "lang": "en",
+  "title": "Senior Frontend Engineer",
+  "company": "Gringotts Pay",
+  "description": "Gringotts Pay is hiring a Senior Frontend Engineer to join our product team.\n\nYou will work with Vue, Angular and React to build and run customer-facing services.\n\nThe role is on-site in Dublin, Ireland.\n\nBenefits include a learning budget, equity and 28 days of leave.",
+  "expect": {
+   "seniority": "senior",
+   "work_arrangement": "onsite",
+   "country_code": "IE",
+   "technologies": [
+    "angular",
+    "react",
+    "vue"
+   ],
+   "salary_min": null,
+   "salary_max": null,
+   "salary_currency": "",
+   "salary_period": "unknown"
+  }
+ },
+ {
+  "id": "en-30",
+  "lang": "en",
+  "title": "Senior Full Stack Developer",
+  "company": "Tyrell Cloud",
+  "description": "Tyrell Cloud is hiring a Senior Full Stack Developer to join our product team.\n\nYou will work with AWS, GraphQL, Docker, TypeScript and Next.js to build and run customer-facing services.\n\nHybrid: 3 days a week in our Dublin office.\n\nBenefits include a learning budget, equity and 28 days of leave.\n\nThe salary is £70,000 to £85,000 per annum.",
+  "expect": {
+   "seniority": "senior",
+   "work_arrangement": "hybrid",
+   "country_code": "IE",
+   "technologies": [
+    "aws",
+    "docker",
+    "graphql",
+    "next.js",
+    "typescript"
+   ],
+   "salary_min": 70000,
+   "salary_max": 85000,
+   "salary_currency": "GBP",
+   "salary_period": "year"
+  }
+ }
+]

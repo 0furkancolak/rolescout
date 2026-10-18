@@ -1,12 +1,13 @@
 -- Optional local-model enrichment of job descriptions (ADR 0005).
 --
--- jobs.description_hash identifies the text the model read: whitespace is
--- collapsed so a re-sync that only reflows the text does not re-queue a job.
+-- jobs.description_hash identifies the text the model read (surrounding
+-- whitespace ignored). It is a plain hash so the migration stays fast on a large
+-- catalog; collapsing inner whitespace made it take over a minute on 30,000 jobs.
 -- It is derived data, never written by the application.
 -- convert_to is only STABLE in general, but with a constant UTF8 target it is
 -- deterministic, so the wrapper is declared IMMUTABLE for the generated column.
 CREATE FUNCTION rolescout_description_hash(description TEXT) RETURNS CHAR(64) AS $$
-    SELECT encode(sha256(convert_to(btrim(regexp_replace(description, '\s+', ' ', 'g')), 'UTF8')), 'hex')::char(64)
+    SELECT encode(sha256(convert_to(btrim(description, E' \t\r\n'), 'UTF8')), 'hex')::char(64)
 $$ LANGUAGE sql IMMUTABLE;
 
 ALTER TABLE jobs ADD COLUMN description_hash CHAR(64) GENERATED ALWAYS AS (rolescout_description_hash(description)) STORED;

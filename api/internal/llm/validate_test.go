@@ -151,3 +151,10 @@ func TestValidateYearsLanguagesSummary(t *testing.T) {
 		t.Fatalf("remote policy has %d runes", utf8.RuneCountInString(got.RemotePolicy))
 	}
 }
+
+func TestValidateDropsPlaceholderTexts(t *testing.T) {
+	got, _ := validate(Enrichment{RemotePolicy: "unknown", Location: "N/A", Summary: "  none "}, "t", "x")
+	if got.RemotePolicy != "" || got.Location != "" || got.Summary != "" {
+		t.Fatalf("placeholders kept: %+v", got)
+	}
+}

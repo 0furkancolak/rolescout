@@ -84,6 +84,30 @@ maintainers instead of opening a public issue.
   multi-user installation, close registration so only trusted users can add
   pages to crawl.
 
+## Local language model (optional)
+With `LLM_ENABLED=true` the worker sends job descriptions, titles and, for match
+explanations, a short summary of a research profile to the model server named
+by `LLM_BASE_URL`. It is meant to be a server on the same computer (Ollama or
+llama.cpp on the host, reached through `host.docker.internal`) so nothing
+leaves the machine; the Settings screen warns when the host is neither loopback
+nor a private address.
+- **Prompt injection.** Job text is untrusted input. It is sent between
+  delimiters with a system prompt that says it is data, the reply is constrained
+  to a closed JSON schema and then validated: technologies and salary numbers
+  must appear in the text, a seniority needs a cue word, country codes must agree
+  with the rules, and an explanation may not name a technology or number that is
+  not in the facts it was given. Model output never reaches SQL or HTML as
+  anything but data, is stored in its own table and never overwrites a value the
+  rules found.
+- **No secrets in prompts or logs.** The API key goes only into the
+  `Authorization` header; status endpoints return the host, never the path or the
+  key; logs contain counts, model names and error classes, never job text.
+- **Availability.** The enricher is a separate loop behind a circuit breaker; a
+  dead, slow or hostile model server cannot delay a research run or an API
+  request.
+- **Cost of abuse.** One request at a time by default, bounded batches, a
+  response size limit and a per-request timeout.
+
 ## Administrator role
 - The first account is the administrator. Only it can review and enable
   adapter types, disable companies for everyone and read crawl settings

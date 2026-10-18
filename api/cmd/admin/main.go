@@ -12,6 +12,7 @@
 //	admin companies list [-status STATUS] [-q TEXT]
 //	admin companies add -url CAREERS_URL [-name NAME]
 //	admin seeds check [-file FILE] [-write GOOD_FILE]
+//	admin llm check | eval [-set DIR] [-model NAME] [-limit N] | enrich [-limit N]
 package main
 
 import (
@@ -46,6 +47,7 @@ const usage = `usage: admin sources <list|add|review|enable|disable|sync|runs> [
        admin adapters <list|review|enable|disable> [flags]
        admin companies <list|add> [flags]
        admin seeds check [-file FILE] [-write GOOD_FILE]
+       admin llm <check|eval|enrich> [flags]
        admin version
 
 Sources start disabled. A source can be enabled when it has its own review
@@ -66,6 +68,13 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 	if len(args) == 1 && args[0] == "version" {
 		fmt.Fprintln(out, version)
 		return nil
+	}
+	if len(args) >= 1 && args[0] == "llm" {
+		cfg, err := config.Load()
+		if err != nil {
+			return err
+		}
+		return llmCommand(ctx, cfg, args[1:], out)
 	}
 	if len(args) < 2 || (args[0] != "sources" && args[0] != "adapters" && args[0] != "companies" && args[0] != "seeds") {
 		return errors.New(usage)

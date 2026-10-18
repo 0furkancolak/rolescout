@@ -42,7 +42,9 @@ func run() error {
 	}
 	defer pool.Close()
 
-	migrationCtx, migrationCancel := context.WithTimeout(ctx, 30*time.Second)
+	// Data migrations on a large catalog (30,000 jobs with long descriptions) can
+	// take a while; this must not be the reason an upgrade fails.
+	migrationCtx, migrationCancel := context.WithTimeout(ctx, 10*time.Minute)
 	err = database.RunMigrations(migrationCtx, pool, cfg.Migrations)
 	migrationCancel()
 	if err != nil {

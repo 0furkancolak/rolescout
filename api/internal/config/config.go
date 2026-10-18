@@ -277,7 +277,6 @@ func loadCrawl() (Crawl, error) {
 func loadLLM() (LLM, error) {
 	c := LLM{
 		BaseURL: "http://host.docker.internal:11434/v1", Model: "qwen3:4b-instruct-2507-q4_K_M",
-		FallbackModel: "qwen3:1.7b-q4_K_M",
 	}
 	var err error
 	if c.Enabled, err = boolEnv("LLM_ENABLED", false); err != nil {

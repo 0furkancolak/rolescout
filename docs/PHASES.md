@@ -314,9 +314,13 @@ Follow-up scope added 2026-10-18: a modern UI refresh (warm design tokens,
 rounded cards, stat cards, score rings; plan milestone 9) is DONE: tokens with a
 contrast test, primitives, shell, dashboard with an activity series, job
 browser, a no-raw-colours test and a browser check at 1280 px and 375 px in
-both themes. Optional local AI enrichment (planned, not started) with a small on-device model on Apple Silicon
-(plan milestone 10, [ADR 0005](adr/0005-local-llm-enrichment.md)). See the
-addendum in the design spec and the addendum at the end of the plan. Local AI follows the release and ships off by default.
+both themes. Optional local AI enrichment (milestone 10) is DONE too: a
+validated, grounded, cached enrichment loop with a circuit breaker, use in search
+and scoring, AI-marked fields, match explanations, Settings → Local AI,
+`admin llm`, a labelled evaluation set and measured numbers
+([ADR 0005](adr/0005-local-llm-enrichment.md), [local AI](local-ai.md)). It is
+off by default; the 1.7B fallback model failed its evaluation, so none is
+configured. Tagging a release is left to the maintainer.
 
 Potential work:
 - Advanced search and saved filters

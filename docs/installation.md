@@ -60,6 +60,11 @@ it behind HTTPS as described in [deployment](deployment.md).
    creates a workspace named "Smoke test" with a research profile, starts a
    run and cancels it again.
 
+## Optional: local AI
+To let a small model on your own computer read job descriptions, follow
+[local AI](local-ai.md). It is off by default and the installation works the
+same without it.
+
 ## Stopping and data
 - `docker compose stop` stops the services; `docker compose up -d --wait`
   starts them again. Data lives in the `rolescout_postgres_data` volume and

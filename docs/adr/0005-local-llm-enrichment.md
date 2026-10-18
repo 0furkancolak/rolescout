@@ -1,6 +1,6 @@
 # ADR 0005 - Local LLM Enrichment
 
-Status: Proposed
+Status: Accepted (with the measured corrections below)
 Date: 2026-10-18
 
 ## Context
@@ -60,6 +60,49 @@ Not verified (estimates, labelled as such wherever used):
   Desktop (it is the documented way to reach the host, but not confirmed by
   the sources read). Checked in Task 30.
 - MLX server structured-output behaviour.
+
+## Measured on this Mac
+Apple M4, 16 GB, Ollama 0.40.6 (Metal) on the host, 2026-10-18/19. **The
+machine was busy with unrelated work the whole time (load average 30 and up),
+so speeds are pessimistic; re-measure on an idle machine with
+`scripts/llm-bench.sh` and `scripts/llm-eval.sh`.**
+- `json_schema` through Ollama's `/v1/chat/completions` is enforced: a prompt
+  that tempted an out-of-enum answer still returned an enum value. No native
+  client was needed.
+- `host.docker.internal` reaches an Ollama bound to 127.0.0.1 from a Compose
+  container (OrbStack): `wget` in the worker container listed the models.
+- Speed (1,300-token prompts, cache-busting): 4B Q4_K_M about 98 tokens/s prompt
+  processing and 11 tokens/s generation; 1.7B about 250 and 20.
+- Evaluation, 60 synthetic labelled postings (30 English, 30 Turkish,
+  `api/internal/llm/testdata/eval`):
+
+  | | qwen3:4b-instruct-2507-q4_K_M | qwen3:1.7b-q4_K_M |
+  |---|---|---|
+  | valid JSON on first reply | 100 % | 8 % |
+  | usable after validation | 100 % | 15 % |
+  | seniority | 100 % | 78 % (of the few answered) |
+  | work arrangement | 92 % | 78 % |
+  | technologies precision / recall | 100 % / 100 % | 100 % / 100 % |
+  | salary exact | 98 % | 100 % |
+  | country | 52 % | 89 % |
+  | median / p95 latency per job | 18.2 s / 26.7 s | 19.3 s / 25.6 s |
+
+- **The 1.7B model is not usable here**: it returned valid output for only 15 %
+  of the postings (it is a hybrid thinking model; the reply budget is spent
+  before the JSON ends). The fallback model is therefore empty by default
+  (`LLM_FALLBACK_MODEL`), which overrides the "fallback" decision above. A
+  different small model, or thinking switched off, needs its own evaluation.
+- The 4B model passes the quality bars set in the plan (valid schema at least
+  98 %, technology precision at least 90 %) and misses the speed bar (median at
+  most 15 s) on this busy machine. The country number is low because the model
+  often writes a country code for postings whose place the labels leave open;
+  validation lets the rules win whenever they know the place, and the code is
+  only used to fill gaps.
+- Live run on 30,827 real jobs from a research run: 18 jobs read, 0 failures,
+  about 24 to 26 s per job (about 140 jobs per hour on the busy machine), 196 to
+  230 generated tokens per job; the shorter summary prompt (prompt version 2)
+  saved about 15 % of tokens. A backlog of thousands of jobs takes many hours;
+  the queue reads matched and saved jobs first.
 
 ## Decisions
 

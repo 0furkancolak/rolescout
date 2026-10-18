@@ -1,0 +1,667 @@
+[
+ {
+  "id": "tr-01",
+  "lang": "tr",
+  "title": "Mid-level Data Engineer",
+  "company": "Mavi Yazılım",
+  "description": "Mavi Yazılım olarak ürün ekibimize katılacak bir Mid-level Data Engineer arıyoruz.\n\nSpark, Snowflake, Python, BigQuery ve PostgreSQL ile müşterilerimize dönük servisler geliştireceksiniz.\n\nHibrit çalışma modeli: haftada 3 gün Ankara ofisinde.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.\n\nMaaş: 90.000 - 100.000 TL aylık.",
+  "expect": {
+   "seniority": "mid",
+   "work_arrangement": "hybrid",
+   "country_code": "TR",
+   "technologies": [
+    "bigquery",
+    "postgresql",
+    "python",
+    "snowflake",
+    "spark"
+   ],
+   "salary_min": 90000,
+   "salary_max": 100000,
+   "salary_currency": "TRY",
+   "salary_period": "month"
+  }
+ },
+ {
+  "id": "tr-02",
+  "lang": "tr",
+  "title": "Kıdemli Data Engineer",
+  "company": "Anadolu Teknoloji",
+  "description": "Anadolu Teknoloji olarak ürün ekibimize katılacak bir Kıdemli Data Engineer arıyoruz.\n\nSpark, BigQuery, Airflow ve AWS ile müşterilerimize dönük servisler geliştireceksiniz.\n\nEkibimiz açık iletişime ve düzenli kod incelemesine önem verir.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.",
+  "expect": {
+   "seniority": "senior",
+   "work_arrangement": "unknown",
+   "country_code": "",
+   "technologies": [
+    "airflow",
+    "aws",
+    "bigquery",
+    "spark"
+   ],
+   "salary_min": null,
+   "salary_max": null,
+   "salary_currency": "",
+   "salary_period": "unknown"
+  }
+ },
+ {
+  "id": "tr-03",
+  "lang": "tr",
+  "title": "Software Engineer",
+  "company": "Boğaziçi Dijital",
+  "description": "Boğaziçi Dijital olarak ürün ekibimize katılacak bir Software Engineer arıyoruz.\n\nKotlin, Java ve PostgreSQL ile müşterilerimize dönük servisler geliştireceksiniz.\n\nEn az 2 yıl profesyonel deneyim beklenir.\n\nPozisyon İstanbul ofisinde, ofisten çalışılır.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.",
+  "expect": {
+   "seniority": "unknown",
+   "work_arrangement": "onsite",
+   "country_code": "TR",
+   "technologies": [
+    "java",
+    "kotlin",
+    "postgresql"
+   ],
+   "salary_min": null,
+   "salary_max": null,
+   "salary_currency": "",
+   "salary_period": "unknown"
+  }
+ },
+ {
+  "id": "tr-04",
+  "lang": "tr",
+  "title": "Software Engineer",
+  "company": "Kızılay Bilişim",
+  "description": "Kızılay Bilişim olarak ürün ekibimize katılacak bir Software Engineer arıyoruz.\n\nC#, PostgreSQL, Docker ve Python ile müşterilerimize dönük servisler geliştireceksiniz.\n\nEn az 3 yıl profesyonel deneyim beklenir.\n\nEkibimiz açık iletişime ve düzenli kod incelemesine önem verir.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.\n\nÜcret: 2.000 - 2.500 USD aylık.",
+  "expect": {
+   "seniority": "unknown",
+   "work_arrangement": "unknown",
+   "country_code": "",
+   "technologies": [
+    "c#",
+    "docker",
+    "postgresql",
+    "python"
+   ],
+   "salary_min": 2000,
+   "salary_max": 2500,
+   "salary_currency": "USD",
+   "salary_period": "month"
+  }
+ },
+ {
+  "id": "tr-05",
+  "lang": "tr",
+  "title": "Kıdemli Software Engineer",
+  "company": "Ege Yazılım",
+  "description": "Ege Yazılım olarak ürün ekibimize katılacak bir Kıdemli Software Engineer arıyoruz.\n\nKotlin, PostgreSQL, Redis, Python ve Docker ile müşterilerimize dönük servisler geliştireceksiniz.\n\nPozisyon İzmir ofisinde, ofisten çalışılır.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.\n\nÜcret: 3.000 - 4.000 USD aylık.",
+  "expect": {
+   "seniority": "senior",
+   "work_arrangement": "onsite",
+   "country_code": "TR",
+   "technologies": [
+    "docker",
+    "kotlin",
+    "postgresql",
+    "python",
+    "redis"
+   ],
+   "salary_min": 3000,
+   "salary_max": 4000,
+   "salary_currency": "USD",
+   "salary_period": "month"
+  }
+ },
+ {
+  "id": "tr-06",
+  "lang": "tr",
+  "title": "Kıdemli DevOps Engineer",
+  "company": "Marmara Sistemleri",
+  "description": "Marmara Sistemleri olarak ürün ekibimize katılacak bir Kıdemli DevOps Engineer arıyoruz.\n\nLinux, Jenkins ve Docker ile müşterilerimize dönük servisler geliştireceksiniz.\n\nHibrit çalışma modeli: haftada 3 gün İzmir ofisinde.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.\n\nMaaş: 100.000 - 120.000 TL aylık.",
+  "expect": {
+   "seniority": "senior",
+   "work_arrangement": "hybrid",
+   "country_code": "TR",
+   "technologies": [
+    "docker",
+    "jenkins",
+    "linux"
+   ],
+   "salary_min": 100000,
+   "salary_max": 120000,
+   "salary_currency": "TRY",
+   "salary_period": "month"
+  }
+ },
+ {
+  "id": "tr-07",
+  "lang": "tr",
+  "title": "Kıdemli Data Engineer",
+  "company": "Toros Teknoloji",
+  "description": "Toros Teknoloji olarak ürün ekibimize katılacak bir Kıdemli Data Engineer arıyoruz.\n\nAWS, Snowflake, BigQuery, PostgreSQL ve Spark ile müşterilerimize dönük servisler geliştireceksiniz.\n\nEkibimiz açık iletişime ve düzenli kod incelemesine önem verir.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.\n\nMaaş: 100.000 - 130.000 TL aylık.",
+  "expect": {
+   "seniority": "senior",
+   "work_arrangement": "unknown",
+   "country_code": "",
+   "technologies": [
+    "aws",
+    "bigquery",
+    "postgresql",
+    "snowflake",
+    "spark"
+   ],
+   "salary_min": 100000,
+   "salary_max": 130000,
+   "salary_currency": "TRY",
+   "salary_period": "month"
+  }
+ },
+ {
+  "id": "tr-08",
+  "lang": "tr",
+  "title": "Junior Software Engineer",
+  "company": "Bosna Software",
+  "description": "Bosna Software olarak ürün ekibimize katılacak bir Junior Software Engineer arıyoruz.\n\nDocker, Kotlin ve Java ile müşterilerimize dönük servisler geliştireceksiniz.\n\nHibrit çalışma modeli: haftada 2 gün İstanbul ofisinde.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.\n\nÜcret: 4.000 - 4.500 USD aylık.",
+  "expect": {
+   "seniority": "junior",
+   "work_arrangement": "hybrid",
+   "country_code": "TR",
+   "technologies": [
+    "docker",
+    "java",
+    "kotlin"
+   ],
+   "salary_min": 4000,
+   "salary_max": 4500,
+   "salary_currency": "USD",
+   "salary_period": "month"
+  }
+ },
+ {
+  "id": "tr-09",
+  "lang": "tr",
+  "title": "Kıdemli Machine Learning Engineer",
+  "company": "Kapadokya Dijital",
+  "description": "Kapadokya Dijital olarak ürün ekibimize katılacak bir Kıdemli Machine Learning Engineer arıyoruz.\n\nAWS, PyTorch, Spark, Docker ve TensorFlow ile müşterilerimize dönük servisler geliştireceksiniz.\n\nHibrit çalışma modeli: haftada 2 gün İstanbul ofisinde.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.",
+  "expect": {
+   "seniority": "senior",
+   "work_arrangement": "hybrid",
+   "country_code": "TR",
+   "technologies": [
+    "aws",
+    "docker",
+    "pytorch",
+    "spark",
+    "tensorflow"
+   ],
+   "salary_min": null,
+   "salary_max": null,
+   "salary_currency": "",
+   "salary_period": "unknown"
+  }
+ },
+ {
+  "id": "tr-10",
+  "lang": "tr",
+  "title": "Full Stack Developer",
+  "company": "Karadeniz Bilişim",
+  "description": "Karadeniz Bilişim olarak ürün ekibimize katılacak bir Full Stack Developer arıyoruz.\n\nNode.js, AWS ve Docker ile müşterilerimize dönük servisler geliştireceksiniz.\n\nEn az 6 yıl profesyonel deneyim beklenir.\n\nEkibimiz açık iletişime ve düzenli kod incelemesine önem verir.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.\n\nMaaş: 130.000 - 140.000 TL aylık.",
+  "expect": {
+   "seniority": "unknown",
+   "work_arrangement": "unknown",
+   "country_code": "",
+   "technologies": [
+    "aws",
+    "docker",
+    "node.js"
+   ],
+   "salary_min": 130000,
+   "salary_max": 140000,
+   "salary_currency": "TRY",
+   "salary_period": "month"
+  }
+ },
+ {
+  "id": "tr-11",
+  "lang": "tr",
+  "title": "Tech Lead Machine Learning Engineer",
+  "company": "Efes Cloud",
+  "description": "Efes Cloud olarak ürün ekibimize katılacak bir Tech Lead Machine Learning Engineer arıyoruz.\n\nAWS, TensorFlow, Spark, Docker ve PyTorch ile müşterilerimize dönük servisler geliştireceksiniz.\n\nEkibimiz açık iletişime ve düzenli kod incelemesine önem verir.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.",
+  "expect": {
+   "seniority": "lead",
+   "work_arrangement": "unknown",
+   "country_code": "",
+   "technologies": [
+    "aws",
+    "docker",
+    "pytorch",
+    "spark",
+    "tensorflow"
+   ],
+   "salary_min": null,
+   "salary_max": null,
+   "salary_currency": "",
+   "salary_period": "unknown"
+  }
+ },
+ {
+  "id": "tr-12",
+  "lang": "tr",
+  "title": "Kıdemli Machine Learning Engineer",
+  "company": "Truva Teknoloji",
+  "description": "Truva Teknoloji olarak ürün ekibimize katılacak bir Kıdemli Machine Learning Engineer arıyoruz.\n\nDocker, TensorFlow ve Spark ile müşterilerimize dönük servisler geliştireceksiniz.\n\nHibrit çalışma modeli: haftada 3 gün Ankara ofisinde.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.\n\nÜcret: 2.500 - 3.500 USD aylık.",
+  "expect": {
+   "seniority": "senior",
+   "work_arrangement": "hybrid",
+   "country_code": "TR",
+   "technologies": [
+    "docker",
+    "spark",
+    "tensorflow"
+   ],
+   "salary_min": 2500,
+   "salary_max": 3500,
+   "salary_currency": "USD",
+   "salary_period": "month"
+  }
+ },
+ {
+  "id": "tr-13",
+  "lang": "tr",
+  "title": "Kıdemli Software Engineer",
+  "company": "Pamukkale Yazılım",
+  "description": "Pamukkale Yazılım olarak ürün ekibimize katılacak bir Kıdemli Software Engineer arıyoruz.\n\nPython, Java, Docker, PostgreSQL ve C# ile müşterilerimize dönük servisler geliştireceksiniz.\n\nHibrit çalışma modeli: haftada 2 gün İzmir ofisinde.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.\n\nÜcret: 3.000 - 4.000 USD aylık.",
+  "expect": {
+   "seniority": "senior",
+   "work_arrangement": "hybrid",
+   "country_code": "TR",
+   "technologies": [
+    "c#",
+    "docker",
+    "java",
+    "postgresql",
+    "python"
+   ],
+   "salary_min": 3000,
+   "salary_max": 4000,
+   "salary_currency": "USD",
+   "salary_period": "month"
+  }
+ },
+ {
+  "id": "tr-14",
+  "lang": "tr",
+  "title": "Yazılım Stajyeri (Mobile Developer)",
+  "company": "Çınar Bilişim",
+  "description": "Çınar Bilişim olarak ürün ekibimize katılacak bir Yazılım Stajyeri (Mobile Developer) arıyoruz.\n\nTypeScript, Kotlin, React ve Swift ile müşterilerimize dönük servisler geliştireceksiniz.\n\nEkibimiz açık iletişime ve düzenli kod incelemesine önem verir.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.",
+  "expect": {
+   "seniority": "intern",
+   "work_arrangement": "unknown",
+   "country_code": "",
+   "technologies": [
+    "kotlin",
+    "react",
+    "swift",
+    "typescript"
+   ],
+   "salary_min": null,
+   "salary_max": null,
+   "salary_currency": "",
+   "salary_period": "unknown"
+  }
+ },
+ {
+  "id": "tr-15",
+  "lang": "tr",
+  "title": "DevOps Engineer",
+  "company": "Gediz Software",
+  "description": "Gediz Software olarak ürün ekibimize katılacak bir DevOps Engineer arıyoruz.\n\nDocker, Azure, Terraform ve AWS ile müşterilerimize dönük servisler geliştireceksiniz.\n\nEn az 2 yıl profesyonel deneyim beklenir.\n\nEkibimiz açık iletişime ve düzenli kod incelemesine önem verir.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.\n\nÜcret: 2.500 - 3.500 USD aylık.",
+  "expect": {
+   "seniority": "unknown",
+   "work_arrangement": "unknown",
+   "country_code": "",
+   "technologies": [
+    "aws",
+    "azure",
+    "docker",
+    "terraform"
+   ],
+   "salary_min": 2500,
+   "salary_max": 3500,
+   "salary_currency": "USD",
+   "salary_period": "month"
+  }
+ },
+ {
+  "id": "tr-16",
+  "lang": "tr",
+  "title": "Frontend Engineer",
+  "company": "Mavi Yazılım",
+  "description": "Mavi Yazılım olarak ürün ekibimize katılacak bir Frontend Engineer arıyoruz.\n\nReact, Next.js, GraphQL, Angular ve JavaScript ile müşterilerimize dönük servisler geliştireceksiniz.\n\nEn az 5 yıl profesyonel deneyim beklenir.\n\nEkibimiz açık iletişime ve düzenli kod incelemesine önem verir.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.\n\nÜcret: 3.500 - 4.500 USD aylık.",
+  "expect": {
+   "seniority": "unknown",
+   "work_arrangement": "unknown",
+   "country_code": "",
+   "technologies": [
+    "angular",
+    "graphql",
+    "javascript",
+    "next.js",
+    "react"
+   ],
+   "salary_min": 3500,
+   "salary_max": 4500,
+   "salary_currency": "USD",
+   "salary_period": "month"
+  }
+ },
+ {
+  "id": "tr-17",
+  "lang": "tr",
+  "title": "Kıdemli Data Engineer",
+  "company": "Anadolu Teknoloji",
+  "description": "Anadolu Teknoloji olarak ürün ekibimize katılacak bir Kıdemli Data Engineer arıyoruz.\n\nBigQuery, Airflow, Snowflake ve PostgreSQL ile müşterilerimize dönük servisler geliştireceksiniz.\n\nTamamen uzaktan çalışma modeli.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.",
+  "expect": {
+   "seniority": "senior",
+   "work_arrangement": "remote",
+   "country_code": "",
+   "technologies": [
+    "airflow",
+    "bigquery",
+    "postgresql",
+    "snowflake"
+   ],
+   "salary_min": null,
+   "salary_max": null,
+   "salary_currency": "",
+   "salary_period": "unknown"
+  }
+ },
+ {
+  "id": "tr-18",
+  "lang": "tr",
+  "title": "Backend Engineer",
+  "company": "Boğaziçi Dijital",
+  "description": "Boğaziçi Dijital olarak ürün ekibimize katılacak bir Backend Engineer arıyoruz.\n\nPostgreSQL, Java, Go ve Docker ile müşterilerimize dönük servisler geliştireceksiniz.\n\nEn az 3 yıl profesyonel deneyim beklenir.\n\nTamamen uzaktan çalışma modeli.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.",
+  "expect": {
+   "seniority": "unknown",
+   "work_arrangement": "remote",
+   "country_code": "",
+   "technologies": [
+    "docker",
+    "go",
+    "java",
+    "postgresql"
+   ],
+   "salary_min": null,
+   "salary_max": null,
+   "salary_currency": "",
+   "salary_period": "unknown"
+  }
+ },
+ {
+  "id": "tr-19",
+  "lang": "tr",
+  "title": "Junior Data Engineer",
+  "company": "Kızılay Bilişim",
+  "description": "Kızılay Bilişim olarak ürün ekibimize katılacak bir Junior Data Engineer arıyoruz.\n\nSpark, Kafka, PostgreSQL, Snowflake ve Airflow ile müşterilerimize dönük servisler geliştireceksiniz.\n\nPozisyon İstanbul ofisinde, ofisten çalışılır.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.",
+  "expect": {
+   "seniority": "junior",
+   "work_arrangement": "onsite",
+   "country_code": "TR",
+   "technologies": [
+    "airflow",
+    "kafka",
+    "postgresql",
+    "snowflake",
+    "spark"
+   ],
+   "salary_min": null,
+   "salary_max": null,
+   "salary_currency": "",
+   "salary_period": "unknown"
+  }
+ },
+ {
+  "id": "tr-20",
+  "lang": "tr",
+  "title": "Full Stack Developer",
+  "company": "Ege Yazılım",
+  "description": "Ege Yazılım olarak ürün ekibimize katılacak bir Full Stack Developer arıyoruz.\n\nGraphQL, React ve Next.js ile müşterilerimize dönük servisler geliştireceksiniz.\n\nEn az 6 yıl profesyonel deneyim beklenir.\n\nTürkiye'nin her yerinden uzaktan çalışabilirsiniz.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.\n\nMaaş: 70.000 - 100.000 TL aylık.",
+  "expect": {
+   "seniority": "unknown",
+   "work_arrangement": "remote",
+   "country_code": "",
+   "technologies": [
+    "graphql",
+    "next.js",
+    "react"
+   ],
+   "salary_min": 70000,
+   "salary_max": 100000,
+   "salary_currency": "TRY",
+   "salary_period": "month"
+  }
+ },
+ {
+  "id": "tr-21",
+  "lang": "tr",
+  "title": "Junior Data Engineer",
+  "company": "Marmara Sistemleri",
+  "description": "Marmara Sistemleri olarak ürün ekibimize katılacak bir Junior Data Engineer arıyoruz.\n\nSpark, BigQuery, Kafka ve Python ile müşterilerimize dönük servisler geliştireceksiniz.\n\nPozisyon İzmir ofisinde, ofisten çalışılır.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.\n\nÜcret: 2.000 - 3.000 USD aylık.",
+  "expect": {
+   "seniority": "junior",
+   "work_arrangement": "onsite",
+   "country_code": "TR",
+   "technologies": [
+    "bigquery",
+    "kafka",
+    "python",
+    "spark"
+   ],
+   "salary_min": 2000,
+   "salary_max": 3000,
+   "salary_currency": "USD",
+   "salary_period": "month"
+  }
+ },
+ {
+  "id": "tr-22",
+  "lang": "tr",
+  "title": "Backend Engineer",
+  "company": "Toros Teknoloji",
+  "description": "Toros Teknoloji olarak ürün ekibimize katılacak bir Backend Engineer arıyoruz.\n\nJava, Docker, Kafka ve Kubernetes ile müşterilerimize dönük servisler geliştireceksiniz.\n\nEn az 3 yıl profesyonel deneyim beklenir.\n\nEkibimiz açık iletişime ve düzenli kod incelemesine önem verir.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.\n\nÜcret: 4.000 - 5.000 USD aylık.",
+  "expect": {
+   "seniority": "unknown",
+   "work_arrangement": "unknown",
+   "country_code": "",
+   "technologies": [
+    "docker",
+    "java",
+    "kafka",
+    "kubernetes"
+   ],
+   "salary_min": 4000,
+   "salary_max": 5000,
+   "salary_currency": "USD",
+   "salary_period": "month"
+  }
+ },
+ {
+  "id": "tr-23",
+  "lang": "tr",
+  "title": "Kıdemli Machine Learning Engineer",
+  "company": "Bosna Software",
+  "description": "Bosna Software olarak ürün ekibimize katılacak bir Kıdemli Machine Learning Engineer arıyoruz.\n\nAWS, TensorFlow, Docker, Python ve Spark ile müşterilerimize dönük servisler geliştireceksiniz.\n\nPozisyon Ankara ofisinde, ofisten çalışılır.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.\n\nÜcret: 4.000 - 5.000 USD aylık.",
+  "expect": {
+   "seniority": "senior",
+   "work_arrangement": "onsite",
+   "country_code": "TR",
+   "technologies": [
+    "aws",
+    "docker",
+    "python",
+    "spark",
+    "tensorflow"
+   ],
+   "salary_min": 4000,
+   "salary_max": 5000,
+   "salary_currency": "USD",
+   "salary_period": "month"
+  }
+ },
+ {
+  "id": "tr-24",
+  "lang": "tr",
+  "title": "Yazılım Stajyeri (Software Engineer)",
+  "company": "Kapadokya Dijital",
+  "description": "Kapadokya Dijital olarak ürün ekibimize katılacak bir Yazılım Stajyeri (Software Engineer) arıyoruz.\n\nJava, C#, Redis ve Kotlin ile müşterilerimize dönük servisler geliştireceksiniz.\n\nPozisyon Ankara ofisinde, ofisten çalışılır.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.\n\nÜcret: 4.000 - 4.500 USD aylık.",
+  "expect": {
+   "seniority": "intern",
+   "work_arrangement": "onsite",
+   "country_code": "TR",
+   "technologies": [
+    "c#",
+    "java",
+    "kotlin",
+    "redis"
+   ],
+   "salary_min": 4000,
+   "salary_max": 4500,
+   "salary_currency": "USD",
+   "salary_period": "month"
+  }
+ },
+ {
+  "id": "tr-25",
+  "lang": "tr",
+  "title": "Junior Data Engineer",
+  "company": "Karadeniz Bilişim",
+  "description": "Karadeniz Bilişim olarak ürün ekibimize katılacak bir Junior Data Engineer arıyoruz.\n\nBigQuery, Snowflake, Kafka, Spark ve PostgreSQL ile müşterilerimize dönük servisler geliştireceksiniz.\n\nEkibimiz açık iletişime ve düzenli kod incelemesine önem verir.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.",
+  "expect": {
+   "seniority": "junior",
+   "work_arrangement": "unknown",
+   "country_code": "",
+   "technologies": [
+    "bigquery",
+    "kafka",
+    "postgresql",
+    "snowflake",
+    "spark"
+   ],
+   "salary_min": null,
+   "salary_max": null,
+   "salary_currency": "",
+   "salary_period": "unknown"
+  }
+ },
+ {
+  "id": "tr-26",
+  "lang": "tr",
+  "title": "Mid-level Full Stack Developer",
+  "company": "Efes Cloud",
+  "description": "Efes Cloud olarak ürün ekibimize katılacak bir Mid-level Full Stack Developer arıyoruz.\n\nPostgreSQL, Node.js, Docker ve GraphQL ile müşterilerimize dönük servisler geliştireceksiniz.\n\nPozisyon Ankara ofisinde, ofisten çalışılır.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.",
+  "expect": {
+   "seniority": "mid",
+   "work_arrangement": "onsite",
+   "country_code": "TR",
+   "technologies": [
+    "docker",
+    "graphql",
+    "node.js",
+    "postgresql"
+   ],
+   "salary_min": null,
+   "salary_max": null,
+   "salary_currency": "",
+   "salary_period": "unknown"
+  }
+ },
+ {
+  "id": "tr-27",
+  "lang": "tr",
+  "title": "Kıdemli Software Engineer",
+  "company": "Truva Teknoloji",
+  "description": "Truva Teknoloji olarak ürün ekibimize katılacak bir Kıdemli Software Engineer arıyoruz.\n\nPostgreSQL, Kotlin, Docker, C# ve Java ile müşterilerimize dönük servisler geliştireceksiniz.\n\nPozisyon Ankara ofisinde, ofisten çalışılır.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.\n\nMaaş: 110.000 - 120.000 TL aylık.",
+  "expect": {
+   "seniority": "senior",
+   "work_arrangement": "onsite",
+   "country_code": "TR",
+   "technologies": [
+    "c#",
+    "docker",
+    "java",
+    "kotlin",
+    "postgresql"
+   ],
+   "salary_min": 110000,
+   "salary_max": 120000,
+   "salary_currency": "TRY",
+   "salary_period": "month"
+  }
+ },
+ {
+  "id": "tr-28",
+  "lang": "tr",
+  "title": "Junior Frontend Engineer",
+  "company": "Pamukkale Yazılım",
+  "description": "Pamukkale Yazılım olarak ürün ekibimize katılacak bir Junior Frontend Engineer arıyoruz.\n\nNext.js, Vue, GraphQL, JavaScript ve React ile müşterilerimize dönük servisler geliştireceksiniz.\n\nHibrit çalışma modeli: haftada 2 gün Ankara ofisinde.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.\n\nÜcret: 2.000 - 2.500 USD aylık.",
+  "expect": {
+   "seniority": "junior",
+   "work_arrangement": "hybrid",
+   "country_code": "TR",
+   "technologies": [
+    "graphql",
+    "javascript",
+    "next.js",
+    "react",
+    "vue"
+   ],
+   "salary_min": 2000,
+   "salary_max": 2500,
+   "salary_currency": "USD",
+   "salary_period": "month"
+  }
+ },
+ {
+  "id": "tr-29",
+  "lang": "tr",
+  "title": "Yazılım Stajyeri (DevOps Engineer)",
+  "company": "Çınar Bilişim",
+  "description": "Çınar Bilişim olarak ürün ekibimize katılacak bir Yazılım Stajyeri (DevOps Engineer) arıyoruz.\n\nAnsible, Jenkins ve Terraform ile müşterilerimize dönük servisler geliştireceksiniz.\n\nEkibimiz açık iletişime ve düzenli kod incelemesine önem verir.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.",
+  "expect": {
+   "seniority": "intern",
+   "work_arrangement": "unknown",
+   "country_code": "",
+   "technologies": [
+    "ansible",
+    "jenkins",
+    "terraform"
+   ],
+   "salary_min": null,
+   "salary_max": null,
+   "salary_currency": "",
+   "salary_period": "unknown"
+  }
+ },
+ {
+  "id": "tr-30",
+  "lang": "tr",
+  "title": "Kıdemli DevOps Engineer",
+  "company": "Gediz Software",
+  "description": "Gediz Software olarak ürün ekibimize katılacak bir Kıdemli DevOps Engineer arıyoruz.\n\nJenkins, Terraform, Kubernetes ve AWS ile müşterilerimize dönük servisler geliştireceksiniz.\n\nEkibimiz açık iletişime ve düzenli kod incelemesine önem verir.\n\nYan haklar arasında özel sağlık sigortası, eğitim bütçesi ve yemek kartı bulunur.",
+  "expect": {
+   "seniority": "senior",
+   "work_arrangement": "unknown",
+   "country_code": "",
+   "technologies": [
+    "aws",
+    "jenkins",
+    "kubernetes",
+    "terraform"
+   ],
+   "salary_min": null,
+   "salary_max": null,
+   "salary_currency": "",
+   "salary_period": "unknown"
+  }
+ }
+]

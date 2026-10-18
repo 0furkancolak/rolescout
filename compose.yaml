@@ -51,7 +51,7 @@ services:
       LLM_ENABLED: ${LLM_ENABLED:-false}
       LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:11434/v1}
       LLM_MODEL: ${LLM_MODEL:-qwen3:4b-instruct-2507-q4_K_M}
-      LLM_FALLBACK_MODEL: ${LLM_FALLBACK_MODEL-qwen3:1.7b-q4_K_M}
+      LLM_FALLBACK_MODEL: ${LLM_FALLBACK_MODEL:-}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_TIMEOUT: ${LLM_TIMEOUT:-60s}
       LLM_CONCURRENCY: ${LLM_CONCURRENCY:-1}
@@ -97,7 +97,7 @@ services:
       LLM_ENABLED: ${LLM_ENABLED:-false}
       LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:11434/v1}
       LLM_MODEL: ${LLM_MODEL:-qwen3:4b-instruct-2507-q4_K_M}
-      LLM_FALLBACK_MODEL: ${LLM_FALLBACK_MODEL-qwen3:1.7b-q4_K_M}
+      LLM_FALLBACK_MODEL: ${LLM_FALLBACK_MODEL:-}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_TIMEOUT: ${LLM_TIMEOUT:-60s}
       LLM_CONCURRENCY: ${LLM_CONCURRENCY:-1}

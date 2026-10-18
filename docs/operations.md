@@ -88,6 +88,26 @@ Most "unreachable" companies are old Hacker News posters whose sites are gone
 or have no career page; they are retried with exponential backoff (1 h doubling
 up to 7 days) so they stop costing time on every run.
 
+## Local AI
+Optional, off by default ([local AI](local-ai.md)). The worker runs one extra
+loop that reads job descriptions with the model on the host.
+- **Watch it** under Settings → Local AI (queue, read, failed, seconds per job,
+  last error) or `docker compose logs worker` (one line per batch; one warning
+  when the model goes away and the breaker opens for ten minutes).
+- **It never delays research.** Pipeline timings are the same with it on or off.
+- **Stop it** with `LLM_ENABLED=false`; stored results stay and are used until a
+  job's description changes.
+- **Re-read everything** after changing the prompt or the schema happens
+  automatically (the cache key includes both versions); changing `LLM_MODEL`
+  re-reads the backlog under the new model, lowest priority first.
+- `docker compose run --rm admin llm check` tests the server from inside the
+  Compose network; `llm enrich -limit 25` reads a batch now (needs the model
+  server reachable from the container).
+
+Measured on a busy 16 GB M4 (see [ADR 0005](adr/0005-local-llm-enrichment.md#measured-on-this-mac)):
+about 24 to 26 s per job with the 4B model, roughly 140 jobs per hour, no
+failures in the live run. Expect hours for a large backlog.
+
 ## Monitoring
 - **Health**: `/healthz` (process up) and `/readyz` (database reachable) on the
   API port; the web container has its own `/healthz`. Compose health checks

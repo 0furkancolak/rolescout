@@ -149,6 +149,6 @@ export function JobDetailPane({ job, onBack }: { job: WorkspaceJob; onBack: () =
 
 function salaryText(t: ReturnType<typeof useI18n>["t"], s: NonNullable<NonNullable<WorkspaceJob["ai"]>["salary"]>): string {
   const n = (v: number) => v.toLocaleString("en-US");
-  const range = s.min != null && s.max != null ? `${n(s.min)}–${n(s.max)}` : n((s.min ?? s.max) as number);
+  const range = s.min != null && s.max != null && s.min !== s.max ? `${n(s.min)}–${n(s.max)}` : n((s.min ?? s.max) as number);
   return t("ai.salaryRange", { range, currency: s.currency, period: t(`ai.period.${s.period}`) });
 }

@@ -198,7 +198,7 @@ func TestLoadLLMDefaultsToOff(t *testing.T) {
 	}
 	want := LLM{
 		BaseURL: "http://host.docker.internal:11434/v1", Model: "qwen3:4b-instruct-2507-q4_K_M",
-		FallbackModel: "qwen3:1.7b-q4_K_M", Timeout: 60 * time.Second, Concurrency: 1, Batch: 25,
+		Timeout: 60 * time.Second, Concurrency: 1, Batch: 25,
 		MaxInputChars: 6000, MaxOutputTokens: 400,
 	}
 	if cfg.LLM != want {

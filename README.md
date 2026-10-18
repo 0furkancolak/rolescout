@@ -15,6 +15,11 @@ It crawls politely (robots.txt, per-host limits, an identifying
 User-Agent), runs on one machine with Docker Compose, keeps your data in your
 own PostgreSQL database, and works in Turkish and English, light or dark.
 
+Optionally, a small language model running on your own computer
+(see [local AI](docs/local-ai.md)) reads job descriptions for salary, remote
+policy and extra technologies, and explains strong matches in a sentence. It is
+off by default, free, offline, and every value it adds is marked "AI".
+
 ## Quick start
 Requirements: Docker with the Compose plugin.
 

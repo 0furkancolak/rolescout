@@ -73,7 +73,7 @@ func Validate(e Enrichment, title, description string, resolveCountry func(place
 
 	e.SalaryMin, e.SalaryMax, e.SalaryCurrency, e.SalaryPeriod = validateSalary(e, title+"\n"+description, &d)
 
-	e.Location = truncateRunes(cleanText(e.Location), 120)
+	e.Location = truncateRunes(placeholderToEmpty(cleanText(e.Location)), 120)
 	e.CountryCode = strings.ToUpper(strings.TrimSpace(e.CountryCode))
 	if resolveCountry != nil && e.Location != "" {
 		if code := resolveCountry(e.Location); code != "" {
@@ -91,8 +91,8 @@ func Validate(e Enrichment, title, description string, resolveCountry func(place
 	}
 
 	e.Languages = cleanLanguages(e.Languages)
-	e.RemotePolicy = truncateRunes(cleanText(e.RemotePolicy), 120)
-	e.Summary = truncateRunes(cleanText(e.Summary), 300)
+	e.RemotePolicy = truncateRunes(placeholderToEmpty(cleanText(e.RemotePolicy)), 120)
+	e.Summary = truncateRunes(placeholderToEmpty(cleanText(e.Summary)), 300)
 	return e, d
 }
 
@@ -205,4 +205,13 @@ func normalizeCurrency(raw string) string {
 		return iso
 	}
 	return c
+}
+
+// placeholderToEmpty turns the words a model writes for "nothing" into "".
+func placeholderToEmpty(s string) string {
+	switch strings.ToLower(strings.Trim(s, " .")) {
+	case "unknown", "n/a", "na", "none", "null", "not stated", "not specified", "belirtilmemiş", "yok":
+		return ""
+	}
+	return s
 }
