@@ -341,3 +341,266 @@ green:
 Exact keyword and synonym lists, scoring weights within the stated caps,
 seed list contents (verified), table and column names, component design,
 polling intervals within reason, and exact CDX query strategy.
+
+---
+
+# Addendum 2026-10-18: Modern UI refresh and local AI enrichment
+
+Status: Draft for approval. Added after the first scope shipped. The sections
+above are unchanged. This addendum adds two independent work items; either
+can ship without the other. Plan: milestones 9 and 10 in
+[the implementation plan](../plans/2026-10-17-career-page-research.md).
+Model decision: [ADR 0005](../../adr/0005-local-llm-enrichment.md).
+
+The original non-goal "paid or keyed services (LLM APIs)" stays in force for
+hosted services. A model that runs on the user's own machine is free, needs no
+key and sends nothing away, so it is allowed as an optional add-on (the
+original text already left room: "they may come later as optional add-ons").
+
+## A. Modern UI refresh
+
+### Intent
+The first redesign made the app functional and consistent. The user now wants
+it to feel modern and calm, and supplied three reference real-estate
+dashboards ("Aurex Living", "Homely", "Zarss"). They share: a warm off-white
+neutral palette with soft sage, amber and lavender accents; very rounded cards
+(24 to 32 px) with soft shadows; a calm sidebar or pill-shaped navigation
+with a clearly highlighted active item; large bold numerals with small muted
+labels; mini sparklines and bar charts; list rows with a thumbnail or avatar;
+a list + detail layout with filter chips; near-black primary buttons; generous
+whitespace. The references are mood, not a template to copy: no layout,
+asset, name or icon is taken from them.
+
+### Goals
+- A warm light theme and a matching dark theme built on semantic design
+  tokens, so a screen never names a raw colour.
+- Translate the references to RoleScout's domain:
+
+  | Reference trait | RoleScout translation |
+  |---|---|
+  | Property photo thumbnail | Company tile: rounded square with the company initial on a colour derived from the company name (deterministic, no images fetched, no logo scraping) |
+  | Price / rating numeral | Match score as a large numeral inside a progress ring (`ScoreRing`), 0 to 100 |
+  | Stat cards with sparkline | Dashboard: new matches today, open jobs tracked, applications in progress, interviews upcoming; each with a 14-day sparkline where a series exists |
+  | Filter chips above the list | Jobs: chips for posted window, work arrangement, seniority, sort; the facet panel stays for technologies, countries and companies |
+  | Three panes | Jobs keeps list + detail (already three-column with facets); detail pane gets the large score, summary, reasons |
+  | Status pills | Run state, company status, application stage |
+  | Dark ink primary button | Primary action is ink on light and cream on dark; accent colours never carry primary actions |
+  | Pill navigation | Segmented pill controls for in-page switches (Applications board/list, Jobs sort, Research run filters). App-level navigation remains the sidebar |
+- Keep: sidebar navigation on desktop, menu sheet on mobile, system-following
+  theme with manual toggle, English and Turkish for every string.
+- Accessibility is a requirement, not polish: text contrast at least 4.5:1
+  (3:1 for large text and UI boundaries) in both themes, checked by an
+  automated test on the tokens; visible focus rings on every interactive
+  element; every action reachable by keyboard; ring and sparkline carry text
+  alternatives; `prefers-reduced-motion` disables transitions and ring
+  animation; no information by colour alone (status pills include a text
+  label).
+- Works at 375 px with no horizontal scroll; touch targets at least 40 px.
+
+### Non-goals
+- No new dependency: no chart library, no component kit, no icon pack beyond
+  lucide-react, no web font download (the system font stack stays; Inter is
+  used when installed).
+- No photos, stock images, logos fetched from company sites, or assets from
+  the reference mockups.
+- No change to routes, data flow or API behaviour, except one small read-only
+  activity series endpoint for the dashboard sparklines.
+- No animation beyond short transitions and a ring fill.
+
+### Design decisions
+- **Tokens**: CSS custom properties on `:root` and `.dark` registered with
+  Tailwind 4 `@theme` so utilities such as `bg-canvas` and `text-ink-muted`
+  exist. Proposed light values (builder may adjust within the contrast
+  rule): canvas `#F5F1EA`, surface `#FFFDF9`, raised `#FFFFFF`, ink `#17171A`,
+  ink-muted `#625D55`, line `#E6DFD3`, sage `#6F9A7D` (deep `#35604A`), amber
+  `#E3A63B` (deep `#8A5A06`), lavender `#A79BE0` (deep `#4E4390`), danger
+  `#B4412F`. Dark values are chosen separately, not by inversion.
+- **Replacing the dark-mode override block**: today's `index.css` re-maps the
+  Tailwind slate scale and many colour utilities under `.dark`. The refresh
+  replaces that with semantic tokens and removes the override block once every
+  screen is migrated, so there is one mechanism, not two.
+- **Shape**: card radius 24 px (32 px for hero cards), controls 14 px, chips and
+  pills fully round. Shadows are two soft layers; in dark mode shadows give
+  way to a 1 px line.
+- **Typography**: system stack; numerals use `tabular-nums` and weight 700;
+  labels 12 to 13 px muted.
+- **Charts**: hand-written SVG components (`Sparkline`, `ScoreRing`,
+  `MiniBars`) with `role="img"` and an `aria-label` stating the values.
+- **Company tile colours**: a fixed palette of 8 soft tint pairs chosen by a
+  hash of the company name; the same company always gets the same tile.
+
+### Open risks
+- Warm accents on cream are easy to get below 4.5:1 (amber and sage text in
+  particular). Mitigation: accents are used as fills with `ink` text, "deep"
+  variants as text, and the contrast test fails the build otherwise.
+- Replacing the dark override block touches every screen; a half-finished
+  migration looks worse than either state. Mitigation: migrate screen by
+  screen with both mechanisms present, delete the overrides in the last task.
+- Large rounded cards waste space on small screens. Mitigation: radius and
+  padding step down under `md`; verified at 375 px.
+- The references are real-estate products. Copying their density would hurt a
+  text-heavy job list. Mitigation: list rows stay compact, whitespace goes to
+  the page and detail pane.
+
+## B. Local AI enrichment
+
+### Intent
+Rule-based extraction (keyword lists, regexes, the place table) is fast and
+predictable but misses things: salary in free text, remote policy phrased in
+prose, technologies outside the keyword list, Turkish-language postings, and
+"why does this match me" explanations. A small language model running on the
+user's own computer can read job descriptions and fill those gaps for free,
+offline, without sending a CV, profile or job text to anyone.
+
+### Goals
+- Extract structured fields from job descriptions: technologies, seniority,
+  work arrangement and remote policy (including location limits such as "remote
+  within EU"), employment type, salary range and currency, normalised location
+  and country, spoken languages required, years of experience, a two-sentence
+  summary (in the posting's language, with an English title-case tag line for
+  search).
+- Produce a short "why it matches" explanation for strong matches, grounded
+  in the profile and the extracted fields.
+- Help classify an unknown career page: choose which of the links already
+  found on the page most likely leads to the job list. The model picks an
+  index among extracted candidates; it never produces a URL.
+- Run on a 16 GB Apple Silicon MacBook Air with 6 to 8 GB left for the model
+  next to Postgres and Docker, for free, offline.
+- Be strictly optional: off by default, `make dev` and CI work without it, and
+  every feature degrades to the rules-based result.
+
+### Non-goals
+- No hosted LLM API, no API keys, no telemetry.
+- Not a chat assistant, no autonomous agent loop, no tool calling, no web
+  browsing by the model, no writing of cover letters or CVs.
+- The model never decides whether to crawl a host (robots.txt and the review
+  model remain the only gates) and never changes scores' rule-based baseline.
+- No fine-tuning or training. No model download managed by RoleScout; the user
+  installs the runtime and pulls the model.
+- Not run inside Docker on macOS (Metal is unavailable there).
+
+### Anti-goals (failure even if it works)
+- A pipeline run, sync or page load that waits for the model.
+- Model output written to the database without schema validation.
+- A hallucinated technology, salary or country shown as fact.
+- Job text or profile data leaving the machine.
+- Treating text inside a job description as instructions (prompt injection).
+
+### Decisions
+- **Model**: Qwen3-4B-Instruct-2507, 4-bit (Q4_K_M, 2.5 GB download). Fallback
+  Qwen3-1.7B, 4-bit (1.4 GB) for slower or busier machines. Reasoning in
+  [ADR 0005](../../adr/0005-local-llm-enrichment.md).
+- **Runtime**: Ollama on the host, default. llama.cpp `llama-server` (Metal) is
+  a documented drop-in alternative. RoleScout only knows an OpenAI-compatible
+  HTTP endpoint, so the runtime is the user's choice.
+- **Where it runs**: a separate worker loop (`enrich`), not a research pipeline
+  stage. Collection, detection and scoring finish first and never wait for it;
+  the pipeline's five stages are unchanged. The enrichment loop picks up jobs
+  later and the UI shows fields as they arrive.
+- **What is enriched**: only jobs that are new or whose description hash
+  changed, open, and, in priority order, jobs with a match score at or above
+  `MATCH_MIN_SCORE`, jobs saved or applied to, then the rest. A per-tick cap
+  (`LLM_BATCH`) keeps the load flat.
+- **Output contract**: JSON constrained by a JSON Schema sent as
+  `response_format` (grammar-constrained decoding in Ollama and llama.cpp),
+  then validated again in Go. Enums are closed; free text has length limits.
+- **Grounding**: every extracted technology and the salary figures must occur
+  in the description text (normalised, case-insensitive). Values that do not
+  are dropped and counted. This is the main defence against hallucination.
+- **Merge rule**: rules-based values stay authoritative. LLM values live in
+  their own table. Where the rules produced `unknown`/empty, the LLM value is
+  used (an "effective" value); everything shown that came from the model
+  carries an "AI" mark and the model name in a tooltip. Scoring keeps the
+  rules-only baseline; the LLM-derived technologies add to the technology
+  component only through the effective value and never lift a job above the
+  caps in the scoring section.
+- **Cache**: key `(description_sha256, model, prompt_version, schema_version)`.
+  Identical descriptions across companies, reposts and restarts cost nothing.
+  Changing the model or prompt version re-queues lazily, lowest priority.
+- **Failure handling**: per-request timeout (`LLM_TIMEOUT`, 60 s), one retry
+  on invalid JSON with a stricter instruction, then a recorded `failed` row
+  that is not retried until its next backoff. Three consecutive transport
+  failures open a circuit breaker for 10 minutes. Endpoint unreachable is a
+  state, not an error log storm.
+- **Concurrency**: one request at a time by default (`LLM_CONCURRENCY=1`).
+  Generation on a laptop GPU is memory-bandwidth bound; parallel requests
+  mostly add latency and memory. Configurable up to 4.
+- **Prompt injection**: description text is delimited and labelled as data;
+  the output schema has no field that triggers an action; output is only
+  stored and displayed (escaped by React); length limits apply.
+- **Privacy**: the endpoint should be loopback or `host.docker.internal`. The
+  setting page warns when `LLM_BASE_URL` is not a local address. Nothing is
+  sent anywhere else.
+- **Docker on macOS**: Docker Desktop cannot pass the Apple GPU to
+  containers, so the model server runs on the host and the worker container
+  calls `http://host.docker.internal:11434/v1`. On Linux, compose maps
+  `host.docker.internal` with `host-gateway`.
+- **Admin UI**: Settings gets a "Local AI" card: enabled, endpoint reachable,
+  model present, queue size, enriched, failed, average latency, last error,
+  "Test connection" button. Read-only configuration (environment), like the
+  crawl settings.
+
+### Data model changes (summary)
+`job_enrichments` (job id, description hash, model, prompt version, schema
+version, status `ok|failed`, extracted JSON, error, latency, tokens, created
+at; unique on the cache key), `match_explanations` (workspace id, profile id,
+job id, description hash, model, text, created at; workspace-private),
+`companies.classification` hints stay in the existing detection log, not a
+new table.
+
+### API (new)
+- `GET /admin/llm` status and counters; `POST /admin/llm/check` runs a
+  one-token request and returns reachability, model presence and latency.
+- Job DTO gains `ai {summary, salary, remotePolicy, languages, yearsExperience, model}`
+  (omitted when absent) and matches gain `explanation` (when present).
+- Search/facets use effective seniority, arrangement, technologies, country.
+
+### Configuration (new variables, defaults)
+`LLM_ENABLED=false`, `LLM_BASE_URL=http://host.docker.internal:11434/v1`
+(`http://127.0.0.1:11434/v1` for host runs), `LLM_MODEL=qwen3:4b-instruct-2507-q4_K_M`,
+`LLM_FALLBACK_MODEL=qwen3:1.7b-q4_K_M` (used by the circuit breaker's
+degraded mode, empty disables), `LLM_API_KEY=` (optional, for llama.cpp
+`--api-key`), `LLM_TIMEOUT=60s`, `LLM_CONCURRENCY=1`, `LLM_BATCH=25` (jobs per
+worker tick), `LLM_MAX_INPUT_CHARS=6000`, `LLM_MAX_OUTPUT_TOKENS=400`.
+
+### Testing
+- A fake OpenAI-compatible server (`httptest`, package `llmtest`) returns
+  scripted completions: valid, invalid JSON, wrong enum, hallucinated
+  technology, slow (timeout), 500, connection refused, and a prompt-injection
+  echo. No test needs a model or network.
+- Table tests for validation, grounding, normalisation and the merge rule;
+  golden fixtures in English and Turkish.
+- Worker tests: enrichment never blocks a pipeline run, caching prevents a
+  second call, circuit breaker opens and closes, cancel drains cleanly.
+- Web tests: Settings card states (off, unreachable, ok), AI badge rendering,
+  both locales.
+- Quality is measured, not assumed: a labelled set of 60 real descriptions
+  (30 English, 30 Turkish; stored as fixtures with the source URLs and a
+  licence-safe excerpt policy, or synthetic if a posting cannot be stored)
+  gives field-level accuracy and valid-JSON rate per model. The numbers go
+  into ADR 0005 and replace the estimates there.
+
+### Open risks
+- **Throughput is the main risk.** Estimates (not measurements on the user's
+  machine, see ADR 0005): about 30 tokens/s generation and a couple of hundred
+  tokens/s prompt processing for the 4B model on a base M2/M3 Air, so roughly
+  8 to 15 s per job; a thousand jobs take hours. Mitigations: prioritised queue
+  (matched jobs first), input cap, short outputs, prefix caching of the fixed
+  prompt, the 1.7B fallback, and the rule that nothing waits for it. A fanless
+  Air also throttles under sustained load.
+- **Memory**: model 2.5 GB plus KV cache for a 4 096-token context plus
+  Postgres and Docker Desktop's VM. Docker Desktop's memory setting should be
+  capped (4 GB is enough for this stack, to verify).
+- **Turkish quality of a 4B model** is good enough for extraction of technology
+  names and numbers, less so for nuanced remote-policy wording. Only 61.6
+  MMLU-ProX / 69.0 MultiIF are published, in aggregate, not for Turkish
+  alone; the labelled set will tell.
+- **Ollama `/v1` JSON-schema support** is documented for the native API and
+  described but not explicitly confirmed for `/v1/chat/completions`. Task 24
+  starts with a spike; if `/v1` ignores the schema the client uses the native
+  `/api/chat` `format` field behind the same interface.
+- **Model drift**: an upstream re-tag of `qwen3:4b-instruct-2507-q4_K_M`
+  changes behaviour. The model name is stored per row, and the evaluation set
+  is re-run on upgrade.
+- **Licence**: Qwen3 is Apache-2.0 (verified on the model cards). Gemma and
+  Llama have custom licences and were not chosen.
