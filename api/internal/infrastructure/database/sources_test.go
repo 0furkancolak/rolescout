@@ -3,6 +3,8 @@ package database
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -166,5 +168,36 @@ func TestFailStaleRuns(t *testing.T) {
 	}
 	if !isDue(t, repo, s.ID, time.Now().Add(16*time.Minute)) {
 		t.Fatal("a source with an abandoned run must become due again")
+	}
+}
+
+func TestPurgeRunsKeepsLatestSuccess(t *testing.T) {
+	pool := requireDB(t)
+	ctx := context.Background()
+	repo := NewSourceRepository(pool)
+	s := enabledSource(t, repo, time.Hour)
+	for _, r := range []struct {
+		status string
+		days   int
+	}{{"succeeded", 200}, {"succeeded", 120}, {"failed", 100}, {"failed", 1}} {
+		if _, err := pool.Exec(ctx, `INSERT INTO ingestion_runs (source_id, status, started_at, finished_at, error)
+			VALUES ($1, $2, NOW() - make_interval(days => $3), NOW() - make_interval(days => $3),
+			        CASE WHEN $2 = 'failed' THEN 'x' END)`, s.ID, r.status, r.days); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := repo.PurgeRuns(ctx, 90*24*time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	runs, err := repo.ListRuns(ctx, s.ID, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var kept []string
+	for _, r := range runs {
+		kept = append(kept, fmt.Sprintf("%s/%d", r.Status, int(time.Since(r.StartedAt).Hours()/24+0.5)))
+	}
+	if strings.Join(kept, ",") != "failed/1,succeeded/120" {
+		t.Fatalf("kept runs = %v", kept)
 	}
 }

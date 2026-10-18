@@ -58,7 +58,7 @@ func TestMain(m *testing.M) {
 }
 
 func testCrawler() *crawl.Client {
-	return crawl.New(crawl.Options{UserAgent: "RoleScout/test", HostInterval: time.Millisecond})
+	return crawl.New(crawl.Options{AllowPrivate: true, UserAgent: "RoleScout/test", HostInterval: time.Millisecond})
 }
 
 func uniq(prefix string) string {
@@ -259,7 +259,9 @@ func TestCloseFailedSourcesAfterSevenDays(t *testing.T) {
 	sources := database.NewSourceRepository(testPool)
 	jobs := database.NewJobRepository(testPool)
 
-	setup := func(lastSuccessDaysAgo int) domain.Job {
+	// setup creates a source with one job, a success lastSuccessDaysAgo
+	// days ago and failures at the given ages (days, fractional).
+	setup := func(lastSuccessDaysAgo float64, failureDaysAgo ...float64) domain.Job {
 		s, err := sources.Create(ctx, database.SourceParams{Key: uniq("dead-"), Name: "Dead", BaseURL: "https://x.example", Adapter: "greenhouse"})
 		if err != nil {
 			t.Fatal(err)
@@ -271,17 +273,25 @@ func TestCloseFailedSourcesAfterSevenDays(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_, err = testPool.Exec(ctx, `
-			INSERT INTO ingestion_runs (source_id, status, started_at, finished_at, error) VALUES
-			($1, 'succeeded', NOW() - make_interval(days => $2), NOW() - make_interval(days => $2), NULL),
-			($1, 'failed', NOW() - INTERVAL '1 hour', NOW() - INTERVAL '1 hour', 'board not found')`,
-			s.ID, lastSuccessDaysAgo)
-		if err != nil {
-			t.Fatal(err)
+		insert := func(status string, days float64) {
+			_, err := testPool.Exec(ctx, `
+				INSERT INTO ingestion_runs (source_id, status, started_at, finished_at, error)
+				VALUES ($1, $2, NOW() - make_interval(secs => $3), NOW() - make_interval(secs => $3),
+				        CASE WHEN $2 = 'failed' THEN 'board not found' END)`, s.ID, status, days*86400)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+		insert("succeeded", lastSuccessDaysAgo)
+		for _, d := range failureDaysAgo {
+			insert("failed", d)
 		}
 		return job
 	}
-	old, recent := setup(8), setup(6)
+	failingLong := setup(10, 8, 1)  // failing since 8 days, 2 failures
+	afterGap := setup(10, 0.04)     // worker was off; first failure just now
+	failingShort := setup(10, 6, 1) // failing for 6 days only
+	recovered := setup(0.5, 9, 8)   // failed, then succeeded again
 	if _, err := jobs.CloseFailedSources(ctx, 7*24*time.Hour); err != nil {
 		t.Fatal(err)
 	}
@@ -292,14 +302,19 @@ func TestCloseFailedSourcesAfterSevenDays(t *testing.T) {
 		}
 		return j
 	}
-	if get(old.ID).ClosedAt == nil {
-		t.Error("job of a source failing for 8 days must be closed")
+	if get(failingLong.ID).ClosedAt == nil {
+		t.Error("a source failing for 8 days must close its jobs")
 	}
-	if get(recent.ID).ClosedAt != nil {
-		t.Error("job of a source failing for 6 days must stay open")
+	if get(afterGap.ID).ClosedAt != nil {
+		t.Error("one failure after a long pause must not close jobs")
+	}
+	if get(failingShort.ID).ClosedAt != nil {
+		t.Error("a source failing for 6 days must keep its jobs open")
+	}
+	if get(recovered.ID).ClosedAt != nil {
+		t.Error("a source that recovered must keep its jobs open")
 	}
 }
-
 func TestDedupeAcrossGreenhouseAndJSONLD(t *testing.T) {
 	if testPool == nil {
 		t.Skip("TEST_DATABASE_URL is not set")

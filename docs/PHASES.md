@@ -297,7 +297,18 @@ Notes:
 
 ## Phase 9 - Post-MVP Improvements
 
-Status: NOT_STARTED
+Status: IN_PROGRESS (first scope DONE: career page research and UI redesign)
+
+Prioritized by the user on 2026-10-17: companies' own career pages, research
+the system does by itself with visible stages, free and comprehensive
+discovery, many more jobs, a much better UI. Design:
+[docs/superpowers/specs/2026-10-17-career-page-research-design.md](superpowers/specs/2026-10-17-career-page-research-design.md);
+plan: [docs/superpowers/plans/2026-10-17-career-page-research.md](superpowers/plans/2026-10-17-career-page-research.md).
+
+Done in this scope: discovery, detection, seven ATS adapters and JSON-LD,
+research runs with live stages, scoring, full-text search and facets, job
+browser, kanban, companies, settings, dark theme. Evidence: Go and web test
+suites, CI, and the live run recorded in [operations](operations.md).
 
 Potential work:
 - Advanced search and saved filters

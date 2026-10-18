@@ -162,8 +162,8 @@ func commentCandidates(text string) []Candidate {
 	plain := html.UnescapeString(tagPattern.ReplaceAllString(strings.SplitN(text, "<p>", 2)[0], " "))
 	name, _, _ := strings.Cut(plain, "|")
 	name = strings.Join(strings.Fields(name), " ")
-	if len(name) > 100 {
-		name = name[:100]
+	if r := []rune(name); len(r) > 100 {
+		name = string(r[:100])
 	}
 	var boards, others []string
 	for _, m := range hrefPattern.FindAllStringSubmatch(text, -1) {

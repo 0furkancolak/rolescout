@@ -24,15 +24,23 @@ src/
   app/          router, providers, query client
   components/   layout and shared UI (ui.tsx, styles.ts)
   features/     one folder per feature, each with api.ts hooks and pages
-    auth/  workspaces/  jobs/  saved/  applications/
+    auth/  workspaces/  dashboard/  research/  jobs/  saved/
+    applications/  companies/  settings/
   lib/          API client and types, i18n, labels
   test/         test setup and helpers (mockApi, renderApp)
 ```
 
 - Server state uses TanStack Query; each feature's `api.ts` owns its query
   keys. Mutations invalidate the queries they affect.
-- Search filters and the application status filter live in the URL, so
-  views can be bookmarked and shared.
+- The job browser (`features/jobs/JobsPage.tsx`) keeps its whole state in the
+  URL (`searchParams.ts`), including the selected job, so views can be
+  bookmarked and shared. Keys: `j`/`k`, `s`, `o`, `/`.
+- Research runs are polled every 2 seconds while queued or running
+  (`features/research/api.ts`); the log fetches only lines after the last one
+  it has.
+- Dark mode: `lib/ThemeProvider.tsx` sets the `dark` class on `<html>`;
+  `index.css` remaps the slate scale and the few light tints in use. Prefer
+  those classes (or add an override) when introducing new colors.
 - Forms use React Hook Form + Zod where client validation mirrors server rules
   (sign-in, registration). The server stays the authority for every rule.
 - `lib/api.ts` mirrors the status transitions in

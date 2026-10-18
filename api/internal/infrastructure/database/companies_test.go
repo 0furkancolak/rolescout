@@ -294,3 +294,36 @@ func TestListCompaniesFiltersAndPages(t *testing.T) {
 		t.Fatalf("counts: %v %v", counts, err)
 	}
 }
+
+func TestDueRespectsCompanyBackoff(t *testing.T) {
+	pool := requireDB(t)
+	ctx := context.Background()
+	companies := NewCompanyRepository(pool)
+	sources := NewSourceRepository(pool)
+	c := newCompany(t, companies, "greenhouse")
+	s, err := companies.AttachSource(ctx, c.ID, SourceParams{Name: c.Name, BaseURL: c.CareersURL, Adapter: "greenhouse", SyncInterval: 12 * time.Hour})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pool.Exec(ctx, `INSERT INTO ingestion_runs (source_id, status, started_at, finished_at, error)
+		VALUES ($1, 'failed', NOW() - INTERVAL '10 hours', NOW() - INTERVAL '10 hours', 'x')`, s.ID)
+	isDue := func() bool {
+		due, err := sources.Due(ctx, time.Now())
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, d := range due {
+			if d.ID == s.ID {
+				return true
+			}
+		}
+		return false
+	}
+	if !isDue() {
+		t.Fatal("a failed source is retried after a quarter of its interval")
+	}
+	pool.Exec(ctx, `UPDATE companies SET next_check_at = NOW() + INTERVAL '5 hours' WHERE id = $1`, c.ID)
+	if isDue() {
+		t.Fatal("a company in backoff must not be synced")
+	}
+}

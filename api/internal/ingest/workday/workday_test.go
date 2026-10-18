@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"example.com/rolescout/api/internal/crawl"
+	"example.com/rolescout/api/internal/ingest"
 	"example.com/rolescout/api/internal/ingest/ingesttest"
 )
 
@@ -81,4 +82,15 @@ func TestFetchErrors(t *testing.T) {
 		_, err := (&Adapter{Client: c, BaseURL: base}).Fetch(ingesttest.Ctx(t), map[string]any{"host": "x.wd1.myworkdayjobs.com", "tenant": "x", "site": "y"})
 		return err
 	})
+}
+
+func TestPageLimitIsIncomplete(t *testing.T) {
+	c, base := ingesttest.Server(t, func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"total":5,"jobPostings":[{"title":"T","externalPath":"/job/X/T_1","bulletFields":["1"]}]}`)
+	})
+	a := &Adapter{Client: c, BaseURL: base, PageSize: 1, MaxPages: 2}
+	got, err := a.Fetch(ingesttest.Ctx(t), map[string]any{"host": "x.wd1.myworkdayjobs.com", "tenant": "x", "site": "y"})
+	if len(got) != 2 || !ingest.IsIncompleteSnapshot(err) {
+		t.Fatalf("listings = %d err = %v", len(got), err)
+	}
 }

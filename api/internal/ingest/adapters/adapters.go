@@ -31,6 +31,7 @@ func NewCrawler(version string, cfg config.Crawl) *crawl.Client {
 		HostInterval:      cfg.HostInterval,
 		VendorHosts:       crawl.DefaultVendorHosts,
 		VendorConcurrency: cfg.VendorConcurrency,
+		AllowPrivate:      cfg.AllowPrivateAddresses,
 	})
 }
 

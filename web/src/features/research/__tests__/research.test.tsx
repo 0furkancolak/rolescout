@@ -77,6 +77,31 @@ describe("RunPage", () => {
   });
 });
 
+describe("RunPage log", () => {
+  it("reads the last log lines once the run finishes", async () => {
+    let runPolls = 0;
+    mockApi({
+      ...signedIn(),
+      [`GET ${base}/research-runs/${RUN}`]: () => {
+        runPolls++;
+        return { body: { data: runPolls < 3 ? makeRun() : makeRun({ state: "succeeded", finished_at: "2026-10-17T10:20:00Z" }) } };
+      },
+      [`GET ${base}/research-profiles/${PROFILE}`]: { body: { data: makeProfile() } },
+      [`GET ${base}/research-runs/${RUN}/events`]: (call) => {
+        if (call.search.get("after") === "0") {
+          return { body: { data: [{ id: 1, at: "2026-10-17T10:00:02Z", level: "info", stage: "collection", company: "", message: "first line" }] } };
+        }
+        // The final summary line is only written when the run ends.
+        return { body: { data: runPolls >= 3 ? [{ id: 2, at: "2026-10-17T10:20:00Z", level: "info", stage: "scoring", company: "", message: "612 of 31540 open jobs match" }] : [] } };
+      },
+    });
+    renderApp(`/research/runs/${RUN}`);
+    const log = await screen.findByRole("log");
+    expect(await within(log).findByText("first line")).toBeInTheDocument();
+    expect(await within(log).findByText(/612 of 31540/)).toBeInTheDocument();
+  });
+});
+
 describe("Research profiles", () => {
   it("validates and saves a new profile", async () => {
     const api = mockApi({

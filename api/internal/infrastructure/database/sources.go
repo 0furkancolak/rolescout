@@ -118,6 +118,8 @@ func (r *SourceRepository) Due(ctx context.Context, now time.Time) ([]domain.Job
 			WHERE source_id = s.id ORDER BY started_at DESC LIMIT 1
 		) last ON TRUE
 		WHERE s.enabled
+		  -- A company source waits out its company's failure backoff.
+		  AND NOT EXISTS (SELECT 1 FROM companies c WHERE c.id = s.company_id AND c.next_check_at > $1)
 		  AND (last.status IS NULL OR (last.status <> 'running' AND last.started_at +
 		       CASE WHEN last.status = 'failed'
 		            THEN GREATEST(s.sync_interval / 4, INTERVAL '5 minutes')
@@ -188,4 +190,21 @@ func (r *SourceRepository) ListRuns(ctx context.Context, sourceID string, limit 
 		return scanRun(row)
 	})
 	return runs, translate(err, "list ingestion runs")
+}
+
+// PurgeRuns deletes finished runs older than olderThan, keeping each
+// source's latest successful run so failure tracking still has a baseline.
+func (r *SourceRepository) PurgeRuns(ctx context.Context, olderThan time.Duration) (int64, error) {
+	tag, err := r.pool.Exec(ctx, `
+		DELETE FROM ingestion_runs r
+		WHERE r.status <> 'running'
+		  AND r.started_at < NOW() - make_interval(secs => $1)
+		  AND r.id <> COALESCE((
+			SELECT k.id FROM ingestion_runs k
+			WHERE k.source_id = r.source_id AND k.status = 'succeeded'
+			ORDER BY k.started_at DESC LIMIT 1), '00000000-0000-0000-0000-000000000000')`, olderThan.Seconds())
+	if err != nil {
+		return 0, translate(err, "purge ingestion runs")
+	}
+	return tag.RowsAffected(), nil
 }

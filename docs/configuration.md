@@ -51,6 +51,7 @@ limits how fast it calls each host.
 | `CRAWL_HOST_INTERVAL` | `1s` | Minimum gap between requests to one company site, at least `100ms`. |
 | `CRAWL_VENDOR_CONCURRENCY` | `4` | Parallel requests to one job board API host (Greenhouse, Lever…), which serves many companies; requests are at least 250 ms apart per connection. |
 | `CRAWL_USER_AGENT_URL` | project URL | Link in the User-Agent so site owners can find out who is crawling. |
+| `CRAWL_ALLOW_PRIVATE` | `false` | Allow crawling private, loopback and link-local addresses. Leave off in production: it is the SSRF guard. Only for tests and local fixtures. |
 | `DISCOVERY_INTERVAL` | `168h` | How often the company catalog is grown from Common Crawl and seeds, at least `1h`. |
 | `COMPANY_SYNC_INTERVAL` | `12h` | Refresh interval for companies with matching jobs, at least `1h`. Others refresh every 3 days, companies without jobs weekly. |
 | `RESEARCH_INTERVAL` | `12h` | Default schedule of research profiles, at least `1h`. |

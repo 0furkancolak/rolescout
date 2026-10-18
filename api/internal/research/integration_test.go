@@ -80,7 +80,7 @@ func TestPipelineEndToEnd(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 	target, _ := url.Parse(srv.URL)
-	crawler := crawl.New(crawl.Options{UserAgent: "RoleScout/test", HostInterval: time.Millisecond,
+	crawler := crawl.New(crawl.Options{AllowPrivate: true, UserAgent: "RoleScout/test", HostInterval: time.Millisecond,
 		VendorHosts: crawl.DefaultVendorHosts, Transport: rewrite{target}})
 
 	auth := database.NewAuthRepository(pool)

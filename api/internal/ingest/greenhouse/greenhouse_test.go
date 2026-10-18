@@ -27,7 +27,7 @@ func server(t *testing.T, handler http.HandlerFunc) *Adapter {
 		handler(w, r)
 	}))
 	t.Cleanup(srv.Close)
-	c := crawl.New(crawl.Options{UserAgent: "test-agent", HostInterval: time.Millisecond})
+	c := crawl.New(crawl.Options{AllowPrivate: true, UserAgent: "test-agent", HostInterval: time.Millisecond})
 	return &Adapter{BaseURL: srv.URL, Client: c}
 }
 
@@ -122,7 +122,7 @@ func TestFetchRejectsMalformedJSON(t *testing.T) {
 }
 
 func TestValidate(t *testing.T) {
-	a := New(crawl.New(crawl.Options{UserAgent: "ua"}))
+	a := New(crawl.New(crawl.Options{AllowPrivate: true, UserAgent: "ua"}))
 	for _, bad := range []map[string]any{
 		{},
 		{"board_token": ""},

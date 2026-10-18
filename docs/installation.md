@@ -39,19 +39,26 @@ it behind HTTPS as described in [deployment](deployment.md).
 1. Open the web app and create your account. The first account can always
    register; later sign-ups need `ALLOW_REGISTRATION=true` in `.env` followed
    by `docker compose up -d`.
-2. Add job sources. Sources are reviewed and enabled by the operator with the
-   admin CLI; see [sources](sources/README.md):
-   ```bash
-   docker compose run --rm admin sources list
-   ```
-3. Check the installation end to end:
+2. Your workspace starts with a "Full Stack Developer" research profile. The
+   worker starts its first research within a minute: it discovers companies,
+   identifies their career pages, collects their jobs and scores them. Follow
+   it under **Research**; the first run reads about a year of Hacker News
+   "Who is hiring?" threads and takes a while (see
+   [operations](operations.md#career-page-research)). Change the profile or
+   add others under **Research**, add companies by career page URL under
+   **Companies**.
+3. The first account is the administrator. **Settings** shows which job
+   board systems are enabled; Workday stays off until you review it (see
+   [sources](sources/README.md)).
+4. Check the installation end to end:
    ```bash
    scripts/smoke.sh
    ```
    Without `SMOKE_EMAIL` and `SMOKE_PASSWORD` it registers a test account,
    which only works while registration is open. To use your own account:
    `SMOKE_EMAIL=you@example.com SMOKE_PASSWORD=... scripts/smoke.sh`. It
-   creates a workspace named "Smoke test".
+   creates a workspace named "Smoke test" with a research profile, starts a
+   run and cancels it again.
 
 ## Stopping and data
 - `docker compose stop` stops the services; `docker compose up -d --wait`

@@ -3,6 +3,7 @@ package crawl
 import (
 	"context"
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -20,6 +21,8 @@ func newTestClient(o Options) *Client {
 	if o.HostInterval == 0 {
 		o.HostInterval = time.Millisecond
 	}
+	// Test servers listen on 127.0.0.1.
+	o.AllowPrivate = true
 	return New(o)
 }
 
@@ -359,5 +362,25 @@ func sortTimes(ts []time.Time) {
 				ts[i], ts[j] = ts[j], ts[i]
 			}
 		}
+	}
+}
+
+func TestPrivateAddressesAreRefused(t *testing.T) {
+	srv := serve(t, func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("internal")) })
+	c := New(Options{UserAgent: "RoleScout/test", HostInterval: time.Millisecond})
+	for _, u := range []string{srv.URL + "/x", "http://localhost:1/x", "http://10.0.0.1:1/x", "http://169.254.169.254/latest", "http://[::1]:1/"} {
+		_, err := c.Get(context.Background(), u, "", nil)
+		if !errors.Is(err, ErrPrivateAddress) {
+			t.Errorf("%s: err = %v, want ErrPrivateAddress", u, err)
+		}
+		if IsTemporary(err) {
+			t.Errorf("%s: a refused address must not be retried", u)
+		}
+	}
+}
+
+func TestIsPublicIP(t *testing.T) {
+	if IsPublicIP(net.ParseIP("127.0.0.1")) || !IsPublicIP(net.ParseIP("93.184.216.34")) || IsPublicIP(net.ParseIP("192.168.1.1")) || IsPublicIP(net.ParseIP("fd00::1")) {
+		t.Fatal("isPublicIP misclassifies addresses")
 	}
 }

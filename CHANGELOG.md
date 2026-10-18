@@ -9,6 +9,31 @@ include breaking changes, which are called out.
 - `Makefile` with `make dev` (backend in Docker, web app with hot reload) and
   `up`, `down`, `logs`, `test`, `lint` and `smoke` tasks.
 - `scripts/init-env.sh` creates `.env` with a random database password.
+- Career page research: research profiles (a "Full Stack Developer" profile
+  for every workspace) and research runs with five visible stages —
+  discovery, detection, collection, scoring and result — and a live log.
+- Company discovery from Hacker News "Who is hiring?" threads, public company
+  lists, a verified seed list and links between career pages; career page
+  detection for embedded boards, redirects and schema.org JobPosting data.
+- Adapters for Lever, Ashby, Workable, Recruitee, Personio, BambooHR, JSON-LD
+  career pages and Workday (off until reviewed).
+- Polite crawler: robots.txt with `Crawl-delay`, per-host and per-vendor
+  limits, identifying User-Agent, response limits.
+- Explainable match scores, full-text search, counted filters (posted date,
+  arrangement, technology, country, company, seniority) and a three-column
+  job browser with keyboard navigation.
+- Applications kanban board, company catalog with per-workspace hiding,
+  dashboard, administrator settings, dark theme.
+- Closed-job tracking and retention (`CLOSED_JOB_RETENTION`), tiered refresh
+  of company sources, `admin adapters`, `admin companies` and
+  `admin seeds check` commands.
+
+### Changed
+- Source reviews are recorded per adapter type (ADR 0004); a source can be
+  enabled when its adapter type is reviewed and enabled.
+- The worker runs sources in parallel (`CRAWL_CONCURRENCY`).
+- The first account is the installation administrator.
+- Signing in opens the dashboard; `/jobs/{id}` links open the job browser.
 
 ## [0.1.0] - 2026-10-17
 

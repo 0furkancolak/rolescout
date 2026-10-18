@@ -91,6 +91,13 @@ export function useRunEvents(ws: string, runID: string, errorsOnly: boolean, act
   const [log, setLog] = useState<{ key: string; events: RunEvent[] }>({ key, events: [] });
   const events = log.key === key ? log.events : [];
   const after = events.length ? events[events.length - 1].id : 0;
+  // The worker writes its last lines as the run ends; read once more then.
+  const [wasActive, setWasActive] = useState(active);
+  const client = useQueryClient();
+  if (wasActive !== active) {
+    setWasActive(active);
+    if (!active) void client.invalidateQueries({ queryKey: [...runsKey(ws), runID, "events"] });
+  }
   useQuery({
     queryKey: [...runsKey(ws), runID, "events", errorsOnly, after],
     queryFn: async ({ signal }) => {

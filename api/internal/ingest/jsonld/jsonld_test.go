@@ -1,11 +1,13 @@
 package jsonld
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"example.com/rolescout/api/internal/ingest"
 	"example.com/rolescout/api/internal/ingest/ingesttest"
@@ -125,8 +127,9 @@ func site(t *testing.T, n int, extra map[string]string) (*Adapter, string, *atom
 func TestFetchCrawlsCareersPages(t *testing.T) {
 	a, base, _ := site(t, 3, map[string]string{"/careers/brochure.pdf": "PDF data"})
 	got, err := a.Fetch(ingesttest.Ctx(t), map[string]any{"url": base + "/careers"})
-	if err != nil {
-		t.Fatal(err)
+	// The PDF is skipped and noted; the snapshot is still complete.
+	if err == nil || ingest.IsIncompleteSnapshot(err) {
+		t.Fatalf("err = %v, want a note", err)
 	}
 	if len(got) != 3 || got[0].Company != "Acme" || got[0].URL == "" {
 		t.Fatalf("listings = %+v", got)
@@ -137,8 +140,8 @@ func TestFetchHonoursPageLimit(t *testing.T) {
 	a, base, hits := site(t, 10, nil)
 	a.MaxPages = 3
 	got, err := a.Fetch(ingesttest.Ctx(t), map[string]any{"url": base + "/careers"})
-	if err != nil {
-		t.Fatal(err)
+	if !ingest.IsIncompleteSnapshot(err) {
+		t.Fatalf("err = %v, want an incomplete snapshot", err)
 	}
 	if hits.Load() != 3 || len(got) != 2 {
 		t.Errorf("pages fetched = %d, listings = %d; want 3 pages, 2 listings", hits.Load(), len(got))
@@ -161,5 +164,93 @@ func TestValidate(t *testing.T) {
 	}
 	if err := a.Validate(map[string]any{"url": "https://acme.example/careers", "company": "Acme"}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestFetchTemporaryFailureOfALinkedPageIsIncomplete(t *testing.T) {
+	c, base2 := ingesttest.Server(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/careers":
+			w.Write([]byte(`<html><a href="/careers/ok">a</a><a href="/careers/busy">b</a><a href="/careers/gone">c</a></html>`))
+		case "/careers/ok":
+			w.Write([]byte(page(`{"@type":"JobPosting","title":"OK"}`)))
+		case "/careers/busy":
+			w.WriteHeader(http.StatusServiceUnavailable)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+	got, err := (&Adapter{Client: c, MaxPages: 10}).Fetch(ingesttest.Ctx(t), map[string]any{"url": base2 + "/careers"})
+	if len(got) != 1 || err == nil || !ingest.IsIncompleteSnapshot(err) || !strings.Contains(err.Error(), "1 page could not be read") {
+		t.Fatalf("listings = %d err = %v", len(got), err)
+	}
+}
+
+func TestFetchMissingLinkedPagesAreANoteNotIncomplete(t *testing.T) {
+	c, base := ingesttest.Server(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/careers":
+			w.Write([]byte(`<html><a href="/careers/ok">a</a><a href="/careers/gone">b</a><a href="/careers/doc.pdf">c</a></html>`))
+		case "/careers/ok":
+			w.Write([]byte(page(`{"@type":"JobPosting","title":"OK"}`, `{"broken`)))
+		case "/careers/doc.pdf":
+			w.Header().Set("Content-Type", "application/pdf")
+			w.Write([]byte("%PDF"))
+		default:
+			http.NotFound(w, r)
+		}
+	})
+	got, err := (&Adapter{Client: c, MaxPages: 10}).Fetch(ingesttest.Ctx(t), map[string]any{"url": base + "/careers"})
+	if len(got) != 1 || err == nil || ingest.IsIncompleteSnapshot(err) {
+		t.Fatalf("listings = %d err = %v", len(got), err)
+	}
+	for _, want := range []string{"1 page not found", "1 page not HTML", "1 malformed JSON-LD block"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("note %q misses %q", err, want)
+		}
+	}
+}
+
+func TestFetchPageLimitIsIncomplete(t *testing.T) {
+	a, base, _ := site(t, 10, nil)
+	a.MaxPages = 3
+	_, err := a.Fetch(ingesttest.Ctx(t), map[string]any{"url": base + "/careers"})
+	if !ingest.IsIncompleteSnapshot(err) || !strings.Contains(err.Error(), "page limit") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestFetchTimeBudgetKeepsWhatWasRead(t *testing.T) {
+	c, base := ingesttest.Server(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/careers":
+			w.Write([]byte(page(`{"@type":"JobPosting","title":"First"}`) + `<a href="/careers/slow">s</a>`))
+		default:
+			time.Sleep(300 * time.Millisecond)
+			w.Write([]byte(page(`{"@type":"JobPosting","title":"Slow"}`)))
+		}
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+	defer cancel()
+	got, err := (&Adapter{Client: c, MaxPages: 10}).Fetch(ctx, map[string]any{"url": base + "/careers"})
+	if len(got) != 1 || !ingest.IsIncompleteSnapshot(err) || !strings.Contains(err.Error(), "time budget") {
+		t.Fatalf("listings = %d err = %v", len(got), err)
+	}
+}
+
+func TestFetchNonHTMLStartPageFails(t *testing.T) {
+	c, base := ingesttest.Server(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{}`))
+	})
+	_, err := (&Adapter{Client: c, MaxPages: 10}).Fetch(ingesttest.Ctx(t), map[string]any{"url": base + "/careers"})
+	if err == nil || ingest.IsIncompleteSnapshot(err) || !strings.Contains(err.Error(), "not an HTML page") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestFetchTimeoutScalesWithPages(t *testing.T) {
+	if got := New(nil, 200).FetchTimeout(nil); got < 10*time.Minute {
+		t.Fatalf("timeout = %v", got)
 	}
 }

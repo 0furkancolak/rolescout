@@ -26,7 +26,7 @@ func Server(t *testing.T, handler http.HandlerFunc) (*crawl.Client, string) {
 		handler(w, r)
 	}))
 	t.Cleanup(srv.Close)
-	return crawl.New(crawl.Options{UserAgent: "RoleScout/test", HostInterval: time.Millisecond}), srv.URL
+	return crawl.New(crawl.Options{AllowPrivate: true, UserAgent: "RoleScout/test", HostInterval: time.Millisecond}), srv.URL
 }
 
 // File serves the contents of a testdata file.

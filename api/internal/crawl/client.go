@@ -9,16 +9,23 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
 // ErrDisallowed is returned when robots.txt does not allow a URL.
 var ErrDisallowed = errors.New("disallowed by robots.txt")
+
+// ErrPrivateAddress is returned for hosts that resolve to loopback, private,
+// link-local or other non-public addresses. Career page URLs come from users
+// and public threads, so the crawler must not reach internal services.
+var ErrPrivateAddress = errors.New("address is not a public internet address")
 
 // DefaultVendorHosts are job board API hosts that serve many companies.
 // Entries starting with "." match every subdomain and share one limit.
@@ -57,7 +64,11 @@ type Options struct {
 	Timeout           time.Duration // per request, default 60s
 	MaxBodyBytes      int64         // default 32 MiB
 	RobotsTTL         time.Duration // default 24h
-	Transport         http.RoundTripper
+	// AllowPrivate permits non-public addresses (tests, intranet setups).
+	AllowPrivate bool
+	// Transport replaces the default transport (tests). The public address
+	// check applies only to the default transport.
+	Transport http.RoundTripper
 }
 
 type Response struct {
@@ -140,6 +151,9 @@ func New(o Options) *Client {
 	}
 	if o.RobotsTTL <= 0 {
 		o.RobotsTTL = 24 * time.Hour
+	}
+	if o.Transport == nil {
+		o.Transport = publicTransport(o.AllowPrivate)
 	}
 	agent, _, _ := strings.Cut(o.UserAgent, "/")
 	agent, _, _ = strings.Cut(agent, " ")
@@ -304,7 +318,10 @@ func (c *Client) send(ctx context.Context, method string, u *url.URL, accept, co
 
 	res, err := c.http.Do(req)
 	if err != nil {
-		if ctx.Err() != nil {
+		switch {
+		case errors.Is(err, ErrPrivateAddress):
+			return nil, fmt.Errorf("%s: %w", u.Host, ErrPrivateAddress)
+		case ctx.Err() != nil:
 			return nil, ctx.Err()
 		}
 		return nil, temporaryError{err}
@@ -436,3 +453,40 @@ func retryAfter(v string) time.Duration {
 	}
 	return 0
 }
+
+// publicTransport is the default transport with a dial check that refuses
+// non-public addresses after DNS resolution, so redirects and rebinding
+// cannot reach internal services.
+func publicTransport(allowPrivate bool) http.RoundTripper {
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	dialer := &net.Dialer{
+		Timeout:   15 * time.Second,
+		KeepAlive: 30 * time.Second,
+		Control: func(_, address string, _ syscall.RawConn) error {
+			if allowPrivate {
+				return nil
+			}
+			host, _, err := net.SplitHostPort(address)
+			if err != nil {
+				return err
+			}
+			if ip := net.ParseIP(host); ip == nil || !IsPublicIP(ip) {
+				return ErrPrivateAddress
+			}
+			return nil
+		},
+	}
+	t.DialContext = dialer.DialContext
+	t.Proxy = nil
+	return t
+}
+
+// IsPublicIP reports whether ip is a public internet address.
+func IsPublicIP(ip net.IP) bool {
+	return !(ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() ||
+		ip.IsInterfaceLocalMulticast() || ip.IsMulticast() || ip.IsUnspecified() ||
+		cgnat.Contains(ip) || (ip.To4() != nil && ip.To4()[0] == 0))
+}
+
+// cgnat is the shared address space (RFC 6598), also not public.
+var cgnat = &net.IPNet{IP: net.IPv4(100, 64, 0, 0), Mask: net.CIDRMask(10, 32)}

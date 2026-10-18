@@ -69,7 +69,11 @@ jobs:
         run: |
           printf 'POSTGRES_PASSWORD=ci-only-password\n' > .env
       - name: Start stack
-        run: docker compose up -d --build --wait --wait-timeout 300
+        # The worker would start crawling the internet for the first
+        # account's research profile; CI checks the API without it.
+        run: |
+          docker compose up -d --build --wait --wait-timeout 300
+          docker compose stop worker
       - name: Smoke test
         run: scripts/smoke.sh
       - name: Backup and restore

@@ -51,7 +51,7 @@ func sites(t *testing.T, pages map[string]string) *Detector {
 	}))
 	t.Cleanup(srv.Close)
 	target, _ := url.Parse(srv.URL)
-	c := crawl.New(crawl.Options{UserAgent: "RoleScout/test", HostInterval: time.Millisecond, Transport: rewrite{target}})
+	c := crawl.New(crawl.Options{AllowPrivate: true, UserAgent: "RoleScout/test", HostInterval: time.Millisecond, Transport: rewrite{target}})
 	return &Detector{Client: c}
 }
 

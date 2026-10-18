@@ -56,6 +56,9 @@ type Crawl struct {
 	// ClosedJobRetention is how long closed jobs nobody saved or applied to
 	// are kept; 0 keeps them forever.
 	ClosedJobRetention time.Duration
+	// AllowPrivateAddresses lets the crawler reach loopback and private
+	// networks (career sites on an intranet). Off by default.
+	AllowPrivateAddresses bool
 }
 
 func Load() (Config, error) {
@@ -231,6 +234,9 @@ func loadCrawl() (Crawl, error) {
 			return c, fmt.Errorf("invalid CLOSED_JOB_RETENTION: use 0 to keep closed jobs or a Go duration of at least 24h, such as 2160h")
 		}
 		c.ClosedJobRetention = parsed
+	}
+	if c.AllowPrivateAddresses, err = boolEnv("CRAWL_ALLOW_PRIVATE", false); err != nil {
+		return c, err
 	}
 	if raw := os.Getenv("CRAWL_USER_AGENT_URL"); raw != "" {
 		u, err := url.Parse(raw)

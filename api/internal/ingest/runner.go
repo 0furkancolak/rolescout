@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
+	"example.com/rolescout/api/internal/crawl"
 	"example.com/rolescout/api/internal/domain"
 	"example.com/rolescout/api/internal/infrastructure/database"
 )
@@ -17,6 +19,7 @@ type SourceStore interface {
 	StartRun(ctx context.Context, sourceID string) (domain.IngestionRun, error)
 	FinishRun(ctx context.Context, run domain.IngestionRun) (domain.IngestionRun, error)
 	FailStaleRuns(ctx context.Context, maxAge time.Duration) (int64, error)
+	PurgeRuns(ctx context.Context, olderThan time.Duration) (int64, error)
 }
 
 type ListingStore interface {
@@ -52,7 +55,12 @@ type Runner struct {
 	// CloseFailedAfter closes the listings of a source that has only failed
 	// for this long (default 7 days).
 	CloseFailedAfter time.Duration
-	Now              func() time.Time
+	// RunRetention is how long finished runs are kept (default 90 days).
+	RunRetention time.Duration
+	Now          func() time.Time
+
+	maintenanceMu sync.Mutex
+	lastMaint     time.Time
 }
 
 // RunDueOptions controls one pass over due sources.
@@ -80,6 +88,9 @@ func (r *Runner) defaults() {
 	}
 	if r.CloseFailedAfter <= 0 {
 		r.CloseFailedAfter = 7 * 24 * time.Hour
+	}
+	if r.RunRetention <= 0 {
+		r.RunRetention = 90 * 24 * time.Hour
 	}
 	if r.Now == nil {
 		r.Now = time.Now
@@ -114,10 +125,8 @@ func (r *Runner) RunDue(ctx context.Context, o RunDueOptions) error {
 	} else if n > 0 {
 		r.Logger.Warn("marked abandoned ingestion runs as failed", "count", n)
 	}
-	if n, err := r.Listings.CloseFailedSources(ctx, r.CloseFailedAfter); err != nil {
+	if err := r.maintain(ctx); err != nil {
 		return err
-	} else if n > 0 {
-		r.Logger.Info("closed jobs of sources failing for a long time", "jobs", n)
 	}
 	sources, err := r.Sources.Due(ctx, r.Now())
 	if err != nil {
@@ -155,6 +164,30 @@ feed:
 	close(work)
 	wg.Wait()
 	return ctx.Err()
+}
+
+// maintain runs the daily housekeeping: closing jobs of sources that keep
+// failing and deleting old run history. RunDue is called by more than one
+// loop, so this runs at most once a day across them.
+func (r *Runner) maintain(ctx context.Context) error {
+	r.maintenanceMu.Lock()
+	defer r.maintenanceMu.Unlock()
+	now := r.Now()
+	if !r.lastMaint.IsZero() && now.Sub(r.lastMaint) < 24*time.Hour {
+		return nil
+	}
+	if n, err := r.Listings.CloseFailedSources(ctx, r.CloseFailedAfter); err != nil {
+		return err
+	} else if n > 0 {
+		r.Logger.Info("closed jobs of sources failing for a long time", "jobs", n)
+	}
+	if n, err := r.Sources.PurgeRuns(ctx, r.RunRetention); err != nil {
+		return err
+	} else if n > 0 {
+		r.Logger.Info("deleted old ingestion runs", "count", n)
+	}
+	r.lastMaint = now
+	return nil
 }
 
 // Sync fetches and stores one source's listings and records the run. The
@@ -220,7 +253,8 @@ func (r *Runner) sync(ctx context.Context, source domain.JobSource, run *domain.
 		return err
 	}
 	raw, err := r.fetch(ctx, adapter, source, run, log)
-	if err != nil {
+	note, hasNote := asNote(err)
+	if err != nil && !hasNote {
 		return err
 	}
 
@@ -254,12 +288,24 @@ func (r *Runner) sync(ctx context.Context, source domain.JobSource, run *domain.
 		run.UpsertedCount++
 	}
 
+	var notes []string
+	if hasNote {
+		notes = append(notes, note.msg)
+	}
 	if run.FailedCount > 0 {
 		msg := fmt.Sprintf("%d of %d listings skipped; first error: %v", run.FailedCount, run.FetchedCount, firstErr)
 		if run.UpsertedCount == 0 {
-			return errors.New(msg)
+			return errors.New(strings.Join(append(notes, msg), "; "))
 		}
+		notes = append(notes, msg)
+	}
+	if len(notes) > 0 {
+		msg := strings.Join(notes, "; ")
 		run.Error = &msg
+	}
+	if hasNote && !note.complete {
+		log.Warn("incomplete snapshot; nothing closed", "reason", note.msg)
+		return nil
 	}
 	// The snapshot is complete: listings it no longer contains are closed.
 	ids := make([]string, 0, len(seen))
@@ -280,16 +326,27 @@ func (r *Runner) sync(ctx context.Context, source domain.JobSource, run *domain.
 func (r *Runner) fetch(ctx context.Context, adapter Adapter, source domain.JobSource, run *domain.IngestionRun, log *slog.Logger) ([]RawListing, error) {
 	for attempt := 1; ; attempt++ {
 		run.Attempts = attempt
-		fetchCtx, cancel := context.WithTimeout(ctx, r.FetchTimeout)
+		timeout := r.FetchTimeout
+		if t, ok := adapter.(FetchTimeouter); ok {
+			timeout = max(timeout, t.FetchTimeout(source.Config))
+		}
+		fetchCtx, cancel := context.WithTimeout(ctx, timeout)
 		listings, err := adapter.Fetch(fetchCtx, source.Config)
 		cancel()
-		if err == nil {
-			return listings, nil
+		if _, ok := asNote(err); err == nil || ok {
+			return listings, err
 		}
-		if !IsRetryable(err) || attempt >= r.MaxAttempts || ctx.Err() != nil {
+		// A Retry-After longer than this is left to the next scheduled sync.
+		const maxRetryAfter = time.Minute
+		var se *crawl.StatusError
+		retryAfter := time.Duration(0)
+		if errors.As(err, &se) {
+			retryAfter = se.RetryAfter
+		}
+		if !IsRetryable(err) || attempt >= r.MaxAttempts || ctx.Err() != nil || retryAfter > maxRetryAfter {
 			return nil, fmt.Errorf("fetch failed after %d attempt(s): %w", attempt, err)
 		}
-		wait := r.Backoff(attempt)
+		wait := max(r.Backoff(attempt), retryAfter)
 		log.Warn("fetch failed; retrying", "attempt", attempt, "retry_in", wait.String(), "error", err)
 		select {
 		case <-ctx.Done():

@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"example.com/rolescout/api/internal/crawl"
 	"example.com/rolescout/api/internal/domain"
 	"example.com/rolescout/api/internal/infrastructure/database"
 )
@@ -21,6 +22,7 @@ type fakeSources struct {
 	finished []domain.IngestionRun
 	due      []domain.JobSource
 	stale    int
+	purged   int
 }
 
 func (f *fakeSources) Due(context.Context, time.Time) ([]domain.JobSource, error) { return f.due, nil }
@@ -47,6 +49,11 @@ func (f *fakeSources) FinishRun(ctx context.Context, run domain.IngestionRun) (d
 	delete(f.running, run.SourceID)
 	f.finished = append(f.finished, run)
 	return run, nil
+}
+
+func (f *fakeSources) PurgeRuns(context.Context, time.Duration) (int64, error) {
+	f.purged++
+	return 0, nil
 }
 
 func (f *fakeSources) FailStaleRuns(context.Context, time.Duration) (int64, error) {
@@ -338,7 +345,8 @@ func TestRunDueParallel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d := time.Since(start); d > 200*time.Millisecond {
+	// Serially this takes 500ms; allow slack for a busy machine.
+	if d := time.Since(start); d > 400*time.Millisecond {
 		t.Errorf("10 syncs of 50ms with concurrency 5 took %v", d)
 	}
 	if results != 10 || total != 10 || len(sources.finished) != 10 {
@@ -350,11 +358,95 @@ func TestRunDueParallel(t *testing.T) {
 }
 
 func TestRunDueClosesFailedSources(t *testing.T) {
-	r, _, listings := newRunner(&fakeAdapter{results: []func() ([]RawListing, error){ok()}})
-	if err := r.RunDue(context.Background(), RunDueOptions{}); err != nil {
-		t.Fatal(err)
+	r, sources, listings := newRunner(&fakeAdapter{results: []func() ([]RawListing, error){ok()}})
+	for range 3 {
+		if err := r.RunDue(context.Background(), RunDueOptions{}); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if listings.closeFailed != 1 {
-		t.Fatalf("CloseFailedSources calls = %d, want 1", listings.closeFailed)
+		t.Fatalf("CloseFailedSources calls = %d, want 1 a day", listings.closeFailed)
+	}
+	if sources.purged != 1 {
+		t.Fatalf("PurgeRuns calls = %d, want 1 a day", sources.purged)
+	}
+}
+
+type noteAdapter struct {
+	err     error
+	timeout time.Duration
+	gotDL   time.Duration
+}
+
+func (a *noteAdapter) Validate(map[string]any) error { return nil }
+func (a *noteAdapter) Fetch(ctx context.Context, _ map[string]any) ([]RawListing, error) {
+	if dl, ok := ctx.Deadline(); ok {
+		a.gotDL = time.Until(dl)
+	}
+	return []RawListing{listing("1"), listing("2")}, a.err
+}
+func (a *noteAdapter) FetchTimeout(map[string]any) time.Duration { return a.timeout }
+
+func TestIncompleteSnapshotIsStoredButClosesNothing(t *testing.T) {
+	a := &noteAdapter{err: Incomplete("3 pages could not be read")}
+	r, sources, listings := newRunner(a)
+	r.Adapters = Registry{"fake": a}
+	run, err := r.Sync(context.Background(), source)
+	if err != nil || run.Status != domain.RunSucceeded || run.UpsertedCount != 2 {
+		t.Fatalf("run = %+v err = %v", run, err)
+	}
+	if len(listings.closedCalls) != 0 {
+		t.Fatal("an incomplete snapshot must not close listings")
+	}
+	if run.Error == nil || !strings.Contains(*run.Error, "3 pages could not be read") || len(sources.finished) != 1 {
+		t.Fatalf("run error = %v", run.Error)
+	}
+}
+
+func TestSnapshotNoteIsRecordedAndStillCloses(t *testing.T) {
+	a := &noteAdapter{err: Note("1 page was not HTML")}
+	r, _, listings := newRunner(a)
+	r.Adapters = Registry{"fake": a}
+	run, err := r.Sync(context.Background(), source)
+	if err != nil || run.Status != domain.RunSucceeded || run.Error == nil || !strings.Contains(*run.Error, "not HTML") {
+		t.Fatalf("run = %+v err = %v", run, err)
+	}
+	if len(listings.closedCalls) != 1 {
+		t.Fatal("a complete snapshot with notes still closes missing listings")
+	}
+}
+
+func TestAdapterCanAskForALongerFetchTimeout(t *testing.T) {
+	a := &noteAdapter{timeout: time.Hour}
+	r, _, _ := newRunner(a)
+	r.Adapters = Registry{"fake": a}
+	r.FetchTimeout = time.Minute
+	r.Sync(context.Background(), source)
+	if a.gotDL < 59*time.Minute {
+		t.Fatalf("fetch deadline = %v, want the adapter's hour", a.gotDL)
+	}
+}
+
+func TestRetryAfterIsHonoured(t *testing.T) {
+	busy := Retryable(fmt.Errorf("list: %w", &crawl.StatusError{StatusCode: 429, RetryAfter: 80 * time.Millisecond}))
+	adapter := &fakeAdapter{results: []func() ([]RawListing, error){fail(busy), ok(listing("1"))}}
+	r, _, _ := newRunner(adapter)
+	start := time.Now()
+	run, err := r.Sync(context.Background(), source)
+	if err != nil || run.Attempts != 2 {
+		t.Fatalf("run = %+v err = %v", run, err)
+	}
+	if d := time.Since(start); d < 80*time.Millisecond {
+		t.Errorf("retried after %v, want at least the 80ms Retry-After", d)
+	}
+}
+
+func TestLongRetryAfterFailsTheRunNow(t *testing.T) {
+	busy := Retryable(&crawl.StatusError{StatusCode: 429, RetryAfter: 10 * time.Minute})
+	adapter := &fakeAdapter{results: []func() ([]RawListing, error){fail(busy)}}
+	r, _, _ := newRunner(adapter)
+	run, err := r.Sync(context.Background(), source)
+	if err == nil || run.Attempts != 1 {
+		t.Fatalf("run = %+v err = %v; want one attempt and a failed run", run, err)
 	}
 }

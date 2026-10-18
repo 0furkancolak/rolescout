@@ -119,6 +119,7 @@ func TestSeedsCheckReportsDeadAndOK(t *testing.T) {
 	out := filepath.Join(dir, "good.txt")
 	os.WriteFile(in, []byte("# test\n"+srv.URL+"/careers | Acme\n"+srv.URL+"/plain | Plain\n"+srv.URL+"/gone | Gone\n"+srv.URL+"/empty | Empty\n"), 0o600)
 	t.Setenv("DATABASE_URL", "postgres://unused")
+	t.Setenv("CRAWL_ALLOW_PRIVATE", "true")
 	report, err := runCLI(t, "seeds", "check", "-file", in, "-write", out)
 	if err != nil {
 		t.Fatal(err)

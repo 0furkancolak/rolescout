@@ -223,6 +223,9 @@ func TestCompaniesListAddAndBlock(t *testing.T) {
 	expectError(t, call(t, app, "GET", wsPath+"/companies?status=sleepy", nil), 422, "invalid_input")
 
 	expectError(t, call(t, app, "POST", "/api/v1/companies", map[string]any{"careers_url": "javascript:alert(1)"}), 422, "invalid_input")
+	for _, internal := range []string{"http://localhost/careers", "http://127.0.0.1:8080/x", "http://10.1.2.3/jobs", "http://postgres:5432/", "http://api.internal/"} {
+		expectError(t, call(t, app, "POST", "/api/v1/companies", map[string]any{"careers_url": internal}), 422, "invalid_input")
+	}
 	r = call(t, app, "POST", "/api/v1/companies", map[string]any{"careers_url": "https://jobs.lever.co/acme"})
 	expectStatus(t, r, 202)
 	if cat.gotParams.ATS != "lever" || *cat.gotParams.ATSID != "acme" || cat.gotParams.Origin != "manual" || cat.gotParams.Name != "acme" {

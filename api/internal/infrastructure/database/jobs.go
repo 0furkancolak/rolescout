@@ -183,24 +183,24 @@ func closeJobsWithoutOpenListings(ctx context.Context, tx pgx.Tx, jobIDs []strin
 	return tag.RowsAffected(), nil
 }
 
-// CloseFailedSources closes the listings of sources that have only failed
-// since their last successful run (or their first run) more than
-// failingSince ago, so jobs of vanished career pages do not stay open forever.
+// CloseFailedSources closes the listings of sources that have failed
+// continuously for failingSince: at least two failures since their last
+// success, the first of them longer ago than failingSince. A single failure
+// after a long pause (worker stopped, low refresh tier) closes nothing.
 func (r *JobRepository) CloseFailedSources(ctx context.Context, failingSince time.Duration) (int64, error) {
 	var closed int64
 	now := time.Now().UTC()
 	err := inTx(ctx, r.pool, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
-			WITH runs AS (
-				SELECT source_id,
-					max(started_at) FILTER (WHERE status = 'succeeded') AS last_success,
-					max(started_at) FILTER (WHERE status = 'failed') AS last_failure,
-					min(started_at) AS first_run
-				FROM ingestion_runs GROUP BY source_id
+			WITH last_success AS (
+				SELECT source_id, max(started_at) AS at FROM ingestion_runs
+				WHERE status = 'succeeded' GROUP BY source_id
 			), dead AS (
-				SELECT source_id FROM runs
-				WHERE last_failure > COALESCE(last_success, '-infinity')
-				  AND COALESCE(last_success, first_run) < $1::timestamptz - make_interval(secs => $2)
+				SELECT r.source_id FROM ingestion_runs r
+				LEFT JOIN last_success s ON s.source_id = r.source_id
+				WHERE r.status = 'failed' AND r.started_at > COALESCE(s.at, '-infinity')
+				GROUP BY r.source_id
+				HAVING count(*) >= 2 AND min(r.started_at) < $1::timestamptz - make_interval(secs => $2)
 			)
 			UPDATE job_source_listings SET closed_at = $1
 			WHERE closed_at IS NULL AND source_id IN (SELECT source_id FROM dead)

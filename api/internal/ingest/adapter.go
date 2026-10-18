@@ -90,3 +90,44 @@ func StringConfig(config map[string]any, key string) (string, error) {
 	}
 	return v, nil
 }
+
+// snapshotNote accompanies listings an adapter did read. complete is false
+// when the snapshot misses listings (pages that failed, a page limit or time
+// budget), so listings it lacks must not be closed.
+type snapshotNote struct {
+	msg      string
+	complete bool
+}
+
+func (n snapshotNote) Error() string { return n.msg }
+
+// Incomplete returns listings together with a reason why the snapshot is
+// missing some; the runner stores them but closes nothing.
+func Incomplete(format string, args ...any) error {
+	return snapshotNote{msg: fmt.Sprintf(format, args...)}
+}
+
+// Note returns listings of a complete snapshot together with something the
+// operator should know, such as pages skipped as irrelevant.
+func Note(format string, args ...any) error {
+	return snapshotNote{msg: fmt.Sprintf(format, args...), complete: true}
+}
+
+func asNote(err error) (snapshotNote, bool) {
+	var n snapshotNote
+	ok := errors.As(err, &n)
+	return n, ok
+}
+
+// FetchTimeouter is implemented by adapters that need longer than the
+// runner's default time for one fetch, such as page-by-page crawls.
+type FetchTimeouter interface {
+	FetchTimeout(config map[string]any) time.Duration
+}
+
+// IsIncompleteSnapshot reports whether err carries listings of a snapshot
+// that misses some (see Incomplete).
+func IsIncompleteSnapshot(err error) bool {
+	n, ok := asNote(err)
+	return ok && !n.complete
+}

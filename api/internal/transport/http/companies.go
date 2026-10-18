@@ -3,12 +3,14 @@ package httptransport
 import (
 	"context"
 	"encoding/base64"
+	"net"
 	"net/url"
 	"regexp"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
 
+	"example.com/rolescout/api/internal/crawl"
 	"example.com/rolescout/api/internal/discovery"
 	"example.com/rolescout/api/internal/domain"
 	"example.com/rolescout/api/internal/infrastructure/database"
@@ -107,6 +109,8 @@ func (h *handlers) addCompany(c fiber.Ctx) error {
 		v.Add("careers_url", "must be an absolute http(s) URL")
 	case len(raw) > maxURLLength:
 		v.Add("careers_url", "must be at most %d characters", maxURLLength)
+	case !publicHost(u.Hostname()):
+		v.Add("careers_url", "must be a public internet address")
 	}
 	name := strings.TrimSpace(req.Name)
 	if len([]rune(name)) > maxProfileName {
@@ -152,4 +156,22 @@ func (h *handlers) unblockCompany(c fiber.Ctx) error {
 		return err
 	}
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// publicHost rejects names and addresses that point into a local network.
+// The crawler also refuses them when it connects; this gives early feedback.
+func publicHost(host string) bool {
+	host = strings.ToLower(strings.TrimSuffix(host, "."))
+	if ip := net.ParseIP(host); ip != nil {
+		return crawl.IsPublicIP(ip)
+	}
+	if !strings.Contains(host, ".") {
+		return false
+	}
+	for _, suffix := range []string{".localhost", ".local", ".internal", ".lan", ".home", ".corp"} {
+		if strings.HasSuffix(host, suffix) {
+			return false
+		}
+	}
+	return true
 }

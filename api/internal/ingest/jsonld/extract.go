@@ -23,14 +23,21 @@ type Posting struct {
 // scripts and the links that stay under the page's path on the same host.
 // Scripts that are not valid JSON are skipped; expired postings are dropped.
 func ExtractJobPostings(body []byte, pageURL string) ([]Posting, []string, error) {
+	postings, links, _, err := extract(body, pageURL)
+	return postings, links, err
+}
+
+// extract also counts JSON-LD blocks that are not valid JSON.
+func extract(body []byte, pageURL string) ([]Posting, []string, int, error) {
 	page, err := url.Parse(pageURL)
 	if err != nil {
-		return nil, nil, fmt.Errorf("invalid page URL: %w", err)
+		return nil, nil, 0, fmt.Errorf("invalid page URL: %w", err)
 	}
 	doc, err := html.Parse(bytes.NewReader(body))
 	if err != nil {
-		return nil, nil, fmt.Errorf("parse HTML: %w", err)
+		return nil, nil, 0, fmt.Errorf("parse HTML: %w", err)
 	}
+	malformed := 0
 	prefix := strings.TrimSuffix(page.Path, "/")
 	var postings []Posting
 	var links []string
@@ -41,7 +48,11 @@ func ExtractJobPostings(body []byte, pageURL string) ([]Posting, []string, error
 			switch n.Data {
 			case "script":
 				if strings.EqualFold(strings.TrimSpace(attr(n, "type")), "application/ld+json") && n.FirstChild != nil {
-					postings = append(postings, parseScript(n.FirstChild.Data, page)...)
+					ps, ok := parseScript(n.FirstChild.Data, page)
+					if !ok {
+						malformed++
+					}
+					postings = append(postings, ps...)
 				}
 			case "a":
 				if link := sameSiteLink(page, prefix, attr(n, "href")); link != "" && !seen[link] {
@@ -55,7 +66,7 @@ func ExtractJobPostings(body []byte, pageURL string) ([]Posting, []string, error
 		}
 	}
 	walk(doc)
-	return postings, links, nil
+	return postings, links, malformed, nil
 }
 
 func attr(n *html.Node, name string) string {
@@ -83,10 +94,10 @@ func sameSiteLink(page *url.URL, prefix, href string) string {
 	return u.String()
 }
 
-func parseScript(raw string, page *url.URL) []Posting {
+func parseScript(raw string, page *url.URL) ([]Posting, bool) {
 	var v any
 	if err := json.Unmarshal([]byte(strings.TrimSpace(raw)), &v); err != nil {
-		return nil
+		return nil, false
 	}
 	var out []Posting
 	var visit func(v any)
@@ -108,7 +119,7 @@ func parseScript(raw string, page *url.URL) []Posting {
 		}
 	}
 	visit(v)
-	return out
+	return out, true
 }
 
 func isJobPosting(t any) bool {

@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"example.com/rolescout/api/internal/crawl"
 	"example.com/rolescout/api/internal/ingest/ingesttest"
@@ -178,7 +179,7 @@ func TestHackerNewsReadsCommentsInParallel(t *testing.T) {
 	u, _ := url.Parse(base)
 	// Like the real API host, the test host is a vendor host that allows
 	// several requests at a time.
-	vendor := crawl.New(crawl.Options{UserAgent: "RoleScout/test", VendorHosts: []string{u.Host}, VendorConcurrency: 4, VendorInterval: time.Millisecond})
+	vendor := crawl.New(crawl.Options{AllowPrivate: true, UserAgent: "RoleScout/test", VendorHosts: []string{u.Host}, VendorConcurrency: 4, VendorInterval: time.Millisecond})
 	hn := &HackerNews{Client: vendor, BaseURL: base + "/v0", Concurrency: 4}
 	got, _ := collect(t, hn, "")
 	if len(got) != 12 {
@@ -186,5 +187,13 @@ func TestHackerNewsReadsCommentsInParallel(t *testing.T) {
 	}
 	if p := peak.Load(); p < 2 {
 		t.Errorf("peak concurrent comment reads = %d, want parallel reads", p)
+	}
+}
+
+func TestCommentNameIsCutOnCharacterBoundary(t *testing.T) {
+	long := "a" + strings.Repeat("ğ", 80) + " | <a href=\"https://jobs.lever.co/x\">x</a>"
+	got := commentCandidates(long)
+	if len(got) != 1 || !utf8.ValidString(got[0].Name) || len([]rune(got[0].Name)) > 100 {
+		t.Fatalf("name = %q", got[0].Name)
 	}
 }

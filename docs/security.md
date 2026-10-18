@@ -1,6 +1,6 @@
 # Security Review
 
-Last reviewed: 2026-10-17 (Phase 7). Report vulnerabilities privately to the
+Last reviewed: 2026-10-18 (Phase 9 career page research). Report vulnerabilities privately to the
 maintainers instead of opening a public issue.
 
 ## Authentication and sessions
@@ -64,6 +64,33 @@ maintainers instead of opening a public issue.
   affecting RoleScout; it reports GO-2026-5932 in `golang.org/x/crypto`
   (the unmaintained `openpgp` package), which RoleScout does not import. No fix
   exists; the module is needed for `argon2`.
+
+## Outbound crawling
+- The worker fetches public career pages and job board APIs. Every request
+  goes through `internal/crawl`: it sends an identifying User-Agent with a
+  contact URL, obeys robots.txt (a 5xx robots.txt disallows the host;
+  `Crawl-delay` is honoured), limits concurrency per host and per job board
+  vendor, follows at most five redirects (each checked against robots.txt),
+  refuses non-http(s) schemes and caps responses at 32 MiB.
+- Sources run only for adapter types with a recorded review (ADR 0004).
+  Workday's undocumented endpoint ships unreviewed; SmartRecruiters is not
+  supported because its API host disallows crawlers. Common Crawl is not used
+  because its hosts disallow crawlers.
+- Page content is untrusted: JSON-LD and HTML are parsed with size and page
+  limits, descriptions are stored as plain text, and links are rendered with
+  `rel="noopener noreferrer"`.
+- The API's `POST /companies` accepts any http(s) career page URL from a
+  signed-in user; the worker later fetches it with the limits above. On a
+  multi-user installation, close registration so only trusted users can add
+  pages to crawl.
+
+## Administrator role
+- The first account is the administrator. Only it can review and enable
+  adapter types, disable companies for everyone and read crawl settings
+  (`/api/v1/admin/...`, `403 forbidden` otherwise; covered by handler tests).
+- Company blocks and research profiles, runs and matches stay private to
+  their workspace; the shared company catalog contains only public career
+  page data and records no user.
 
 ## Known limitations
 - No password reset or email verification yet; operators reset access by

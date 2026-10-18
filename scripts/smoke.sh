@@ -67,6 +67,19 @@ if [ -n "$job" ]; then
 else
   echo "skip job and application checks: no jobs have been imported"
 fi
+check "research profiles" 200 GET "/api/v1/workspaces/$ws/research-profiles"
+check "create research profile" 201 POST "/api/v1/workspaces/$ws/research-profiles" \
+  '{"name":"Smoke profile","title_keywords":["full stack"],"technologies":["react"],"schedule_hours":336}'
+profile=$(field id)
+check "start research run" 202 POST "/api/v1/workspaces/$ws/research-profiles/$profile/runs"
+run=$(field id)
+check "research run progress" 200 GET "/api/v1/workspaces/$ws/research-runs/$run"
+check "research run log" 200 GET "/api/v1/workspaces/$ws/research-runs/$run/events?after=0"
+# Stop the run again so a smoke test never leaves a crawl behind.
+check "cancel research run" 202 POST "/api/v1/workspaces/$ws/research-runs/$run/cancel"
+check "browse matches" 200 GET "/api/v1/workspaces/$ws/jobs?profile=$profile&sort=score&limit=5"
+check "job facets" 200 GET "/api/v1/workspaces/$ws/jobs/facets"
+check "company catalog" 200 GET "/api/v1/workspaces/$ws/companies?limit=5"
 check "other workspaces are hidden" 404 GET /api/v1/workspaces/00000000-0000-4000-8000-000000000000/applications
 check "sign out" 204 POST /api/v1/auth/logout
 check "session revoked" 401 GET /api/v1/auth/me
