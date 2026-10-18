@@ -47,7 +47,8 @@ describe("App", () => {
     expect(screen.getByRole("navigation", { name: "Ana menü" })).toBeInTheDocument();
     expect(document.documentElement.lang).toBe("tr");
 
-    await userEvent.selectOptions(screen.getAllByRole("combobox", { name: "Dil" })[0], "en");
+    await userEvent.click(screen.getByRole("button", { name: /Hesap menüsü/ }));
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Dil" }), "en");
     expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
     expect(document.documentElement.lang).toBe("en");
   });
@@ -59,6 +60,7 @@ describe("App", () => {
       "POST /auth/logout": { status: 204 },
     });
     const { router } = renderApp("/jobs");
+    await userEvent.click(await screen.findByRole("button", { name: /Account menu/ }));
     await userEvent.click(await screen.findByRole("button", { name: "Sign out" }));
     expect(await screen.findByRole("heading", { name: "Sign in to RoleScout" })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/login");

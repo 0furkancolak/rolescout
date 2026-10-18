@@ -17,7 +17,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
       onClick={() => setTheme(next[theme])}
       title={label}
       aria-label={label}
-      className={`inline-flex size-10 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-blue-700 ${className}`}
+      className={`inline-flex size-10 items-center justify-center rounded-control border border-line-strong text-ink hover:bg-canvas focus-visible:outline-2 focus-visible:outline-focus ${className}`}
     >
       <Icon aria-hidden className="size-5" />
     </button>

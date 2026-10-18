@@ -1,23 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Bookmark,
   Briefcase,
   Building2,
   LayoutDashboard,
   ListChecks,
-  LogOut,
   Menu,
   Radar,
   Settings,
   X,
 } from "lucide-react";
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { useCurrentUser, useLogout } from "../features/auth/api";
-import { useWorkspace } from "../features/workspaces/context";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { useCurrentUser } from "../features/auth/api";
 import { useI18n } from "../lib/i18n";
 import type { MessageKey } from "../lib/messages";
-import { LanguageSwitcher } from "./LanguageSwitcher";
-import { ThemeToggle } from "./ThemeToggle";
+import { UserMenu } from "./UserMenu";
 
 interface NavItem {
   to: string;
@@ -51,55 +48,81 @@ export function AppShell() {
     setLastPath(location.pathname);
     setMenuOpen(false);
   }
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMenuOpen(false);
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [menuOpen]);
-
   const items = navItems.filter((i) => !i.admin || me.data?.is_admin);
 
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const sheetRef = useRef<HTMLElement>(null);
+
+  // Keep Tab inside the open sheet and give focus back to its button on close.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const first = sheetRef.current?.querySelector<HTMLElement>("a, button, select");
+    first?.focus();
+    const onTab = (e: KeyboardEvent) => {
+      if (e.key !== "Tab" || !sheetRef.current) return;
+      const items = [...sheetRef.current.querySelectorAll<HTMLElement>("a, button, select")];
+      if (!items.length) return;
+      const [head, tail] = [items[0], items[items.length - 1]];
+      if (e.shiftKey && document.activeElement === head) {
+        e.preventDefault();
+        tail.focus();
+      } else if (!e.shiftKey && document.activeElement === tail) {
+        e.preventDefault();
+        head.focus();
+      }
+    };
+    document.addEventListener("keydown", onTab);
+    return () => document.removeEventListener("keydown", onTab);
+  }, [menuOpen]);
+
+  const closeMenu = () => {
+    setMenuOpen(false);
+    toggleRef.current?.focus();
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="min-h-screen bg-canvas text-ink">
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-white focus:px-3 focus:py-2"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded-control focus:bg-surface focus:px-3 focus:py-2 focus:shadow-raised"
       >
         {t("nav.skip")}
       </a>
 
-      <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-slate-200 bg-white/90 px-3 py-2 backdrop-blur lg:hidden">
+      <header className="sticky top-0 z-30 flex items-center gap-2 bg-canvas/90 px-4 py-2 backdrop-blur lg:hidden">
         <button
+          ref={toggleRef}
           type="button"
           aria-expanded={menuOpen}
           aria-controls="sidebar"
           aria-label={menuOpen ? t("nav.closeMenu") : t("nav.openMenu")}
-          onClick={() => setMenuOpen((o) => !o)}
-          className="inline-flex size-10 items-center justify-center rounded-lg text-slate-700 hover:bg-slate-100"
+          onClick={() => (menuOpen ? closeMenu() : setMenuOpen(true))}
+          className="inline-flex size-11 items-center justify-center rounded-control text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-focus"
         >
           {menuOpen ? <X aria-hidden className="size-5" /> : <Menu aria-hidden className="size-5" />}
         </button>
         <Brand />
-        <div className="ml-auto">
-          <ThemeToggle />
-        </div>
       </header>
 
-      {menuOpen && (
-        <div aria-hidden className="fixed inset-0 z-30 bg-slate-900/40 lg:hidden" onClick={() => setMenuOpen(false)} />
-      )}
+      {menuOpen && <div aria-hidden className="fixed inset-0 z-30 bg-ink/40 lg:hidden" onClick={closeMenu} />}
 
       <aside
+        ref={sheetRef}
         id="sidebar"
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-slate-200 bg-white transition-transform lg:translate-x-0 ${
+        onKeyDown={(e) => {
+          if (e.key === "Escape" && menuOpen) {
+            e.stopPropagation();
+            closeMenu();
+          }
+        }}
+        className={`fixed inset-y-0 left-0 z-40 flex w-72 max-w-[85vw] flex-col bg-surface shadow-raised transition-transform motion-reduce:transition-none lg:inset-y-4 lg:left-4 lg:w-64 lg:max-w-none lg:translate-x-0 lg:rounded-card lg:shadow-card ${
           menuOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="hidden px-5 pb-2 pt-5 lg:block">
+        <div className="hidden px-5 pb-2 pt-6 lg:block">
           <Brand />
         </div>
-        <nav aria-label={t("nav.main")} className="flex-1 overflow-y-auto px-3 py-3">
+        <nav aria-label={t("nav.main")} className="flex-1 overflow-y-auto px-3 py-4">
           <ul className="space-y-1">
             {items.map(({ to, key, icon: Icon, end }) => (
               <li key={to}>
@@ -107,8 +130,8 @@ export function AppShell() {
                   to={to}
                   end={end}
                   className={({ isActive }) =>
-                    `flex min-h-10 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                      isActive ? "bg-blue-50 text-blue-800" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    `flex min-h-11 items-center gap-3 rounded-full px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${
+                      isActive ? "bg-ink text-ink-inverse" : "text-ink-muted hover:bg-canvas hover:text-ink"
                     }`
                   }
                 >
@@ -119,10 +142,12 @@ export function AppShell() {
             ))}
           </ul>
         </nav>
-        <SidebarFooter />
+        <div className="p-3">
+          <UserMenu />
+        </div>
       </aside>
 
-      <main id="main" className="px-4 py-6 sm:px-6 lg:ml-64 lg:px-8 lg:py-8">
+      <main id="main" className="px-4 py-6 sm:px-6 lg:ml-72 lg:px-8 lg:py-8">
         <Outlet />
       </main>
     </div>
@@ -132,54 +157,11 @@ export function AppShell() {
 function Brand() {
   const { t } = useI18n();
   return (
-    <NavLink to="/" className="flex items-center gap-2 text-lg font-semibold tracking-tight text-slate-900">
-      <span aria-hidden className="grid size-8 place-items-center rounded-lg bg-blue-700 text-white">
+    <NavLink to="/" className="flex items-center gap-2 text-lg font-semibold tracking-tight text-ink">
+      <span aria-hidden className="grid size-8 place-items-center rounded-control bg-ink text-ink-inverse">
         <Radar className="size-4.5" />
       </span>
       {t("app.name")}
     </NavLink>
-  );
-}
-
-function SidebarFooter() {
-  const { t } = useI18n();
-  const me = useCurrentUser();
-  const logout = useLogout();
-  const navigate = useNavigate();
-  const { workspace, workspaces, select } = useWorkspace();
-  return (
-    <div className="space-y-3 border-t border-slate-200 p-4">
-      {workspaces.length > 1 && (
-        <label className="block text-xs text-slate-500">
-          {t("nav.workspace")}
-          <select
-            value={workspace.id}
-            onChange={(e) => select(e.target.value)}
-            className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900"
-          >
-            {workspaces.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-      <div className="flex items-center gap-2">
-        <LanguageSwitcher />
-        <ThemeToggle className="hidden lg:inline-flex" />
-      </div>
-      <div className="flex items-center justify-between gap-2">
-        <span className="truncate text-sm text-slate-600">{me.data?.display_name}</span>
-        <button
-          type="button"
-          onClick={() => logout.mutate(undefined, { onSettled: () => navigate("/login", { replace: true }) })}
-          className="inline-flex min-h-9 items-center gap-1 rounded-md px-2 text-sm text-slate-600 hover:bg-slate-100"
-        >
-          <LogOut aria-hidden className="size-4" />
-          <span>{t("nav.signOut")}</span>
-        </button>
-      </div>
-    </div>
   );
 }
