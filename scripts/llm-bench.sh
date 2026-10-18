@@ -24,15 +24,18 @@ echo "model: $model   runs: $runs   server: $base"
 total_pp=0 total_gen=0 n=0
 start_all=$(date +%s)
 while [ "$n" -lt "$runs" ]; do
-  body=$(jq -n --arg m "$model" --arg t "$text" '{
-    model: $m, stream: false, options: {temperature: 0, num_predict: 200},
+  # A different first line each run, so the server cannot reuse its prompt cache.
+  unique="Reference $n-$(date +%s)-$RANDOM"
+  body=$(jq -n --arg m "$model" --arg t "$unique
+$text" '{
+    model: $m, stream: false, think: false, options: {temperature: 0, num_predict: 200},
     messages: [{role: "system", content: "Extract technologies, seniority and salary as JSON."},
                {role: "user", content: $t}] }')
   out=$(curl -sS --max-time 300 "$base/api/chat" -d "$body")
-  pc=$(echo "$out" | jq '.prompt_eval_count // 0')
-  pd=$(echo "$out" | jq '.prompt_eval_duration // 1')
-  gc=$(echo "$out" | jq '.eval_count // 0')
-  gd=$(echo "$out" | jq '.eval_duration // 1')
+  pc=$(printf '%s' "$out" | jq '.prompt_eval_count // 0')
+  pd=$(printf '%s' "$out" | jq '.prompt_eval_duration // 1')
+  gc=$(printf '%s' "$out" | jq '.eval_count // 0')
+  gd=$(printf '%s' "$out" | jq '.eval_duration // 1')
   pp=$(echo "$pc $pd" | awk '{printf "%.1f", $1 / ($2 / 1e9)}')
   gen=$(echo "$gc $gd" | awk '{printf "%.1f", $1 / ($2 / 1e9)}')
   printf 'run %2d: prompt %5s tok  %7s tok/s | generated %4s tok  %6s tok/s\n' "$((n + 1))" "$pc" "$pp" "$gc" "$gen"
