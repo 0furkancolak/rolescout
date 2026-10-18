@@ -1,0 +1,49 @@
+{
+ "name": "tr-stajyer",
+ "title": "Yazılım Stajyeri",
+ "company": "Mavi Yazılım",
+ "description": "Mavi Yazılım ekibine katılacak bir yazılım stajyeri arıyoruz. React ve Node.js ile çalışacaksınız. Staj süresi 3 aydır, ofiste çalışılır. Ücret bilgisi görüşmede paylaşılacaktır.",
+ "reply": {
+  "technologies": [
+   "react",
+   "node.js"
+  ],
+  "seniority": "intern",
+  "work_arrangement": "onsite",
+  "remote_policy": "",
+  "employment_type": "internship",
+  "salary_min": null,
+  "salary_max": null,
+  "salary_currency": "",
+  "salary_period": "unknown",
+  "location": "",
+  "country_code": "",
+  "languages": [
+   "tr"
+  ],
+  "years_experience": null,
+  "summary": "React ve Node.js ile üç aylık yazılım stajı."
+ },
+ "expected": {
+  "technologies": [
+   "react",
+   "node.js"
+  ],
+  "seniority": "intern",
+  "work_arrangement": "onsite",
+  "remote_policy": "",
+  "employment_type": "internship",
+  "salary_min": null,
+  "salary_max": null,
+  "salary_currency": "",
+  "salary_period": "unknown",
+  "location": "",
+  "country_code": "",
+  "languages": [
+   "tr"
+  ],
+  "years_experience": null,
+  "summary": "React ve Node.js ile üç aylık yazılım stajı."
+ },
+ "dropped_technologies": 0
+}

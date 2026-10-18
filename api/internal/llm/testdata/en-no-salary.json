@@ -1,0 +1,51 @@
+{
+ "name": "en-no-salary",
+ "title": "Data Engineer",
+ "company": "Initech",
+ "description": "Initech is hiring a data engineer. You will maintain Python pipelines on Airflow and Snowflake. This is a contract role, 6 months, on-site in Dublin.",
+ "reply": {
+  "technologies": [
+   "python",
+   "airflow",
+   "snowflake"
+  ],
+  "seniority": "unknown",
+  "work_arrangement": "onsite",
+  "remote_policy": "",
+  "employment_type": "contract",
+  "salary_min": 80000,
+  "salary_max": null,
+  "salary_currency": "EUR",
+  "salary_period": "year",
+  "location": "Dublin",
+  "country_code": "IE",
+  "languages": [
+   "en"
+  ],
+  "years_experience": null,
+  "summary": "Six-month contract maintaining Python data pipelines in Dublin."
+ },
+ "expected": {
+  "technologies": [
+   "python",
+   "airflow",
+   "snowflake"
+  ],
+  "seniority": "unknown",
+  "work_arrangement": "onsite",
+  "remote_policy": "",
+  "employment_type": "contract",
+  "salary_min": null,
+  "salary_max": null,
+  "salary_currency": "",
+  "salary_period": "unknown",
+  "location": "Dublin",
+  "country_code": "IE",
+  "languages": [
+   "en"
+  ],
+  "years_experience": null,
+  "summary": "Six-month contract maintaining Python data pipelines in Dublin."
+ },
+ "dropped_technologies": 0
+}

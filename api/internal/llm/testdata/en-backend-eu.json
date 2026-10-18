@@ -1,0 +1,52 @@
+{
+ "name": "en-backend-eu",
+ "title": "Senior Backend Engineer",
+ "company": "Acme",
+ "description": "We are looking for a Senior Backend Engineer to join our remote-first team (EU time zones). You will build services in Go and PostgreSQL, deploy to Kubernetes and review code. Requirements: 5+ years of experience. Salary: €90,000 - €120,000 per year. Location: Berlin, Germany or remote within the EU.",
+ "reply": {
+  "technologies": [
+   "Go",
+   "PostgreSQL",
+   "Kubernetes",
+   "Rust"
+  ],
+  "seniority": "senior",
+  "work_arrangement": "remote",
+  "remote_policy": "Remote within the EU",
+  "employment_type": "full_time",
+  "salary_min": 90000,
+  "salary_max": 120000,
+  "salary_currency": "EUR",
+  "salary_period": "year",
+  "location": "Berlin, Germany",
+  "country_code": "DE",
+  "languages": [
+   "en"
+  ],
+  "years_experience": 5,
+  "summary": "Build Go services on PostgreSQL and Kubernetes in a remote-first EU team."
+ },
+ "expected": {
+  "technologies": [
+   "go",
+   "postgresql",
+   "kubernetes"
+  ],
+  "seniority": "senior",
+  "work_arrangement": "remote",
+  "remote_policy": "Remote within the EU",
+  "employment_type": "full_time",
+  "salary_min": 90000,
+  "salary_max": 120000,
+  "salary_currency": "EUR",
+  "salary_period": "year",
+  "location": "Berlin, Germany",
+  "country_code": "DE",
+  "languages": [
+   "en"
+  ],
+  "years_experience": 5,
+  "summary": "Build Go services on PostgreSQL and Kubernetes in a remote-first EU team."
+ },
+ "dropped_technologies": 1
+}

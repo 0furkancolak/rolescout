@@ -1,0 +1,52 @@
+{
+ "name": "en-frontend-us",
+ "title": "Frontend Developer",
+ "company": "Globex",
+ "description": "Join Globex as a Frontend Developer. Day to day you will work with React, TS and GraphQL in a hybrid setup (3 days in our Austin office). Pay range $100k - $130k. We expect 3 years of experience.",
+ "reply": {
+  "technologies": [
+   "react",
+   "typescript",
+   "graphql",
+   "vue"
+  ],
+  "seniority": "mid",
+  "work_arrangement": "hybrid",
+  "remote_policy": "",
+  "employment_type": "unknown",
+  "salary_min": 100000,
+  "salary_max": 130000,
+  "salary_currency": "USD",
+  "salary_period": "year",
+  "location": "Austin, TX",
+  "country_code": "US",
+  "languages": [
+   "en"
+  ],
+  "years_experience": 3,
+  "summary": "React and GraphQL frontend role, hybrid in Austin."
+ },
+ "expected": {
+  "technologies": [
+   "react",
+   "typescript",
+   "graphql"
+  ],
+  "seniority": "unknown",
+  "work_arrangement": "hybrid",
+  "remote_policy": "",
+  "employment_type": "unknown",
+  "salary_min": 100000,
+  "salary_max": 130000,
+  "salary_currency": "USD",
+  "salary_period": "year",
+  "location": "Austin, TX",
+  "country_code": "US",
+  "languages": [
+   "en"
+  ],
+  "years_experience": 3,
+  "summary": "React and GraphQL frontend role, hybrid in Austin."
+ },
+ "dropped_technologies": 1
+}

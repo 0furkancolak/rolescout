@@ -1,0 +1,52 @@
+{
+ "name": "tr-kidemli-backend",
+ "title": "Kıdemli Backend Geliştirici",
+ "company": "Örnek Teknoloji",
+ "description": "Örnek Teknoloji olarak İstanbul ofisimizde çalışacak kıdemli bir backend geliştirici arıyoruz. Java, Spring ve PostgreSQL ile servis geliştireceksiniz. Hibrit çalışma modeli: haftada 2 gün uzaktan. En az 5 yıl deneyim. Maaş: 120.000 - 160.000 TL aylık.",
+ "reply": {
+  "technologies": [
+   "java",
+   "spring",
+   "postgresql",
+   "docker"
+  ],
+  "seniority": "senior",
+  "work_arrangement": "hybrid",
+  "remote_policy": "Haftada 2 gün uzaktan",
+  "employment_type": "full_time",
+  "salary_min": 120000,
+  "salary_max": 160000,
+  "salary_currency": "TRY",
+  "salary_period": "month",
+  "location": "İstanbul",
+  "country_code": "TR",
+  "languages": [
+   "tr"
+  ],
+  "years_experience": 5,
+  "summary": "İstanbul'da hibrit çalışacak kıdemli Java backend geliştirici."
+ },
+ "expected": {
+  "technologies": [
+   "java",
+   "spring",
+   "postgresql"
+  ],
+  "seniority": "senior",
+  "work_arrangement": "hybrid",
+  "remote_policy": "Haftada 2 gün uzaktan",
+  "employment_type": "full_time",
+  "salary_min": 120000,
+  "salary_max": 160000,
+  "salary_currency": "TRY",
+  "salary_period": "month",
+  "location": "İstanbul",
+  "country_code": "TR",
+  "languages": [
+   "tr"
+  ],
+  "years_experience": 5,
+  "summary": "İstanbul'da hibrit çalışacak kıdemli Java backend geliştirici."
+ },
+ "dropped_technologies": 1
+}
