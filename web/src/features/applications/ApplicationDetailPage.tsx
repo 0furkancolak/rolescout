@@ -29,15 +29,15 @@ export function ApplicationDetailPage() {
           <div className="space-y-1">
             <h1 className="text-2xl font-semibold tracking-tight">
               {job.data ? (
-                <Link to={`/jobs/${job.data.id}`} className="hover:text-blue-700 hover:underline">
+                <Link to={`/jobs/${job.data.id}`} className="hover:text-lavender-deep hover:underline">
                   {job.data.title}
                 </Link>
               ) : (
                 "…"
               )}
             </h1>
-            <p className="text-slate-600">{job.data?.company_name}</p>
-            <p className="flex items-center gap-2 text-sm text-slate-600">
+            <p className="text-ink-muted">{job.data?.company_name}</p>
+            <p className="flex items-center gap-2 text-sm text-ink-muted">
               {t("apps.status")}: <StatusBadge status={app.data.status} />
             </p>
           </div>

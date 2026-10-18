@@ -79,23 +79,23 @@ export function ProfileForm({
         {chips("locations", t("research.locations"))}
       </div>
       <fieldset>
-        <legend className="mb-2 text-sm font-medium text-slate-700">{t("research.remote")}</legend>
+        <legend className="mb-2 text-sm font-medium text-ink">{t("research.remote")}</legend>
         <div className="flex flex-wrap gap-2">
           {remoteOptions.map((r) => (
-            <label key={r} className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm has-checked:border-blue-700 has-checked:bg-blue-50">
-              <input type="radio" value={r} {...register("remote")} className="accent-blue-700" />
+            <label key={r} className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-line px-3 py-2 text-sm has-checked:border-ink has-checked:bg-lavender">
+              <input type="radio" value={r} {...register("remote")} className="accent-[var(--color-ink)]" />
               {t(`research.remote.${r}`)}
             </label>
           ))}
         </div>
       </fieldset>
       <fieldset>
-        <legend className="mb-1 text-sm font-medium text-slate-700">{t("research.seniority")}</legend>
-        <p className="mb-2 text-xs text-slate-500">{t("research.seniorityAny")}</p>
+        <legend className="mb-1 text-sm font-medium text-ink">{t("research.seniority")}</legend>
+        <p className="mb-2 text-xs text-ink-muted">{t("research.seniorityAny")}</p>
         <div className="flex flex-wrap gap-2">
           {seniorityOptions.map((s) => (
-            <label key={s} className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm has-checked:border-blue-700 has-checked:bg-blue-50">
-              <input type="checkbox" value={s} {...register("seniority")} className="accent-blue-700" />
+            <label key={s} className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-line px-3 py-2 text-sm has-checked:border-ink has-checked:bg-lavender">
+              <input type="checkbox" value={s} {...register("seniority")} className="accent-[var(--color-ink)]" />
               {t(`seniority.${s}`)}
             </label>
           ))}

@@ -63,7 +63,7 @@ describe("ApplicationsBoard", () => {
   it("switches between list and board", async () => {
     board();
     const { router } = renderApp("/applications");
-    await userEvent.click(await screen.findByRole("button", { name: "Board" }));
+    await userEvent.click(await screen.findByRole("radio", { name: "Board" }));
     expect(router.state.location.search).toBe("?view=board");
     expect(await screen.findByRole("region", { name: "Applied" })).toBeInTheDocument();
   });

@@ -22,6 +22,11 @@ describe.each(themes)("%s tokens", (theme) => {
     ["ink", "amber"],
     ["ink", "lavender"],
     ["ink-inverse", "ink"],
+    ["well-ink", "well"],
+    ["well-muted", "well"],
+    ["well-sage", "well"],
+    ["well-amber", "well"],
+    ["well-danger", "well"],
   ];
   it.each(text)("%s on %s has at least 4.5:1", (fg, bg) => {
     expect(contrastRatio(t[fg], t[bg])).toBeGreaterThanOrEqual(4.5);

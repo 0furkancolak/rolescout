@@ -2,11 +2,11 @@ import type { RunState } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 
 const colors: Record<RunState, string> = {
-  queued: "bg-slate-100 text-slate-700",
-  running: "bg-blue-100 text-blue-800",
-  succeeded: "bg-green-100 text-green-800",
-  failed: "bg-red-100 text-red-800",
-  cancelled: "bg-amber-100 text-amber-900",
+  queued: "bg-canvas text-ink",
+  running: "bg-lavender text-ink",
+  succeeded: "bg-sage text-ink",
+  failed: "bg-danger-soft text-danger",
+  cancelled: "bg-amber text-ink",
 };
 
 export function RunStateBadge({ state }: { state: RunState }) {

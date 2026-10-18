@@ -64,7 +64,7 @@ export function LoginPage() {
           />
         </Field>
         {isApiError(login.error, "invalid_credentials") ? (
-          <p role="alert" className="text-sm text-red-700">
+          <p role="alert" className="text-sm text-danger">
             {t("auth.invalidCredentials")}
           </p>
         ) : (
@@ -74,9 +74,9 @@ export function LoginPage() {
           {t("auth.signIn")}
         </Button>
       </form>
-      <p className="mt-4 text-center text-sm text-slate-600">
+      <p className="mt-4 text-center text-sm text-ink-muted">
         {t("auth.noAccount")}{" "}
-        <Link to="/register" className="font-medium text-blue-700 hover:underline">
+        <Link to="/register" className="font-medium text-lavender-deep hover:underline">
           {t("auth.register")}
         </Link>
       </p>

@@ -1,3 +1,4 @@
+import { CompanyTile } from "../../components/CompanyTile";
 import { Plus, X } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button, EmptyState, ErrorState, Field, InlineError, PageTitle, Spinner } from "../../components/ui";
@@ -13,12 +14,12 @@ const statuses: CompanyStatus[] = ["pending", "active", "empty", "unreachable", 
 const atsList = ["greenhouse", "lever", "ashby", "workable", "recruitee", "personio", "bamboohr", "workday", "jsonld", "unknown"];
 
 const statusColor: Record<CompanyStatus, string> = {
-  pending: "bg-slate-100 text-slate-700",
-  active: "bg-green-100 text-green-800",
-  empty: "bg-slate-100 text-slate-700",
-  unreachable: "bg-red-100 text-red-800",
-  blocked_by_robots: "bg-amber-100 text-amber-900",
-  disabled: "bg-slate-200 text-slate-600",
+  pending: "bg-canvas text-ink",
+  active: "bg-sage text-ink",
+  empty: "bg-canvas text-ink",
+  unreachable: "bg-danger-soft text-danger",
+  blocked_by_robots: "bg-amber text-ink",
+  disabled: "bg-canvas text-ink-muted",
 };
 
 export function CompaniesPage() {
@@ -49,7 +50,7 @@ export function CompaniesPage() {
         </Button>
       </div>
       {notice && (
-        <p role="status" className="rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-800">
+        <p role="status" className="rounded-control bg-sage px-4 py-2 text-sm text-ink">
           {notice}
         </p>
       )}
@@ -77,13 +78,13 @@ export function CompaniesPage() {
             className={inputClass}
           />
         </form>
-        <label className="text-sm text-slate-600">
+        <label className="text-sm text-ink-muted">
           <span className="sr-only">{t("companies.ats")}</span>
           <select
             aria-label={t("companies.ats")}
             value={filters.ats}
             onChange={(e) => setFilters({ ...filters, ats: e.target.value })}
-            className="min-h-10 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900"
+            className="min-h-10 rounded-control border border-line-strong bg-surface px-2 text-sm text-ink"
           >
             <option value="">{t("companies.anyAts")}</option>
             {atsList.map((a) => (
@@ -93,13 +94,13 @@ export function CompaniesPage() {
             ))}
           </select>
         </label>
-        <label className="text-sm text-slate-600">
+        <label className="text-sm text-ink-muted">
           <span className="sr-only">{t("companies.status")}</span>
           <select
             aria-label={t("companies.status")}
             value={filters.status}
             onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-            className="min-h-10 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900"
+            className="min-h-10 rounded-control border border-line-strong bg-surface px-2 text-sm text-ink"
           >
             <option value="">{t("companies.anyStatus")}</option>
             {statuses.map((s) => (
@@ -119,9 +120,9 @@ export function CompaniesPage() {
       ) : list.length === 0 ? (
         <EmptyState title={t("companies.empty")} />
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-card bg-surface shadow-card">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wide text-ink-muted">
               <tr>
                 <th className="px-4 py-2 font-medium">{t("companies.title")}</th>
                 <th className="px-4 py-2 font-medium">{t("companies.ats")}</th>
@@ -131,23 +132,28 @@ export function CompaniesPage() {
                 <th className="px-4 py-2" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200">
+            <tbody className="divide-y divide-line">
               {list.map((c) => (
                 <tr key={c.id} className={c.blocked ? "opacity-60" : ""}>
                   <td className="max-w-72 px-4 py-2.5">
-                    <a href={c.careers_url} target="_blank" rel="noopener noreferrer" className="font-medium text-slate-900 hover:text-blue-700">
-                      {c.name}
-                    </a>
-                    <div className="truncate text-xs text-slate-500">{hostOf(c.careers_url)}</div>
-                    {c.last_error && <div className="truncate text-xs text-red-700" title={c.last_error}>{c.last_error}</div>}
-                    {c.blocked && <div className="text-xs text-slate-500">{t("companies.blocked")}</div>}
+                    <div className="flex items-center gap-3">
+                      <CompanyTile name={c.name} size={32} />
+                      <div className="min-w-0">
+                        <a href={c.careers_url} target="_blank" rel="noopener noreferrer" className="block truncate font-medium text-ink hover:text-lavender-deep">
+                          {c.name}
+                        </a>
+                        <div className="truncate text-xs text-ink-muted">{hostOf(c.careers_url)}</div>
+                        {c.last_error && <div className="truncate text-xs text-danger" title={c.last_error}>{c.last_error}</div>}
+                        {c.blocked && <div className="text-xs text-ink-muted">{t("companies.blocked")}</div>}
+                      </div>
+                    </div>
                   </td>
-                  <td className="px-4 py-2.5 text-slate-700">{c.ats}</td>
+                  <td className="px-4 py-2.5 text-ink">{c.ats}</td>
                   <td className="px-4 py-2.5">
                     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusColor[c.status]}`}>{t(`cstatus.${c.status}`)}</span>
                   </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-slate-900">{c.open_jobs}</td>
-                  <td className="hidden px-4 py-2.5 text-slate-500 md:table-cell">{c.last_checked_at ? formatDate(c.last_checked_at, true) : "–"}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums text-ink">{c.open_jobs}</td>
+                  <td className="hidden px-4 py-2.5 text-ink-muted md:table-cell">{c.last_checked_at ? formatDate(c.last_checked_at, true) : "–"}</td>
                   <td className="whitespace-nowrap px-4 py-2.5 text-right">
                     <Button variant="ghost" onClick={() => block.mutate({ id: c.id, blocked: !c.blocked })}>
                       {c.blocked ? t("companies.unblock") : t("companies.block")}
@@ -208,14 +214,14 @@ function AddCompanyDialog({ onClose, onAdded }: { onClose: () => void; onAdded: 
       open
       aria-labelledby="add-company-title"
       onCancel={onClose}
-      className="fixed inset-0 z-50 m-auto w-[min(32rem,calc(100%-2rem))] rounded-xl border border-slate-200 bg-white p-0 text-slate-900 shadow-xl backdrop:bg-slate-900/40"
+      className="fixed inset-0 z-50 m-auto w-[min(32rem,calc(100%-2rem))] rounded-hero bg-surface p-0 text-ink shadow-raised backdrop:bg-ink/40"
     >
       <form onSubmit={submit} noValidate className="space-y-4 p-5">
         <div className="flex items-start justify-between gap-3">
           <h2 id="add-company-title" className="text-lg font-semibold">
             {t("companies.addTitle")}
           </h2>
-          <button type="button" onClick={onClose} aria-label={t("common.cancel")} className="rounded p-1 text-slate-500 hover:bg-slate-100">
+          <button type="button" onClick={onClose} aria-label={t("common.cancel")} className="rounded p-1 text-ink-muted hover:bg-canvas">
             <X aria-hidden className="size-4" />
           </button>
         </div>

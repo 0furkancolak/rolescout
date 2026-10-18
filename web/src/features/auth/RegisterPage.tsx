@@ -93,15 +93,15 @@ export function RegisterPage() {
           </select>
         </Field>
         {isApiError(err, "registration_closed") ? (
-          <p role="alert" className="text-sm text-red-700">
+          <p role="alert" className="text-sm text-danger">
             {t("auth.registrationClosed")}
           </p>
         ) : isApiError(err, "conflict") ? (
-          <p role="alert" className="text-sm text-red-700">
+          <p role="alert" className="text-sm text-danger">
             {t("auth.emailTaken")}
           </p>
         ) : isApiError(err, "invalid_input") ? (
-          <p role="alert" className="text-sm text-red-700">
+          <p role="alert" className="text-sm text-danger">
             {err.fields.map((f) => `${f.field}: ${f.message}`).join(" · ")}
           </p>
         ) : (
@@ -111,9 +111,9 @@ export function RegisterPage() {
           {t("auth.register")}
         </Button>
       </form>
-      <p className="mt-4 text-center text-sm text-slate-600">
+      <p className="mt-4 text-center text-sm text-ink-muted">
         {t("auth.haveAccount")}{" "}
-        <Link to="/login" className="font-medium text-blue-700 hover:underline">
+        <Link to="/login" className="font-medium text-lavender-deep hover:underline">
           {t("auth.signIn")}
         </Link>
       </p>

@@ -317,6 +317,7 @@ const en = {
   "reason.seniority": "{value} level",
   "reason.fresh": "Posted this week",
 
+  "apps.view": "View",
   "board.list": "List",
   "board.board": "Board",
   "board.moveTo": "Move to…",
@@ -687,6 +688,7 @@ const tr: Messages = {
   "reason.seniority": "{value} seviye",
   "reason.fresh": "Bu hafta yayınlandı",
 
+  "apps.view": "Görünüm",
   "board.list": "Liste",
   "board.board": "Pano",
   "board.moveTo": "Taşı…",

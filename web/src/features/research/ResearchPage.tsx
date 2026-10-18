@@ -52,8 +52,8 @@ function ProfileCard({ profile, runs }: { profile: ResearchProfile; runs: Resear
     <Card>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-lg font-semibold text-slate-900">{profile.name}</h2>
-          <p className="text-sm text-slate-500">
+          <h2 className="text-lg font-semibold text-ink">{profile.name}</h2>
+          <p className="text-sm text-ink-muted">
             {profile.last_run_at ? t("research.lastRun", { date: formatDate(profile.last_run_at, true) }) : t("research.never")}
             {" · "}
             {t("research.every", { hours: profile.schedule_hours })}
@@ -81,7 +81,7 @@ function ProfileCard({ profile, runs }: { profile: ResearchProfile; runs: Resear
       {terms.length > 0 && (
         <ul className="mt-3 flex flex-wrap gap-1.5">
           {terms.slice(0, 12).map((k) => (
-            <li key={k} className="rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-700">
+            <li key={k} className="rounded-md bg-canvas px-2 py-0.5 text-xs text-ink">
               {k}
             </li>
           ))}
@@ -90,24 +90,24 @@ function ProfileCard({ profile, runs }: { profile: ResearchProfile; runs: Resear
       {start.isError && (
         <div className="mt-3">
           {isApiError(start.error, "conflict") ? (
-            <p role="alert" className="text-sm text-red-700">{t("research.alreadyRunning")}</p>
+            <p role="alert" className="text-sm text-danger">{t("research.alreadyRunning")}</p>
           ) : (
             <InlineError error={start.error} />
           )}
         </div>
       )}
-      <h3 className="mt-5 text-sm font-semibold text-slate-700">{t("research.history")}</h3>
+      <h3 className="mt-5 text-sm font-semibold text-ink">{t("research.history")}</h3>
       {runs.length === 0 ? (
-        <p className="mt-2 text-sm text-slate-500">{t("research.noRuns")}</p>
+        <p className="mt-2 text-sm text-ink-muted">{t("research.noRuns")}</p>
       ) : (
-        <ul className="mt-2 divide-y divide-slate-200">
+        <ul className="mt-2 divide-y divide-line">
           {runs.slice(0, 6).map((r) => (
             <li key={r.id}>
-              <Link to={`/research/runs/${r.id}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm hover:text-blue-700">
+              <Link to={`/research/runs/${r.id}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm hover:text-lavender-deep">
                 <RunStateBadge state={r.state} />
-                <span className="text-slate-600">{formatDate(r.queued_at, true)}</span>
+                <span className="text-ink-muted">{formatDate(r.queued_at, true)}</span>
                 {r.summary.matches !== undefined && (
-                  <span className="ml-auto text-slate-700">
+                  <span className="ml-auto text-ink">
                     {t("run.sum.matches")}: <span className="font-semibold tabular-nums">{r.summary.matches}</span>
                   </span>
                 )}

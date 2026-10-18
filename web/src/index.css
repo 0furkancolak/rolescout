@@ -26,6 +26,12 @@
   --color-danger: #b4412f;
   --color-danger-soft: #f6ddd7;
   --color-focus: #4e4390;
+  --color-well: #1c1b18;
+  --color-well-ink: #e8e2d6;
+  --color-well-muted: #a39b8d;
+  --color-well-sage: #9fd0ae;
+  --color-well-amber: #f0c777;
+  --color-well-danger: #f4a798;
   /* tokens:end */
   --radius-card: 1.5rem;
   --radius-hero: 2rem;
@@ -53,6 +59,12 @@
   --color-danger: #f09a8a;
   --color-danger-soft: #3a211c;
   --color-focus: #cbc3f2;
+  --color-well: #0b0a09;
+  --color-well-ink: #e8e2d6;
+  --color-well-muted: #a39b8d;
+  --color-well-sage: #9fd0ae;
+  --color-well-amber: #f0c777;
+  --color-well-danger: #f4a798;
   /* tokens:end */
   --shadow-card: 0 0 0 1px var(--color-line);
   --shadow-raised: 0 0 0 1px var(--color-line-strong);
@@ -86,45 +98,20 @@ select {
   font: inherit;
 }
 
-/*
- * Dark theme. The neutral (slate) scale is inverted so every component that
- * uses it follows the theme, and the few light tints and dark accent texts
- * in use get dark-friendly equivalents. Unlayered rules here win over
- * Tailwind's utility layer.
- */
+:root {
+  color-scheme: light;
+}
 .dark {
   color-scheme: dark;
-  --color-slate-50: #0b1018;
-  --color-slate-100: #161e2b;
-  --color-slate-200: #232d3d;
-  --color-slate-300: #334155;
-  --color-slate-400: #64748b;
-  --color-slate-500: #8b98ab;
-  --color-slate-600: #a7b3c4;
-  --color-slate-700: #c9d2de;
-  --color-slate-800: #e2e8f0;
-  --color-slate-900: #f1f5f9;
-  --color-slate-950: #f8fafc;
 }
-.dark .bg-white { background-color: #111826; }
-.dark .bg-white\/90 { background-color: rgb(17 24 38 / 0.9); }
-.dark .ring-white { --tw-ring-color: #111826; }
-.dark .bg-blue-50 { background-color: rgb(59 130 246 / 0.14); }
-.dark .bg-blue-100 { background-color: rgb(59 130 246 / 0.22); }
-.dark .bg-red-50 { background-color: rgb(239 68 68 / 0.12); }
-.dark .bg-red-100 { background-color: rgb(239 68 68 / 0.2); }
-.dark .bg-green-50, .dark .bg-emerald-50 { background-color: rgb(34 197 94 / 0.12); }
-.dark .bg-green-100, .dark .bg-emerald-100 { background-color: rgb(34 197 94 / 0.2); }
-.dark .bg-amber-50 { background-color: rgb(245 158 11 / 0.12); }
-.dark .bg-amber-100 { background-color: rgb(245 158 11 / 0.2); }
-.dark .bg-violet-100 { background-color: rgb(139 92 246 / 0.22); }
-.dark .border-red-200 { border-color: rgb(239 68 68 / 0.4); }
-.dark .border-blue-200 { border-color: rgb(59 130 246 / 0.45); }
-.dark .border-green-200, .dark .border-emerald-200 { border-color: rgb(34 197 94 / 0.4); }
-.dark .border-amber-200 { border-color: rgb(245 158 11 / 0.4); }
-.dark .text-blue-700, .dark .text-blue-800 { color: #93c5fd; }
-.dark .text-red-600, .dark .text-red-700, .dark .text-red-800 { color: #fca5a5; }
-.dark .text-green-700, .dark .text-green-800, .dark .text-emerald-700, .dark .text-emerald-800 { color: #86efac; }
-.dark .text-amber-700, .dark .text-amber-800, .dark .text-amber-900 { color: #fcd34d; }
-.dark .text-violet-800 { color: #c4b5fd; }
-.dark .bg-slate-900\/40 { background-color: rgb(0 0 0 / 0.6); }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

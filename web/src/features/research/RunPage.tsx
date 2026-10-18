@@ -35,7 +35,7 @@ export function RunPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <PageTitle>{profile.data?.name ?? t("run.title")}</PageTitle>
-          <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-600">
+          <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-ink-muted">
             <RunStateBadge state={r.state} />
             <span>{t(`run.trigger.${r.trigger}`)}</span>
             <Elapsed run={r} />
@@ -49,7 +49,7 @@ export function RunPage() {
         )}
       </div>
       {r.error && (
-        <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+        <p role="alert" className="rounded-lg border border-danger bg-danger-soft px-4 py-3 text-sm text-danger">
           {r.error}
         </p>
       )}
@@ -64,9 +64,9 @@ export function RunPage() {
         </div>
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-slate-900">{t("run.log")}</h2>
-            <label className="inline-flex items-center gap-2 text-sm text-slate-600">
-              <input type="checkbox" checked={errorsOnly} onChange={(e) => setErrorsOnly(e.target.checked)} className="accent-blue-700" />
+            <h2 className="font-semibold text-ink">{t("run.log")}</h2>
+            <label className="inline-flex items-center gap-2 text-sm text-ink-muted">
+              <input type="checkbox" checked={errorsOnly} onChange={(e) => setErrorsOnly(e.target.checked)} className="accent-[var(--color-ink)]" />
               {t("run.errorsOnly")}
             </label>
           </div>
@@ -80,14 +80,14 @@ export function RunPage() {
 function Summary({ run }: { run: ResearchRun }) {
   const { t } = useI18n();
   return (
-    <section aria-label={t("run.summary")} className="rounded-xl border border-green-200 bg-green-50 p-4">
+    <section aria-label={t("run.summary")} className="rounded-card bg-sage p-4">
       <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-7">
         {summaryKeys
           .filter((k) => run.summary[k] !== undefined)
           .map((k) => (
             <div key={k}>
-              <dt className="text-xs text-slate-600">{t(`run.sum.${k}`)}</dt>
-              <dd className="text-xl font-semibold tabular-nums text-slate-900">{run.summary[k].toLocaleString()}</dd>
+              <dt className="text-xs text-ink-muted">{t(`run.sum.${k}`)}</dt>
+              <dd className="text-xl font-semibold tabular-nums text-ink">{run.summary[k].toLocaleString()}</dd>
             </div>
           ))}
       </dl>

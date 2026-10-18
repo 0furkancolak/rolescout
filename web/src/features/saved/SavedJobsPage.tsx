@@ -34,7 +34,7 @@ export function SavedJobsPage() {
                 job={s.job}
                 footer={
                   <div className="mt-3 flex items-center justify-between gap-2">
-                    <p className="text-xs text-slate-500">{t("saved.savedOn", { date: formatDate(s.saved_at) })}</p>
+                    <p className="text-xs text-ink-muted">{t("saved.savedOn", { date: formatDate(s.saved_at) })}</p>
                     <Button
                       variant="ghost"
                       disabled={toggle.isPending && toggle.variables?.jobID === s.job.id}

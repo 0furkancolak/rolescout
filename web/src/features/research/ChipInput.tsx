@@ -49,7 +49,7 @@ export function ChipInput({
       {value.length > 0 && (
         <ul className="mb-2 flex flex-wrap gap-1.5">
           {value.map((v) => (
-            <li key={v} className="inline-flex items-center gap-1 rounded-md bg-blue-50 py-0.5 pl-2 pr-1 text-sm text-blue-800">
+            <li key={v} className="inline-flex items-center gap-1 rounded-md bg-lavender py-0.5 pl-2 pr-1 text-sm text-ink">
               {v}
               <button
                 type="button"
@@ -58,7 +58,7 @@ export function ChipInput({
                   onChange(value.filter((x) => x !== v));
                   setTooMany(false);
                 }}
-                className="rounded p-0.5 hover:bg-blue-100"
+                className="rounded p-0.5 hover:bg-canvas"
               >
                 <X aria-hidden className="size-3.5" />
               </button>
@@ -77,7 +77,7 @@ export function ChipInput({
         className={inputClass}
       />
       {tooMany && (
-        <p role="alert" className="mt-1 text-xs text-red-700">
+        <p role="alert" className="mt-1 text-xs text-danger">
           {t("research.tooMany")}
         </p>
       )}

@@ -34,8 +34,8 @@ export function SettingsPage() {
     <div className="space-y-6">
       <PageTitle>{t("settings.title")}</PageTitle>
       <Card>
-        <h2 className="text-lg font-semibold text-slate-900">{t("settings.adapters")}</h2>
-        <p className="mt-1 text-sm text-slate-500">{t("settings.adaptersHint")}</p>
+        <h2 className="text-lg font-semibold text-ink">{t("settings.adapters")}</h2>
+        <p className="mt-1 text-sm text-ink-muted">{t("settings.adaptersHint")}</p>
         {adapters.isPending ? (
           <Spinner />
         ) : adapters.isError ? (
@@ -49,14 +49,14 @@ export function SettingsPage() {
         )}
       </Card>
       <Card>
-        <h2 className="text-lg font-semibold text-slate-900">{t("settings.crawl")}</h2>
-        <p className="mt-1 text-sm text-slate-500">{t("settings.crawlHint")}</p>
+        <h2 className="text-lg font-semibold text-ink">{t("settings.crawl")}</h2>
+        <p className="mt-1 text-sm text-ink-muted">{t("settings.crawlHint")}</p>
         {settings.data && (
           <dl className="mt-4 grid gap-x-6 gap-y-2 sm:grid-cols-2">
             {settings.data.map((s) => (
-              <div key={s.name} className="flex justify-between gap-3 border-b border-slate-100 py-1.5 text-sm">
-                <dt className="font-mono text-xs text-slate-600">{s.name}</dt>
-                <dd className="truncate font-medium text-slate-900">{s.value}</dd>
+              <div key={s.name} className="flex justify-between gap-3 border-b border-line py-1.5 text-sm">
+                <dt className="font-mono text-xs text-ink-muted">{s.name}</dt>
+                <dd className="truncate font-medium text-ink">{s.value}</dd>
               </div>
             ))}
           </dl>
@@ -79,16 +79,16 @@ function AdapterRow({ review }: { review: AdapterReview }) {
   const id = `note-${review.adapter}`;
 
   return (
-    <fieldset aria-label={review.adapter} className="rounded-lg border border-slate-200 p-3">
+    <fieldset aria-label={review.adapter} className="rounded-lg border border-line p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <span className="font-mono text-sm font-semibold text-slate-900">{review.adapter}</span>
+          <span className="font-mono text-sm font-semibold text-ink">{review.adapter}</span>
           <span
-            className={`ml-2 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${review.enabled ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-700"}`}
+            className={`ml-2 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${review.enabled ? "bg-sage text-ink" : "bg-canvas text-ink"}`}
           >
             {review.enabled ? t("settings.enable") : t("settings.disable")}
           </span>
-          <span className="ml-2 text-xs text-slate-500">
+          <span className="ml-2 text-xs text-ink-muted">
             {review.reviewed_at ? t("settings.reviewed", { date: formatDate(review.reviewed_at) }) : t("settings.notReviewed")}
           </span>
         </div>
@@ -110,14 +110,14 @@ function AdapterRow({ review }: { review: AdapterReview }) {
         )}
       </div>
       {review.adapter === "workday" && (
-        <p className="mt-2 flex items-start gap-2 text-sm text-amber-800">
+        <p className="mt-2 flex items-start gap-2 text-sm text-amber-deep">
           <AlertTriangle aria-hidden className="mt-0.5 size-4 shrink-0" />
           {t("settings.workdayWarning")}
         </p>
       )}
       {!review.enabled && (
         <div className="mt-2">
-          <label htmlFor={id} className="block text-xs font-medium text-slate-600">
+          <label htmlFor={id} className="block text-xs font-medium text-ink-muted">
             {t("settings.note")}
           </label>
           <textarea
@@ -129,13 +129,13 @@ function AdapterRow({ review }: { review: AdapterReview }) {
             className={`${inputClass} mt-1`}
           />
           {missing && (
-            <p role="alert" className="mt-1 text-xs text-red-700">
+            <p role="alert" className="mt-1 text-xs text-danger">
               {t("settings.noteRequired")}
             </p>
           )}
         </div>
       )}
-      {review.enabled && review.note && <p className="mt-2 text-xs text-slate-500">{review.note}</p>}
+      {review.enabled && review.note && <p className="mt-2 text-xs text-ink-muted">{review.note}</p>}
       <InlineError error={save.error} />
     </fieldset>
   );

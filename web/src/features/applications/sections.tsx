@@ -35,7 +35,7 @@ export function StatusControl({ ws, application }: Props) {
   const options = statusTransitions[application.status];
   const [next, setNext] = useState<ApplicationStatus | "">("");
 
-  if (options.length === 0) return <p className="text-sm text-slate-500">{t("apps.noTransitions")}</p>;
+  if (options.length === 0) return <p className="text-sm text-ink-muted">{t("apps.noTransitions")}</p>;
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -82,12 +82,12 @@ export function HistorySection({ ws, application }: Props) {
       ) : events.isError ? (
         <ErrorState error={events.error} onRetry={() => void events.refetch()} />
       ) : (
-        <ol className="relative space-y-4 border-l border-slate-200 pl-5">
+        <ol className="relative space-y-4 border-l border-line pl-5">
           {[...events.data].reverse().map((e) => (
             <li key={e.id} className="relative">
-              <span aria-hidden className="absolute -left-[25px] top-1.5 size-2.5 rounded-full bg-blue-600 ring-4 ring-white" />
-              <p className="text-sm font-medium text-slate-800">{eventLabel(e, t)}</p>
-              <time dateTime={e.occurred_at} className="text-xs text-slate-500">
+              <span aria-hidden className="absolute -left-[25px] top-1.5 size-2.5 rounded-full bg-ink ring-4 ring-surface" />
+              <p className="text-sm font-medium text-ink">{eventLabel(e, t)}</p>
+              <time dateTime={e.occurred_at} className="text-xs text-ink-muted">
                 {formatDate(e.occurred_at, true)}
               </time>
             </li>
@@ -121,13 +121,13 @@ export function AttemptsSection({ ws, application }: Props) {
       ) : attempts.isError ? (
         <ErrorState error={attempts.error} onRetry={() => void attempts.refetch()} />
       ) : attempts.data.length === 0 ? (
-        <p className="text-sm text-slate-500">{t("apps.noAttempts")}</p>
+        <p className="text-sm text-ink-muted">{t("apps.noAttempts")}</p>
       ) : (
         <ul className="space-y-2">
           {attempts.data.map((a) => (
             <li key={a.id} className="text-sm">
               <span className="font-medium">{t("apps.attemptNumber", { n: a.attempt_number })}</span>
-              <span className="text-slate-600">
+              <span className="text-ink-muted">
                 {" "}
                 · {formatDate(a.applied_at)}
                 {a.channel && ` · ${a.channel}`}
@@ -136,7 +136,7 @@ export function AttemptsSection({ ws, application }: Props) {
           ))}
         </ul>
       )}
-      <form onSubmit={onSubmit} className="mt-4 space-y-3 border-t border-slate-100 pt-4">
+      <form onSubmit={onSubmit} className="mt-4 space-y-3 border-t border-line pt-4">
         <Field id="applied_at" label={t("apps.appliedAt")}>
           <input
             id="applied_at"
@@ -193,12 +193,12 @@ export function ScheduleSection({ ws, application }: Props) {
       <SectionTitle>{t("apps.schedule")}</SectionTitle>
       {upcoming.length > 0 && (
         <div className="mb-4">
-          <h3 className="mb-2 text-sm font-medium text-slate-700">{t("apps.upcoming")}</h3>
+          <h3 className="mb-2 text-sm font-medium text-ink">{t("apps.upcoming")}</h3>
           <ul className="space-y-1 text-sm">
             {upcoming.map((e) => (
               <li key={e.id}>
                 <span className="font-medium">{t(`event.${e.type}`)}</span>{" "}
-                <time dateTime={e.occurred_at} className="text-slate-600">
+                <time dateTime={e.occurred_at} className="text-ink-muted">
                   {formatDate(e.occurred_at, true)}
                 </time>
               </li>
@@ -280,11 +280,11 @@ export function NotesSection({ ws, application }: Props) {
         ) : notes.isError ? (
           <ErrorState error={notes.error} onRetry={() => void notes.refetch()} />
         ) : notes.data.length === 0 ? (
-          <p className="text-sm text-slate-500">{t("apps.noNotes")}</p>
+          <p className="text-sm text-ink-muted">{t("apps.noNotes")}</p>
         ) : (
           <ul className="space-y-3">
             {[...notes.data].reverse().map((n) => (
-              <li key={n.id} className="rounded-md bg-slate-50 p-3">
+              <li key={n.id} className="rounded-md bg-canvas p-3">
                 {editing?.id === n.id ? (
                   <form
                     className="space-y-2"
@@ -320,9 +320,9 @@ export function NotesSection({ ws, application }: Props) {
                   </form>
                 ) : (
                   <>
-                    <p className="whitespace-pre-line text-sm text-slate-800">{n.body}</p>
+                    <p className="whitespace-pre-line text-sm text-ink">{n.body}</p>
                     <div className="mt-2 flex items-center justify-between gap-2">
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-ink-muted">
                         {formatDate(n.created_at, true)}
                         {n.updated_at !== n.created_at && ` · ${t("apps.edited")}`}
                       </p>
@@ -376,17 +376,17 @@ export function TagsSection({ ws, application }: Props) {
       ) : attached.isError ? (
         <ErrorState error={attached.error} onRetry={() => void attached.refetch()} />
       ) : attached.data.length === 0 ? (
-        <p className="text-sm text-slate-500">{t("apps.noTags")}</p>
+        <p className="text-sm text-ink-muted">{t("apps.noTags")}</p>
       ) : (
         <ul className="flex flex-wrap gap-2">
           {attached.data.map((tg) => (
-            <li key={tg.id} className="inline-flex items-center gap-1 rounded-full bg-blue-50 py-0.5 pl-3 pr-1 text-sm text-blue-800">
+            <li key={tg.id} className="inline-flex items-center gap-1 rounded-full bg-lavender py-0.5 pl-3 pr-1 text-sm text-ink">
               {tg.name}
               <button
                 type="button"
                 aria-label={t("apps.removeTag", { name: tg.name })}
                 onClick={() => setTag.mutate({ tagID: tg.id, on: false })}
-                className="rounded-full p-1 hover:bg-blue-100"
+                className="rounded-full p-1 hover:bg-canvas"
               >
                 <X aria-hidden className="size-3.5" />
               </button>

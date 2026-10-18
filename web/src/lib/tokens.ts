@@ -20,6 +20,12 @@ export const tokens = {
     danger: "#b4412f",
     "danger-soft": "#f6ddd7",
     focus: "#4e4390",
+    well: "#1c1b18",
+    "well-ink": "#e8e2d6",
+    "well-muted": "#a39b8d",
+    "well-sage": "#9fd0ae",
+    "well-amber": "#f0c777",
+    "well-danger": "#f4a798",
   },
   dark: {
     canvas: "#121110",
@@ -39,6 +45,12 @@ export const tokens = {
     danger: "#f09a8a",
     "danger-soft": "#3a211c",
     focus: "#cbc3f2",
+    well: "#0b0a09",
+    "well-ink": "#e8e2d6",
+    "well-muted": "#a39b8d",
+    "well-sage": "#9fd0ae",
+    "well-amber": "#f0c777",
+    "well-danger": "#f4a798",
   },
 } as const;
 
