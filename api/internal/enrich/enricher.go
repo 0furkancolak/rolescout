@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -35,8 +36,18 @@ type Enricher struct {
 	Now            func() time.Time
 	Logger         *slog.Logger
 	ResolveCountry func(place string) string
+	// ExplainMinScore turns on match explanations for matches at or above it;
+	// 0 leaves them off. The Repo must also implement ExplanationRepository.
+	ExplainMinScore int
 
 	warned atomic.Bool
+}
+
+// ExplanationRepository is the optional second queue: short reasons for strong
+// matches.
+type ExplanationRepository interface {
+	ExplanationQueue(ctx context.Context, model string, promptVersion, minScore, limit int) ([]domain.ExplanationTask, error)
+	SaveExplanation(ctx context.Context, workspaceID, profileID, jobID, descriptionHash, model string, promptVersion int, text string) error
 }
 
 // Result describes one Tick.
@@ -47,6 +58,8 @@ type Result struct {
 	Skipped bool
 	// Degraded is true when the fallback model did the work.
 	Degraded bool
+	// Explained counts match explanations written.
+	Explained int
 }
 
 func (e *Enricher) now() time.Time {
@@ -81,7 +94,14 @@ func (e *Enricher) Tick(ctx context.Context) (Result, error) {
 	}
 
 	tasks, err := e.Repo.Next(ctx, model, llm.PromptVersion, llm.SchemaVersion, e.Batch, e.now())
-	if err != nil || len(tasks) == 0 {
+	if err != nil {
+		return res, err
+	}
+	if len(tasks) == 0 {
+		// Nothing to read: spend the tick on explanations, with the main model only.
+		if !res.Degraded {
+			res.Explained, err = e.explain(ctx, model)
+		}
 		return res, err
 	}
 
@@ -120,8 +140,13 @@ loop:
 		}(task)
 	}
 	wg.Wait()
-	if res.Enriched+res.Failed > 0 {
-		e.log().Info("enrichment batch", "model", model, "enriched", res.Enriched, "failed", res.Failed, "degraded", res.Degraded)
+	if ctx.Err() == nil && !res.Degraded && e.Breaker.Allow() {
+		if n, xerr := e.explain(ctx, model); xerr == nil {
+			res.Explained = n
+		}
+	}
+	if res.Enriched+res.Failed+res.Explained > 0 {
+		e.log().Info("enrichment batch", "model", model, "enriched", res.Enriched, "failed", res.Failed, "explained", res.Explained, "degraded", res.Degraded)
 	}
 	return res, ctx.Err()
 }
@@ -161,6 +186,63 @@ func (e *Enricher) one(ctx context.Context, model string, task domain.Enrichment
 	default:
 		return false, e.store(ctx, withError(base, "invalid output"))
 	}
+}
+
+// explain writes up to Batch match explanations. Transport trouble feeds the
+// breaker; an answer that fails grounding is recorded empty and not retried.
+func (e *Enricher) explain(ctx context.Context, model string) (int, error) {
+	xr, ok := e.Repo.(ExplanationRepository)
+	if !ok || e.ExplainMinScore <= 0 {
+		return 0, nil
+	}
+	tasks, err := xr.ExplanationQueue(ctx, model, llm.ExplainPromptVersion, e.ExplainMinScore, e.Batch)
+	if err != nil {
+		return 0, err
+	}
+	done := 0
+	for _, t := range tasks {
+		if ctx.Err() != nil || e.Breaker.Open() {
+			break
+		}
+		text, err := llm.Explain(ctx, e.LLM, llm.JobFacts{
+			Title: t.Title, Company: t.CompanyName, Score: t.Score, Reasons: reasonFacts(t.Reasons),
+			Technologies: t.Technologies, MatchedTechnologies: t.MatchedTechnologies,
+			Seniority: t.Seniority, Arrangement: t.Arrangement, Country: t.Country, Language: t.Locale,
+		})
+		switch {
+		case err == nil:
+			done++
+		case errors.Is(err, context.Canceled):
+			return done, nil
+		case errors.Is(err, llm.ErrUnavailable), errors.Is(err, llm.ErrTimeout):
+			e.fail(false)
+			continue
+		default:
+			text = "" // ungrounded or malformed: remember the attempt, show nothing
+		}
+		if err := xr.SaveExplanation(ctx, t.WorkspaceID, t.ProfileID, t.JobID, t.DescriptionHash, model, llm.ExplainPromptVersion, text); err != nil && ctx.Err() == nil {
+			e.log().Error("save explanation", "job", t.JobID, "error", err)
+		}
+	}
+	return done, nil
+}
+
+// reasonFacts words match reasons for the prompt as "code: key value".
+func reasonFacts(reasons []domain.MatchReason) []string {
+	out := make([]string, 0, len(reasons))
+	for _, r := range reasons {
+		s := r.Code
+		keys := make([]string, 0, len(r.Params))
+		for k := range r.Params {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			s += " " + k + "=" + r.Params[k]
+		}
+		out = append(out, s)
+	}
+	return out
 }
 
 func withError(r domain.EnrichmentResult, msg string) domain.EnrichmentResult {

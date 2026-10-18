@@ -46,7 +46,7 @@ func (q *sqlQuery) whereSQL() string {
 // "company"), so facets can count a dimension without its own filter. It
 // returns the FROM clause (jobs j, joined with the profile's matches as m).
 func jobConditions(q *sqlQuery, f JobFilter, skip string) string {
-	from := "jobs j"
+	from := "jobs j" + aiJoin
 	if f.ProfileID != "" {
 		from += " JOIN research_matches m ON m.job_id = j.id AND m.profile_id = " + q.arg(f.ProfileID)
 	}
@@ -60,22 +60,22 @@ func jobConditions(q *sqlQuery, f JobFilter, skip string) string {
 		q.cond("j.search @@ websearch_to_tsquery('simple', %s)", s)
 	}
 	if f.WorkArrangement != "" && skip != "arrangement" {
-		q.cond("j.work_arrangement = %s", f.WorkArrangement)
+		q.cond(effArrangement+" = %s", f.WorkArrangement)
 	}
 	if f.EmploymentType != "" {
 		q.cond("j.employment_type = %s", f.EmploymentType)
 	}
 	if f.Seniority != "" && skip != "seniority" {
-		q.cond("j.seniority = %s", f.Seniority)
+		q.cond(effSeniority+" = %s", f.Seniority)
 	}
 	if len(f.Technologies) > 0 && skip != "technology" {
-		q.cond("j.technologies @> %s::text[]", normalizeTechnologies(f.Technologies))
+		q.cond(effTechnologies+" @> %s::text[]", normalizeTechnologies(f.Technologies))
 	}
 	if f.PostedWithin > 0 && skip != "posted" {
 		q.cond("j.first_seen_at >= NOW() - make_interval(secs => %s)", f.PostedWithin.Seconds())
 	}
 	if len(f.Countries) > 0 && skip != "country" {
-		q.cond("j.country_code = ANY(%s::text[])", f.Countries)
+		q.cond(effCountry+" = ANY(%s::text[])", f.Countries)
 	}
 	if len(f.CompanyIDs) > 0 && skip != "company" {
 		q.cond("j.company_id = ANY(%s::uuid[])", f.CompanyIDs)
@@ -115,7 +115,7 @@ func (r *JobRepository) WorkspaceJobs(ctx context.Context, f JobFilter) ([]domai
 			q.cond("(j.first_seen_at, j.id) < (%s, %s::uuid)", f.After.FirstSeenAt, f.After.ID)
 		}
 	}
-	sql := `SELECT ` + prefixed("j", jobColumns) + `, ` + savedCol + `, ` + matchCols + `
+	sql := `SELECT ` + effectiveJobColumns() + `, ` + savedCol + `, ` + matchCols + `
 		FROM ` + from + ` WHERE ` + q.whereSQL() + ` ORDER BY ` + order +
 		` LIMIT ` + q.arg(f.Limit+1) + offset
 	rows, err := r.pool.Query(ctx, sql, q.args...)
@@ -209,9 +209,9 @@ func (r *JobRepository) Facets(ctx context.Context, f JobFilter) (Facets, error)
 		skip, column string
 		into         map[string]int
 	}{
-		{"arrangement", "j.work_arrangement", fc.Arrangement},
-		{"seniority", "j.seniority", fc.Seniority},
-		{"country", "j.country_code", fc.Country},
+		{"arrangement", effArrangement, fc.Arrangement},
+		{"seniority", effSeniority, fc.Seniority},
+		{"country", effCountry, fc.Country},
 	} {
 		var q sqlQuery
 		from := jobConditions(&q, f, dim.skip)
@@ -234,7 +234,7 @@ func (r *JobRepository) Facets(ctx context.Context, f JobFilter) (Facets, error)
 
 	var err error
 	if fc.Technologies, err = r.topFacet(ctx, f, "technology",
-		`SELECT t, t, count(*)::int FROM %s CROSS JOIN LATERAL unnest(j.technologies) AS t WHERE %s GROUP BY t ORDER BY 3 DESC, 1 LIMIT 20`); err != nil {
+		`SELECT t, t, count(DISTINCT j.id)::int FROM %s CROSS JOIN LATERAL unnest(`+effTechnologies+`) AS t WHERE %s GROUP BY t ORDER BY 3 DESC, 1 LIMIT 20`); err != nil {
 		return fc, err
 	}
 	if fc.Companies, err = r.topFacet(ctx, f, "company",

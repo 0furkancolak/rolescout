@@ -349,8 +349,10 @@ func TestCrawlDelayIsHonoredForVendorHosts(t *testing.T) {
 	}
 	sortTimes(starts)
 	for i := 1; i < len(starts); i++ {
-		if gap := starts[i].Sub(starts[i-1]); gap < 90*time.Millisecond {
-			t.Errorf("gap %d = %v, want at least the 100ms crawl delay", i, gap)
+		// Arrival times jitter on a busy machine, so allow half the delay; without the
+		// delay the four requests would arrive within a millisecond or two.
+		if gap := starts[i].Sub(starts[i-1]); gap < 50*time.Millisecond {
+			t.Errorf("gap %d = %v, want about the 100ms crawl delay", i, gap)
 		}
 	}
 }

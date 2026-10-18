@@ -56,3 +56,22 @@ type MatchExplanation struct {
 	JobID string
 	Text  string
 }
+
+// ExplanationTask is a strong, enriched match that still lacks an explanation.
+type ExplanationTask struct {
+	WorkspaceID         string
+	ProfileID           string
+	JobID               string
+	DescriptionHash     string
+	Title               string
+	CompanyName         string
+	Score               int
+	Reasons             []MatchReason
+	Technologies        []string
+	MatchedTechnologies []string
+	Seniority           string
+	Arrangement         string
+	Country             string
+	// Locale is the workspace owner's language ("tr" or "en").
+	Locale string
+}

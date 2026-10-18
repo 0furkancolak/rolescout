@@ -3,6 +3,8 @@ package database
 import (
 	"context"
 	"encoding/json"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -195,7 +197,7 @@ func (r *EnrichmentRepository) Explanations(ctx context.Context, workspaceID, pr
 SELECT DISTINCT ON (x.job_id) x.job_id, x.text
 FROM match_explanations x
 JOIN jobs j ON j.id = x.job_id AND j.description_hash = x.description_hash
-WHERE x.workspace_id = $1 AND x.profile_id = $2 AND x.job_id = ANY($3)
+WHERE x.workspace_id = $1 AND x.profile_id = $2 AND x.job_id = ANY($3) AND x.text <> ''
 ORDER BY x.job_id, x.created_at DESC`, workspaceID, profileID, jobIDs)
 	if err != nil {
 		return nil, err
@@ -207,6 +209,51 @@ ORDER BY x.job_id, x.created_at DESC`, workspaceID, profileID, jobIDs)
 			return nil, err
 		}
 		out[id] = text
+	}
+	return out, rows.Err()
+}
+
+// ExplanationQueue returns matches scoring at least minScore on jobs the model
+// has read that still lack an explanation for this model and prompt version,
+// best first. An attempt that produced nothing is stored with an empty text, so
+// it is not offered again until the description or the prompt changes.
+func (r *EnrichmentRepository) ExplanationQueue(ctx context.Context, model string, promptVersion, minScore, limit int) ([]domain.ExplanationTask, error) {
+	rows, err := r.pool.Query(ctx, `
+SELECT p.workspace_id, m.profile_id, m.job_id, j.description_hash, j.title, j.company_name, m.score, m.reasons,
+       `+effTechnologiesDistinct+`, p.technologies, `+effSeniority+`, `+effArrangement+`, COALESCE(`+effCountry+`, ''),
+       COALESCE((SELECT u.locale FROM workspace_memberships wm JOIN users u ON u.id = wm.user_id
+                 WHERE wm.workspace_id = p.workspace_id AND wm.role = 'owner' ORDER BY wm.created_at LIMIT 1), 'en')
+FROM research_matches m
+JOIN research_profiles p ON p.id = m.profile_id
+JOIN jobs j ON j.id = m.job_id AND j.closed_at IS NULL
+JOIN job_ai ai ON ai.job_id = j.id
+WHERE m.score >= $1
+  AND NOT EXISTS (SELECT 1 FROM match_explanations x WHERE x.workspace_id = p.workspace_id AND x.profile_id = p.id
+      AND x.job_id = j.id AND x.description_hash = j.description_hash AND x.model = $2 AND x.prompt_version = $3)
+ORDER BY m.score DESC, m.job_id
+LIMIT $4`, minScore, model, promptVersion, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []domain.ExplanationTask
+	for rows.Next() {
+		var t domain.ExplanationTask
+		var reasons []byte
+		var profileTech []string
+		if err := rows.Scan(&t.WorkspaceID, &t.ProfileID, &t.JobID, &t.DescriptionHash, &t.Title, &t.CompanyName, &t.Score, &reasons,
+			&t.Technologies, &profileTech, &t.Seniority, &t.Arrangement, &t.Country, &t.Locale); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(reasons, &t.Reasons); err != nil {
+			return nil, err
+		}
+		for _, tech := range profileTech {
+			if slices.Contains(t.Technologies, strings.ToLower(tech)) {
+				t.MatchedTechnologies = append(t.MatchedTechnologies, strings.ToLower(tech))
+			}
+		}
+		out = append(out, t)
 	}
 	return out, rows.Err()
 }

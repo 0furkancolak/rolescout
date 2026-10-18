@@ -129,3 +129,29 @@ func TestScoreNeverExceeds100(t *testing.T) {
 		t.Errorf("perfect score = %d, want 100", score)
 	}
 }
+
+// Technologies found by the local model reach the score through the job's
+// effective technology list. That can only add up to the technology weight,
+// never more, never beyond 100, and without them the score is the old one.
+func TestEnrichedTechnologiesRaiseTheScoreByAtMostTheTechnologyWeight(t *testing.T) {
+	p := defaultProfile()
+	rules := job("Full Stack Engineer", "remote", "react")
+	enriched := job("Full Stack Engineer", "remote", "react", "typescript", "node.js", "javascript", "postgresql", "rust", "docker")
+
+	base, _, _ := Score(p, rules, now)
+	raised, reasons, _ := Score(p, enriched, now)
+	if raised <= base {
+		t.Fatalf("more matching technologies must raise the score: %d vs %d", raised, base)
+	}
+	if raised-base > techWeight {
+		t.Fatalf("raised by %d, more than the technology weight %d", raised-base, techWeight)
+	}
+	if raised > 100 || codes(reasons)["tech"].Params["matched"] != "5" {
+		t.Fatalf("score %d reasons %+v", raised, reasons)
+	}
+	// A job with no extra technologies scores exactly as before.
+	same, _, _ := Score(p, job("Full Stack Engineer", "remote", "react"), now)
+	if same != base {
+		t.Fatalf("unchanged job scored %d, want %d", same, base)
+	}
+}

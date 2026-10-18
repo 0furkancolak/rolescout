@@ -21,6 +21,10 @@ const jsonLDProbeLinks = 3
 // Detector identifies the job board behind a career page.
 type Detector struct {
 	Client *crawl.Client
+	// Classifier, when set, is asked to pick a link on a page the rules could
+	// not place. It is nil in the research pipeline (a run must never wait for
+	// a model); it exists for a background re-detection pass.
+	Classifier Classifier
 }
 
 // Detection is what a career page turned out to be. Board.ATS is "unknown"
@@ -98,6 +102,19 @@ func (d *Detector) detect(ctx context.Context, careersURL string, followCareersL
 			return next, nil
 		}
 	}
+	// The rules found nothing. A classifier may still recognise the link to the
+	// job listings; its pick is fetched like any other page and has to detect as
+	// a known board or JSON-LD, so a wrong pick costs one request and nothing else.
+	if followCareersLink && d.Classifier != nil && len(page.anchors) > 0 {
+		if i, ok, err := d.Classifier.PickLink(ctx, det.Name, page.anchors); err == nil && ok && i >= 0 && i < len(page.anchors) {
+			if next, err := d.detect(ctx, page.anchors[i].URL, false); err == nil && next.Board.ATS != "unknown" {
+				if next.Name == "" {
+					next.Name = det.Name
+				}
+				return next, nil
+			}
+		}
+	}
 	return det, nil
 }
 
@@ -108,6 +125,8 @@ type pageInfo struct {
 	boards []Board
 	// careerLinks are same-site links that look like a careers page.
 	careerLinks []string
+	// anchors are the other same-site links, in page order, for a classifier.
+	anchors []LinkCandidate
 }
 
 // scanPage collects board URLs from script, iframe, link and anchor
@@ -146,6 +165,12 @@ func scanPage(body []byte, pageURL string) pageInfo {
 						(careersText.MatchString(u.Path) || careersText.MatchString(text(n))) {
 						u.Fragment = ""
 						info.careerLinks = append(info.careerLinks, u.String())
+					} else if n.Data == "a" && strings.EqualFold(u.Host, base.Host) && u.Path != base.Path &&
+						(u.Scheme == "http" || u.Scheme == "https") && len(info.anchors) < maxClassifierCandidates {
+						u.Fragment = ""
+						if label := strings.Join(strings.Fields(text(n)), " "); label != "" {
+							info.anchors = append(info.anchors, LinkCandidate{URL: u.String(), Text: label})
+						}
 					}
 				}
 			}

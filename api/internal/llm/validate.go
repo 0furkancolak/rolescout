@@ -158,7 +158,7 @@ func validateSalary(e Enrichment, text string, d *Dropped) (min, max *int, curre
 		d.Salary = true
 		return nil, nil, "", "unknown"
 	}
-	currency = strings.ToUpper(strings.TrimSpace(e.SalaryCurrency))
+	currency = normalizeCurrency(e.SalaryCurrency)
 	if !currencyPattern.MatchString(currency) || e.SalaryPeriod == "unknown" {
 		return drop()
 	}
@@ -190,4 +190,19 @@ func cleanLanguages(in []string) []string {
 		}
 	}
 	return out
+}
+
+// currencyAliases maps symbols and common local names to ISO 4217 codes.
+var currencyAliases = map[string]string{
+	"$": "USD", "US$": "USD", "USD$": "USD", "€": "EUR", "£": "GBP", "¥": "JPY", "₺": "TRY", "TL": "TRY",
+	"TÜRK LİRASI": "TRY", "TURKISH LIRA": "TRY", "DOLLAR": "USD", "DOLLARS": "USD", "EURO": "EUR", "EUROS": "EUR",
+	"POUND": "GBP", "POUNDS": "GBP", "CHF": "CHF", "₹": "INR",
+}
+
+func normalizeCurrency(raw string) string {
+	c := strings.ToUpper(strings.TrimSpace(raw))
+	if iso, ok := currencyAliases[c]; ok {
+		return iso
+	}
+	return c
 }

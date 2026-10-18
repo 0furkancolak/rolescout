@@ -257,3 +257,74 @@ func TestLoopStopsOnCancel(t *testing.T) {
 		t.Fatal("Loop did not stop")
 	}
 }
+
+type fakeExplainRepo struct {
+	fakeRepo
+	explainQueue []domain.ExplanationTask
+	explained    []string
+	gotModel     string
+	gotMin       int
+}
+
+func (f *fakeExplainRepo) ExplanationQueue(_ context.Context, model string, _ int, minScore, limit int) ([]domain.ExplanationTask, error) {
+	f.gotModel, f.gotMin = model, minScore
+	n := min(limit, len(f.explainQueue))
+	out := append([]domain.ExplanationTask(nil), f.explainQueue[:n]...)
+	f.explainQueue = f.explainQueue[n:]
+	return out, nil
+}
+
+func (f *fakeExplainRepo) SaveExplanation(_ context.Context, ws, profile, job, hash, model string, _ int, text string) error {
+	f.explained = append(f.explained, job+"|"+ws+"|"+profile+"|"+hash+"|"+model+"|"+text)
+	return nil
+}
+
+func explainTasks(n int) []domain.ExplanationTask {
+	out := make([]domain.ExplanationTask, n)
+	for i := range out {
+		out[i] = domain.ExplanationTask{WorkspaceID: "ws", ProfileID: "p", JobID: fmt.Sprintf("job-%d", i), DescriptionHash: "h", Title: "Engineer", CompanyName: "Acme",
+			Score: 80, Technologies: []string{"go"}, MatchedTechnologies: []string{"go"}, Locale: "en", Reasons: []domain.MatchReason{{Code: "remote"}}}
+	}
+	return out
+}
+
+func TestExplanationsFollowEnrichmentForStrongMatches(t *testing.T) {
+	h := newHarness(t, func(e *Enricher) { e.Batch = 2; e.ExplainMinScore = 70 })
+	repo := &fakeExplainRepo{explainQueue: explainTasks(5)}
+	h.e.Repo = repo
+	h.srv.Script(llmtest.Scripted{Content: `{"explanation":"A remote Go role that fits your search."}`})
+	res, err := h.e.Tick(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Explained != 2 || len(repo.explained) != 2 || repo.gotMin != 70 || repo.gotModel != "primary" {
+		t.Fatalf("result %+v explained %v min %d model %q", res, repo.explained, repo.gotMin, repo.gotModel)
+	}
+	if !strings.Contains(repo.explained[0], "job-0|ws|p|h|primary|A remote Go role") {
+		t.Fatalf("explained[0] = %s", repo.explained[0])
+	}
+}
+
+func TestExplanationsAreSkippedWhileDegradedAndOnInvalidText(t *testing.T) {
+	h := newHarness(t, func(e *Enricher) { e.FallbackModel = "tiny"; e.ExplainMinScore = 70 })
+	repo := &fakeExplainRepo{explainQueue: explainTasks(2)}
+	h.e.Repo = repo
+	for i := 0; i < 3; i++ {
+		h.e.Breaker.Failure()
+	}
+	h.e.Tick(context.Background())
+	if len(repo.explained) != 0 || h.srv.Chats() != 0 {
+		t.Fatalf("degraded mode must not write explanations (chats %d, explained %v)", h.srv.Chats(), repo.explained)
+	}
+
+	h2 := newHarness(t, func(e *Enricher) { e.ExplainMinScore = 70 })
+	repo2 := &fakeExplainRepo{explainQueue: explainTasks(1)}
+	h2.e.Repo = repo2
+	h2.srv.Script(llmtest.Scripted{Content: `{"explanation":"It uses Rust and 400 engineers."}`})
+	res, _ := h2.e.Tick(context.Background())
+	// The attempt is recorded with an empty text, so the same match is not tried
+	// again on every tick; nothing readable is stored.
+	if res.Explained != 0 || len(repo2.explained) != 1 || !strings.HasSuffix(repo2.explained[0], "|") {
+		t.Fatalf("an ungrounded explanation was stored: %+v %v", res, repo2.explained)
+	}
+}

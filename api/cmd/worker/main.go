@@ -87,9 +87,10 @@ func run() error {
 			Model: cfg.LLM.Model, FallbackModel: cfg.LLM.FallbackModel,
 			Concurrency: cfg.LLM.Concurrency, Batch: cfg.LLM.Batch,
 			MaxChars: cfg.LLM.MaxInputChars, MaxTokens: cfg.LLM.MaxOutputTokens,
-			Breaker:        enrich.NewBreaker(3, 10*time.Minute, nil),
-			Logger:         logger,
-			ResolveCountry: ingest.InferCountry,
+			Breaker:         enrich.NewBreaker(3, 10*time.Minute, nil),
+			Logger:          logger,
+			ResolveCountry:  ingest.InferCountry,
+			ExplainMinScore: 70,
 		}
 		logger.Info("local model enrichment on", "model", cfg.LLM.Model, "fallback", cfg.LLM.FallbackModel,
 			"host", hostOf(cfg.LLM.BaseURL), "concurrency", cfg.LLM.Concurrency, "batch", cfg.LLM.Batch)

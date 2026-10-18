@@ -219,7 +219,7 @@ func (r *JobRepository) CloseFailedSources(ctx context.Context, failingSince tim
 }
 
 func (r *JobRepository) GetJob(ctx context.Context, id string) (domain.Job, error) {
-	j, err := scanJob(r.pool.QueryRow(ctx, `SELECT `+jobColumns+` FROM jobs WHERE id = $1`, id))
+	j, err := scanJob(r.pool.QueryRow(ctx, `SELECT `+effectiveJobColumns()+` FROM jobs j`+aiJoin+` WHERE j.id = $1`, id))
 	return j, translate(err, "get job")
 }
 
@@ -383,7 +383,7 @@ func prefixed(alias, columns string) string {
 // blocked the company of.
 func (r *JobRepository) OpenJobsForScoring(ctx context.Context, workspaceID string, fn func(domain.Job) error) error {
 	rows, err := r.pool.Query(ctx, `
-		SELECT `+jobColumns+` FROM jobs j
+		SELECT `+effectiveJobColumns()+` FROM jobs j`+aiJoin+`
 		WHERE j.closed_at IS NULL
 		  AND NOT EXISTS (SELECT 1 FROM workspace_company_blocks b
 		                  WHERE b.workspace_id = $1 AND b.company_id = j.company_id)`, workspaceID)

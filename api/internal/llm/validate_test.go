@@ -95,7 +95,10 @@ func TestValidateSalary(t *testing.T) {
 		{"min above max", Enrichment{SalaryMin: ip(120000), SalaryMax: ip(100000), SalaryCurrency: "USD", SalaryPeriod: "year"}, "$120,000 and $100,000", nil, nil, ""},
 		{"implausible hourly", Enrichment{SalaryMin: ip(90000), SalaryCurrency: "USD", SalaryPeriod: "hour"}, "90,000", nil, nil, ""},
 		{"unknown period", Enrichment{SalaryMin: ip(90000), SalaryCurrency: "USD", SalaryPeriod: "unknown"}, "90,000", nil, nil, ""},
-		{"bad currency", Enrichment{SalaryMin: ip(90000), SalaryCurrency: "dollars", SalaryPeriod: "year"}, "90,000", nil, nil, ""},
+		{"currency symbol and name", Enrichment{SalaryMin: ip(120000), SalaryMax: ip(160000), SalaryCurrency: "TL", SalaryPeriod: "month"}, "Maaş 120.000 - 160.000 TL", ip(120000), ip(160000), "TRY"},
+		{"euro sign", Enrichment{SalaryMin: ip(90000), SalaryCurrency: "€", SalaryPeriod: "year"}, "from €90,000", ip(90000), nil, "EUR"},
+		{"dollar sign", Enrichment{SalaryMin: ip(100000), SalaryCurrency: "$", SalaryPeriod: "year"}, "$100,000", ip(100000), nil, "USD"},
+		{"bad currency", Enrichment{SalaryMin: ip(90000), SalaryCurrency: "moneys", SalaryPeriod: "year"}, "90,000", nil, nil, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got, d := validate(tc.in, "t", tc.desc)
