@@ -115,3 +115,13 @@ type WorkspaceJob struct {
 	Saved bool
 	Match *Match
 }
+
+// Activity is a zero-filled daily series for the dashboard; index i of every
+// slice belongs to Days[i] (UTC dates, oldest first).
+type Activity struct {
+	Days                []string
+	NewMatches          []int
+	JobsCollected       []int
+	ApplicationsCreated []int
+	UpcomingInterviews  int
+}

@@ -62,6 +62,7 @@ type Deps struct {
 	Annotations    AnnotationStore
 	Research       ResearchStore
 	Companies      CompanyCatalog
+	Activity       ActivityStore
 	// CrawlSettings are shown read-only to administrators.
 	CrawlSettings []Setting
 	Workspaces    WorkspaceAuthorizer
@@ -133,6 +134,7 @@ func RegisterAPIRoutes(app *fiber.App, d Deps) {
 	ws.Delete("/research-profiles/:profileID", h.deleteProfile)
 	ws.Post("/research-profiles/:profileID/runs", h.startRun)
 	ws.Get("/research-runs", h.listRuns)
+	ws.Get("/activity", h.getActivity)
 	ws.Get("/research-runs/:runID", h.getRun)
 	ws.Get("/research-runs/:runID/events", h.listRunEvents)
 	ws.Post("/research-runs/:runID/cancel", h.cancelRun)

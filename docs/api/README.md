@@ -89,6 +89,7 @@ defined in `api/internal/domain/rules.go` and documented on the
   `result`. `GET .../research-runs/{id}` returns each stage's state and
   counts; poll it (the web app polls every 2 seconds) and read new log lines
   with `GET .../research-runs/{id}/events?after=<last id>`.
+- `GET .../activity?days=14` returns the dashboard's zero-filled daily series (`days`, `new_matches`, `jobs_collected`, `applications_created`) and `upcoming_interviews`.
 - `POST .../research-runs/{id}/cancel` cancels a queued run at once and stops
   a running one at its next progress report.
 - The company catalog is shared by all workspaces. `GET

@@ -83,6 +83,7 @@ func run() error {
 		Annotations:    database.NewAnnotationRepository(pool),
 		Research:       database.NewResearchRepository(pool),
 		Companies:      database.NewCompanyRepository(pool),
+		Activity:       database.NewActivityRepository(pool),
 		CrawlSettings:  crawlSettings(cfg.Crawl),
 		Workspaces:     httptransport.MembershipAuthorizer{Workspaces: workspaces},
 	})

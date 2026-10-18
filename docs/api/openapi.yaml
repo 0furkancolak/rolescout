@@ -1030,6 +1030,41 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/ResearchRun" }
         "422": { $ref: "#/components/responses/InvalidInput" }
+  /api/v1/workspaces/{workspaceID}/activity:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+    get:
+      tags: [research]
+      summary: Daily activity series for the dashboard
+      description: >
+        Zero-filled UTC days, oldest first; index i of every array belongs to
+        days[i]. Matches and applications are the workspace's; jobs are the
+        shared catalog (new jobs that are still open).
+      operationId: getActivity
+      parameters:
+        - name: days
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 90, default: 14 }
+      responses:
+        "200":
+          description: Series.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [days, new_matches, jobs_collected, applications_created, upcoming_interviews]
+                    properties:
+                      days: { type: array, items: { type: string, format: date } }
+                      new_matches: { type: array, items: { type: integer } }
+                      jobs_collected: { type: array, items: { type: integer } }
+                      applications_created: { type: array, items: { type: integer } }
+                      upcoming_interviews: { type: integer }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
   /api/v1/workspaces/{workspaceID}/research-runs/{runID}:
     parameters:
       - $ref: "#/components/parameters/WorkspaceID"
