@@ -1,6 +1,7 @@
 import { Search, SlidersHorizontal } from "lucide-react";
 import { useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { Segmented } from "../../components/Segmented";
 import { Button, EmptyState, ErrorState, PageTitle, Spinner } from "../../components/ui";
 import { buttonClass, inputClass } from "../../components/styles";
 import type { WorkspaceJob } from "../../lib/api";
@@ -9,6 +10,7 @@ import { useProfiles } from "../research/api";
 import { useWorkspace } from "../workspaces/context";
 import { useFacets, useJob, useSaveFromBrowser, useWorkspaceJobs } from "./api";
 import { FacetPanel } from "./FacetPanel";
+import { FilterChips } from "./FilterChips";
 import { JobDetailPane } from "./JobDetailPane";
 import { JobList } from "./JobList";
 import { effectiveSearch, readJobSearch, writeJobSearch, type JobSearch, type Sort } from "./searchParams";
@@ -74,7 +76,7 @@ export function JobsPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <PageTitle>{t("browse.title")}</PageTitle>
-        <p className="text-sm text-slate-500">{t("browse.keyboardHint")}</p>
+        <p className="text-sm text-ink-muted">{t("browse.keyboardHint")}</p>
       </div>
 
       <form role="search" onSubmit={onSubmit} className="flex flex-col gap-2 sm:flex-row">
@@ -89,7 +91,7 @@ export function JobsPage() {
           maxLength={200}
           placeholder={t("browse.searchPlaceholder")}
           onChange={(e) => setText(e.target.value)}
-          className={`${inputClass} flex-1`}
+          className={`${inputClass} flex-1 rounded-full! px-5!`}
         />
         <Button type="submit">
           <Search aria-hidden className="size-4" />
@@ -97,13 +99,19 @@ export function JobsPage() {
         </Button>
       </form>
 
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <label className="inline-flex items-center gap-2 text-slate-600">
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <Segmented
+          label={t("browse.sort")}
+          value={search.sort}
+          options={sorts.map((s) => ({ value: s, label: t(`browse.sort.${s}`) }))}
+          onChange={(s) => update({ sort: s, job: "" })}
+        />
+        <label className="inline-flex items-center gap-2 text-ink-muted">
           {t("browse.profile")}
           <select
             value={search.profile || "all"}
             onChange={(e) => update({ profile: e.target.value, sort: "", job: "" })}
-            className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-slate-900"
+            className="min-h-10 rounded-control border border-line-strong bg-surface px-2 py-1.5 text-ink"
           >
             {profiles.data?.map((p) => (
               <option key={p.id} value={p.id}>
@@ -111,20 +119,6 @@ export function JobsPage() {
               </option>
             ))}
             <option value="all">{t("browse.allJobs")}</option>
-          </select>
-        </label>
-        <label className="inline-flex items-center gap-2 text-slate-600">
-          {t("browse.sort")}
-          <select
-            value={search.sort}
-            onChange={(e) => update({ sort: e.target.value as Sort, job: "" })}
-            className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-slate-900"
-          >
-            {sorts.map((s) => (
-              <option key={s} value={s}>
-                {t(`browse.sort.${s}`)}
-              </option>
-            ))}
           </select>
         </label>
         <button
@@ -146,9 +140,11 @@ export function JobsPage() {
         )}
       </div>
 
+      <FilterChips search={raw} facets={facets.data} onChange={(c) => update({ ...c, job: "" })} />
+
       <div className="grid gap-4 lg:grid-cols-[15rem_minmax(0,1fr)_minmax(0,1.3fr)]">
         <aside aria-label={t("browse.filters")} className={`${filtersOpen ? "block" : "hidden"} lg:block`}>
-          <div className="rounded-xl border border-slate-200 bg-white p-4 lg:sticky lg:top-6">
+          <div className="rounded-card bg-surface p-4 shadow-card lg:sticky lg:top-6">
             <FacetPanel search={raw} facets={facets.data} onChange={(c) => update({ ...c, job: "" })} />
           </div>
         </aside>
@@ -184,7 +180,7 @@ export function JobsPage() {
               <JobDetailPane job={selected} onBack={() => update({ job: "" }, true)} />
             </div>
           ) : (
-            <p className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">
+            <p className="rounded-hero border border-dashed border-line-strong p-8 text-center text-sm text-ink-muted">
               {t("browse.selectJob")}
             </p>
           )}

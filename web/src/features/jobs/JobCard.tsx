@@ -14,7 +14,7 @@ export function JobMeta({ job }: { job: Job }) {
       {job.employment_type !== "unknown" && <Chip>{enumLabel(t, "employment", job.employment_type)}</Chip>}
       {job.seniority !== "unknown" && <Chip>{enumLabel(t, "seniority", job.seniority)}</Chip>}
       {job.technologies.map((tech) => (
-        <span key={tech} className="inline-flex rounded-md bg-blue-50 px-2 py-0.5 text-xs text-blue-800">
+        <span key={tech} className="inline-flex rounded-full bg-lavender px-2.5 py-0.5 text-xs text-ink">
           {tech}
         </span>
       ))}
@@ -25,13 +25,13 @@ export function JobMeta({ job }: { job: Job }) {
 export function JobCard({ job, footer }: { job: Job; footer?: ReactNode }) {
   const { t } = useI18n();
   return (
-    <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow">
-      <h2 className="text-base font-semibold text-slate-900">
-        <Link to={`/jobs?job=${job.id}`} className="hover:text-blue-700 hover:underline">
+    <article className="rounded-card bg-surface p-4 shadow-card transition-shadow hover:shadow-raised">
+      <h2 className="text-base font-semibold text-ink">
+        <Link to={`/jobs?job=${job.id}`} className="hover:underline">
           {job.title}
         </Link>
       </h2>
-      <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
+      <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-ink-muted">
         <span className="inline-flex items-center gap-1">
           <Building2 aria-hidden className="size-4" />
           {job.company_name}
@@ -51,5 +51,5 @@ export function JobCard({ job, footer }: { job: Job; footer?: ReactNode }) {
 
 function JobSeen({ job }: { job: Job }) {
   const { t, formatDate } = useI18n();
-  return <p className="mt-3 text-xs text-slate-500">{t("jobs.lastSeen", { date: formatDate(job.last_seen_at) })}</p>;
+  return <p className="mt-3 text-xs text-ink-muted">{t("jobs.lastSeen", { date: formatDate(job.last_seen_at) })}</p>;
 }

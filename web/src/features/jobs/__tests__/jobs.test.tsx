@@ -55,13 +55,65 @@ describe("JobsPage", () => {
     const { router } = renderApp("/jobs");
     await userEvent.click(await screen.findByRole("checkbox", { name: /react/ }));
     await vi.waitFor(() => expect(router.state.location.search).toContain("technology=react"));
-    await userEvent.click(screen.getByRole("radio", { name: /Remote/ }));
+    await userEvent.click(screen.getByRole("button", { name: /^Remote/ }));
     await vi.waitFor(() => expect(router.state.location.search).toContain("arrangement=remote"));
     const last = api.calls.filter((c) => c.path === `${base}/jobs`).at(-1)!;
     expect(last.search.getAll("technology")).toEqual(["react"]);
     expect(last.search.get("arrangement")).toBe("remote");
     await userEvent.click(screen.getByRole("button", { name: "Clear filters" }));
     await vi.waitFor(() => expect(router.state.location.search).not.toContain("technology"));
+  });
+
+  it("filters with chips that toggle and read the same URL params", async () => {
+    const api = browse();
+    const { router } = renderApp("/jobs");
+    const week = await screen.findByRole("button", { name: /Last 7 days/ });
+    expect(week).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(week);
+    await vi.waitFor(() => expect(router.state.location.search).toContain("posted=7d"));
+    expect(screen.getByRole("button", { name: /Last 7 days/ })).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(screen.getByRole("button", { name: /^Senior/ }));
+    await vi.waitFor(() => expect(router.state.location.search).toContain("seniority=senior"));
+    const last = api.calls.filter((c) => c.path === `${base}/jobs`).at(-1)!;
+    expect(last.search.get("posted")).toBe("7d");
+    expect(last.search.get("seniority")).toBe("senior");
+    // Pressing a pressed chip clears it.
+    await userEvent.click(screen.getByRole("button", { name: /Last 7 days/ }));
+    await vi.waitFor(() => expect(router.state.location.search).not.toContain("posted"));
+  });
+
+  it("sorts with a segmented control that works from the keyboard", async () => {
+    const api = browse();
+    const { router } = renderApp("/jobs");
+    const best = await screen.findByRole("radio", { name: "Best match" });
+    expect(best).toBeChecked();
+    best.focus();
+    await userEvent.keyboard("{ArrowRight}");
+    await vi.waitFor(() => expect(router.state.location.search).toContain("sort=recent"));
+    expect(screen.getByRole("radio", { name: "Newest" })).toBeChecked();
+    expect(api.calls.filter((c) => c.path === `${base}/jobs`).at(-1)!.search.get("sort")).toBe("recent");
+  });
+
+  it("shows a score ring only for rows that have a match", async () => {
+    browse({
+      [`GET ${base}/jobs`]: { body: { data: [matched(1), makeWorkspaceJob(5, { title: "Plain Engineer 5", match: null })], next_cursor: null } },
+    });
+    renderApp("/jobs");
+    const withMatch = await screen.findByRole("button", { name: /Full Stack Engineer 1/ });
+    expect(within(withMatch).getByRole("img", { name: "Match score 89 of 100" })).toBeInTheDocument();
+    const plain = screen.getByRole("button", { name: /Plain Engineer 5/ });
+    expect(within(plain).queryByRole("img")).toBeNull();
+  });
+
+  it("marks the selected row and opens the extra filters on small screens", async () => {
+    browse();
+    renderApp(`/jobs?job=${makeJob(1).id}`);
+    const row = await screen.findByRole("button", { name: /Full Stack Engineer 1/ });
+    expect(row).toHaveAttribute("aria-current", "true");
+    const more = screen.getByRole("button", { name: "Filters" });
+    expect(more).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(more);
+    expect(more).toHaveAttribute("aria-expanded", "true");
   });
 
   it("shows the selected job with reasons, saves it and links to the career page safely", async () => {
@@ -71,6 +123,7 @@ describe("JobsPage", () => {
     const pane = await screen.findByRole("region", { name: "Full Stack Engineer 1" });
     expect(router.state.location.search).toContain(`job=${makeJob(1).id}`);
     expect(within(pane).getByText("3 of your 5 technologies")).toBeInTheDocument();
+    expect(within(pane).getByRole("img", { name: "Match score 89 of 100" })).toBeInTheDocument();
     const link = await within(pane).findByRole("link", { name: /Career page/ });
     expect(link).toHaveAttribute("href", "https://boards.greenhouse.io/acme/jobs/1");
     expect(link).toHaveAttribute("rel", "noopener noreferrer");

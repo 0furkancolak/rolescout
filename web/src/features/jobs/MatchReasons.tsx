@@ -12,8 +12,8 @@ export function MatchReasons({ reasons }: { reasons: MatchReason[] }) {
         const params = { ...r.params };
         if (r.code === "seniority" && params.value) params.value = enumLabel(t, "seniority", params.value);
         return (
-          <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
-            <Check aria-hidden className="mt-0.5 size-4 shrink-0 text-green-700" />
+          <li key={i} className="flex items-start gap-2 text-sm text-ink">
+            <Check aria-hidden className="mt-0.5 size-4 shrink-0 text-sage-deep" />
             {t(`reason.${r.code}`, params)}
           </li>
         );
