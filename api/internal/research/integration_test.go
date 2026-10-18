@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"example.com/rolescout/api/internal/crawl"
 	"example.com/rolescout/api/internal/discovery"
 	"example.com/rolescout/api/internal/domain"
@@ -44,7 +46,17 @@ func (s staticSource) Discover(_ context.Context, state string, fn func(discover
 	return state, nil
 }
 
-func TestPipelineEndToEnd(t *testing.T) {
+// pipelineFixture is a pipeline over a fake internet and a throwaway database.
+type pipelineFixture struct {
+	ctx      context.Context
+	pool     *pgxpool.Pool
+	p        *research.Pipeline
+	runs     *database.ResearchRepository
+	ws       domain.Workspace
+	profiles []domain.ResearchProfile
+}
+
+func newPipelineFixture(t *testing.T) pipelineFixture {
 	admin := os.Getenv(dbtest.EnvVar)
 	if admin == "" {
 		t.Skip("TEST_DATABASE_URL is not set")
@@ -111,6 +123,12 @@ func TestPipelineEndToEnd(t *testing.T) {
 		FlushInterval: 20 * time.Millisecond,
 	}
 
+	return pipelineFixture{ctx: ctx, pool: pool, p: p, runs: runs, ws: ws, profiles: profiles}
+}
+
+func TestPipelineEndToEnd(t *testing.T) {
+	f := newPipelineFixture(t)
+	ctx, p, runs, ws, profiles := f.ctx, f.p, f.runs, f.ws, f.profiles
 	run, err := runs.EnqueueRun(ctx, ws.ID, profiles[0].ID, "manual")
 	if err != nil {
 		t.Fatal(err)

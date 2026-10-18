@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log/slog"
+	"net/url"
 	"os"
 	"os/signal"
 	"sync"
@@ -11,9 +12,11 @@ import (
 
 	"example.com/rolescout/api/internal/config"
 	"example.com/rolescout/api/internal/discovery"
+	"example.com/rolescout/api/internal/enrich"
 	"example.com/rolescout/api/internal/infrastructure/database"
 	"example.com/rolescout/api/internal/ingest"
 	"example.com/rolescout/api/internal/ingest/adapters"
+	"example.com/rolescout/api/internal/llm"
 	"example.com/rolescout/api/internal/research"
 )
 
@@ -76,6 +79,25 @@ func run() error {
 	// runs execute the full pipeline. Both stop when ctx is cancelled.
 	var wg sync.WaitGroup
 	wg.Add(2)
+	if cfg.LLM.Enabled {
+		wg.Add(1)
+		enricher := &enrich.Enricher{
+			Repo:  database.NewEnrichmentRepository(pool),
+			LLM:   llm.NewClient(llm.Options{BaseURL: cfg.LLM.BaseURL, Model: cfg.LLM.Model, APIKey: cfg.LLM.APIKey, Timeout: cfg.LLM.Timeout}),
+			Model: cfg.LLM.Model, FallbackModel: cfg.LLM.FallbackModel,
+			Concurrency: cfg.LLM.Concurrency, Batch: cfg.LLM.Batch,
+			MaxChars: cfg.LLM.MaxInputChars, MaxTokens: cfg.LLM.MaxOutputTokens,
+			Breaker:        enrich.NewBreaker(3, 10*time.Minute, nil),
+			Logger:         logger,
+			ResolveCountry: ingest.InferCountry,
+		}
+		logger.Info("local model enrichment on", "model", cfg.LLM.Model, "fallback", cfg.LLM.FallbackModel,
+			"host", hostOf(cfg.LLM.BaseURL), "concurrency", cfg.LLM.Concurrency, "batch", cfg.LLM.Batch)
+		go func() {
+			defer wg.Done()
+			enricher.Loop(ctx, cfg.WorkerTick)
+		}()
+	}
 	go func() {
 		defer wg.Done()
 		runner.Loop(ctx, cfg.WorkerTick, ingest.RunDueOptions{Concurrency: cfg.Crawl.Concurrency})
@@ -87,6 +109,15 @@ func run() error {
 	wg.Wait()
 	logger.Info("worker stopped")
 	return nil
+}
+
+// hostOf is the host of a URL for logging; the path and key are not logged.
+func hostOf(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return ""
+	}
+	return u.Host
 }
 
 func main() {
