@@ -80,6 +80,8 @@ check "cancel research run" 202 POST "/api/v1/workspaces/$ws/research-runs/$run/
 check "browse matches" 200 GET "/api/v1/workspaces/$ws/jobs?profile=$profile&sort=score&limit=5"
 check "job facets" 200 GET "/api/v1/workspaces/$ws/jobs/facets"
 check "company catalog" 200 GET "/api/v1/workspaces/$ws/companies?limit=5"
+check "activity series" 200 GET "/api/v1/workspaces/$ws/activity?days=7"
+check "activity rejects bad days" 422 GET "/api/v1/workspaces/$ws/activity?days=0"
 check "other workspaces are hidden" 404 GET /api/v1/workspaces/00000000-0000-4000-8000-000000000000/applications
 check "sign out" 204 POST /api/v1/auth/logout
 check "session revoked" 401 GET /api/v1/auth/me

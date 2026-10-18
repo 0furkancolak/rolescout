@@ -142,7 +142,7 @@ export function JobsPage() {
 
       <FilterChips search={raw} facets={facets.data} onChange={(c) => update({ ...c, job: "" })} />
 
-      <div className="grid gap-4 lg:grid-cols-[15rem_minmax(0,1fr)_minmax(0,1.3fr)]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[15rem_minmax(0,1fr)_minmax(0,1.3fr)]">
         <aside aria-label={t("browse.filters")} className={`${filtersOpen ? "block" : "hidden"} lg:block`}>
           <div className="rounded-card bg-surface p-4 shadow-card lg:sticky lg:top-6">
             <FacetPanel search={raw} facets={facets.data} onChange={(c) => update({ ...c, job: "" })} />

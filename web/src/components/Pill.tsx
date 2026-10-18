@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-const base = "inline-flex min-h-6 items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium";
+const base = "inline-flex min-h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium";
 
 type Tone = "neutral" | "sage" | "amber" | "lavender" | "danger";
 

@@ -26,7 +26,7 @@ export function DashboardPage() {
     <div className="space-y-6">
       <PageTitle>{t("dash.title")}</PageTitle>
       <ActivityCards profileID={profile?.id} lastRun={lastRun} />
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
           <LastRunCard profileID={profile?.id} loading={profiles.isPending || runs.isPending} lastRun={lastRun} />
           {profile && <NewMatches profileID={profile.id} />}
@@ -48,7 +48,7 @@ const segmentColor: Record<string, string> = {
 function StageStrip({ run }: { run: ResearchRun }) {
   const { t } = useI18n();
   return (
-    <ol className="mt-5 grid grid-cols-5 gap-2">
+    <ol className="mt-5 grid grid-cols-[repeat(5,minmax(0,1fr))] gap-2">
       {stages.map((s) => {
         const state = run.stages[s]?.state ?? "pending";
         return (

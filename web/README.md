@@ -77,3 +77,14 @@ controls such as inputs must use `line-strong`. Use the utilities
 | ink / ink-muted | `#17171a` / `#625d55` | `#f3eee6` / `#a8a096` |
 | sage, amber, lavender (fills) | `#a9cdb4`, `#f0c777`, `#cbc3f2` | `#2f4a3a`, `#4f3b12`, `#3d3768` |
 | the same, deep (text) | `#35604a`, `#8a5a06`, `#4e4390` | `#9fd0ae`, `#f0c777`, `#cbc3f2` |
+
+## Primitives and adding a screen
+
+Shared building blocks live in `src/components`: `Card`, `Button` and the
+`Field`/`inputClass` helpers (`ui.tsx`, `styles.ts`), `Pill` (status pill or
+filter chip), `Segmented` (pill-shaped single choice with arrow keys),
+`CompanyTile` (initial on a deterministic tint), `ScoreRing`, `Sparkline`,
+`MiniBars` and `StatCard`. A new screen should compose these, use only token
+utilities (`no-raw-colors.test.ts` fails the build otherwise), give every chart
+a text alternative, keep touch targets at least 40 px and work at 375 px with
+no horizontal page scroll (wrap grid columns in `minmax(0, 1fr)`).

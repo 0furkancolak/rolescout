@@ -59,7 +59,7 @@ export function JobDetailPane({ job, onBack }: { job: WorkspaceJob; onBack: () =
         {facts.map(([k, v]) => (
           <div key={k} className="rounded-control bg-canvas px-3 py-2">
             <dt className="text-xs text-ink-muted">{k}</dt>
-            <dd className="truncate text-sm font-medium text-ink">{v}</dd>
+            <dd className="break-words text-sm font-medium text-ink">{v}</dd>
           </div>
         ))}
       </dl>

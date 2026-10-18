@@ -24,6 +24,11 @@ include breaking changes, which are called out.
   job browser with keyboard navigation.
 - Applications kanban board, company catalog with per-workspace hiding,
   dashboard, administrator settings, dark theme.
+- Modern interface: warm light and matching dark theme built on tested design
+  tokens (WCAG contrast checked), floating pill navigation, account menu,
+  company tiles, match-score rings, dashboard stat cards with sparklines
+  (`GET /workspaces/{id}/activity`), quick filter chips and a segmented sort
+  control in the job browser.
 - Closed-job tracking and retention (`CLOSED_JOB_RETENTION`), tiered refresh
   of company sources, `admin adapters`, `admin companies` and
   `admin seeds check` commands.
@@ -33,6 +38,8 @@ include breaking changes, which are called out.
   enabled when its adapter type is reviewed and enabled.
 - The worker runs sources in parallel (`CRAWL_CONCURRENCY`).
 - The first account is the installation administrator.
+- Screens use semantic colour tokens only (a test forbids raw colours); the
+  old slate-remapping dark mode block is gone.
 - Signing in opens the dashboard; `/jobs/{id}` links open the job browser.
 
 ## [0.1.0] - 2026-10-17

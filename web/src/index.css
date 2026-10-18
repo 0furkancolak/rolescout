@@ -115,3 +115,17 @@ select {
     scroll-behavior: auto !important;
   }
 }
+
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* Selected states rely on a fill; keep them visible in forced-colors mode. */
+@media (forced-colors: active) {
+  [aria-current="page"],
+  [aria-pressed="true"],
+  [aria-checked="true"] {
+    outline: 2px solid CanvasText;
+  }
+}

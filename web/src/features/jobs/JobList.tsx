@@ -46,7 +46,7 @@ function JobRow({ job, active, onSelect }: { job: WorkspaceJob; active: boolean;
         <div className="flex items-start gap-3">
           <CompanyTile name={job.company_name} />
           <div className="min-w-0 flex-1">
-            <span className="block truncate font-semibold text-ink">{job.title}</span>
+            <span className="line-clamp-2 font-semibold text-ink">{job.title}</span>
             <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-ink-muted">
               <span className="truncate">{job.company_name}</span>
               <span className="inline-flex items-center gap-1">

@@ -310,13 +310,13 @@ research runs with live stages, scoring, full-text search and facets, job
 browser, kanban, companies, settings, dark theme. Evidence: Go and web test
 suites, CI, and the live run recorded in [operations](operations.md).
 
-Follow-up scope added 2026-10-18 (planned, not started): a modern UI refresh
-(warm design tokens, rounded cards, stat cards, score rings; plan milestone 9)
-and optional local AI enrichment with a small on-device model on Apple Silicon
+Follow-up scope added 2026-10-18: a modern UI refresh (warm design tokens,
+rounded cards, stat cards, score rings; plan milestone 9) is DONE: tokens with a
+contrast test, primitives, shell, dashboard with an activity series, job
+browser, a no-raw-colours test and a browser check at 1280 px and 375 px in
+both themes. Optional local AI enrichment (planned, not started) with a small on-device model on Apple Silicon
 (plan milestone 10, [ADR 0005](adr/0005-local-llm-enrichment.md)). See the
-addendum in the design spec and the addendum at the end of the plan. The UI
-refresh is meant to land before the 0.1.0 release step; local AI follows it
-and ships off by default.
+addendum in the design spec and the addendum at the end of the plan. Local AI follows the release and ships off by default.
 
 Potential work:
 - Advanced search and saved filters

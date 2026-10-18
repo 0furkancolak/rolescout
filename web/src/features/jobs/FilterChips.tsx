@@ -24,7 +24,7 @@ export function FilterChips({
   const label = (text: string, n?: number) => (n === undefined ? text : `${text} ${n.toLocaleString()}`);
 
   return (
-    <div role="group" aria-label={t("browse.quickFilters")} className="flex flex-wrap items-center gap-2">
+    <div role="group" aria-label={t("browse.quickFilters")} className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
       {posted.map((p) => (
         <Pill key={p} selected={search.posted === p} onClick={() => onChange({ posted: search.posted === p ? "" : p })}>
           {label(t(`browse.posted.${p}`), facets?.posted[p])}
