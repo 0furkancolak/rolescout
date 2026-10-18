@@ -70,7 +70,23 @@ scripts/restore.sh backups/<file>.dump --yes
   `docker compose run --rm admin seeds check` (entries without a supported
   board or open jobs are reported as `DEAD`).
 
-LIVE_RUN_PLACEHOLDER
+## A real run, for scale
+Numbers from the first full run on a developer laptop (home connection, default
+settings, 2026-10-17/18). Your numbers will differ.
+
+| | |
+|---|---|
+| Companies discovered | 3,343 (Hacker News 2,436 · hiring list 762 · seeds 129 · career-page links 16) |
+| Career boards found and read | 825 active, 81 more with a board but no open job |
+| By board type | Ashby 333 · Greenhouse 234 · JSON-LD pages 116 · Lever 64 · Workable 25 · Personio 18 · BambooHR 18 · Recruitee 17 |
+| Not usable | 2,214 unreachable or without a recognisable career page, 100 blocked by robots.txt, 123 disabled |
+| Open jobs collected | 30,805 |
+| Matches for a "full stack developer" profile | 3,874 |
+| First run duration | about 20 h (it resumes across restarts, and the laptop slept); a follow-up run took 9 min, a re-check run 20 min |
+
+Most "unreachable" companies are old Hacker News posters whose sites are gone
+or have no career page; they are retried with exponential backoff (1 h doubling
+up to 7 days) so they stop costing time on every run.
 
 ## Monitoring
 - **Health**: `/healthz` (process up) and `/readyz` (database reachable) on the

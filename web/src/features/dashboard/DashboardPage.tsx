@@ -55,7 +55,7 @@ function LastRunCard({
   }
   if (!lastRun) {
     return (
-      <Card className="flex flex-col items-start gap-3 bg-gradient-to-br from-blue-50 to-white">
+      <Card className="flex flex-col items-start gap-3 bg-gradient-to-br from-blue-50 to-white dark:from-blue-500/15 dark:to-transparent">
         <Radar aria-hidden className="size-8 text-blue-700" />
         <h2 className="text-lg font-semibold text-slate-900">{t("dash.noRun")}</h2>
         <p className="text-sm text-slate-600">{t("dash.noRunHint")}</p>
