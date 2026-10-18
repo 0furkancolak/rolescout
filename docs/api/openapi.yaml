@@ -881,6 +881,44 @@ paths:
                   data: { $ref: "#/components/schemas/Company" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/admin/llm:
+    get:
+      tags: [admin]
+      summary: State of the optional local language model (administrator)
+      description: >
+        Lists the server's models and the queue counters; it never runs the
+        model. When the feature is off the answer is `{enabled: false}` and no
+        network call is made. The API key and the URL path are never returned.
+      operationId: getLlmStatus
+      responses:
+        "200":
+          description: Status.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/LlmStatus" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /api/v1/admin/llm/check:
+    post:
+      tags: [admin]
+      summary: Check the local model with a one-token request (administrator)
+      description: Like the status read, plus one tiny completion to prove the model answers. At most one check every 5 seconds.
+      operationId: checkLlm
+      responses:
+        "200":
+          description: Status including `probe_ok` and `probe_ms`.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/LlmStatus" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimited" }
   /api/v1/admin/settings:
     get:
       tags: [admin]
@@ -1540,8 +1578,9 @@ components:
       allOf:
         - $ref: "#/components/schemas/Job"
         - type: object
-          required: [listings]
+          required: [listings, ai]
           properties:
+            ai: { $ref: "#/components/schemas/JobAI" }
             listings:
               type: array
               items: { $ref: "#/components/schemas/Listing" }
@@ -1722,13 +1761,15 @@ components:
       allOf:
         - $ref: "#/components/schemas/Job"
         - type: object
-          required: [saved, match]
+          required: [saved, match, ai]
           properties:
             saved: { type: boolean }
+            ai: { $ref: "#/components/schemas/JobAI" }
             match:
               type: [object, "null"]
-              required: [score, new, reasons]
+              required: [score, new, reasons, explanation]
               properties:
+                explanation: { type: [string, "null"], description: A short reason written by the local model, in the workspace owner's language. }
                 score: { type: integer, minimum: 0, maximum: 100 }
                 new: { type: boolean, description: First seen since the profile's previous run. }
                 reasons:
@@ -1739,6 +1780,47 @@ components:
                     properties:
                       code: { type: string, enum: [title, keyword, role, tech, remote, country, location, hybrid, seniority, fresh] }
                       params: { type: object, additionalProperties: { type: string } }
+    LlmStatus:
+      type: object
+      required: [enabled, reachable, model_present, degraded, local, queue, enriched, failed, avg_latency_ms, last_checked_at, probe_ok, probe_ms]
+      properties:
+        enabled: { type: boolean }
+        base_host: { type: string, description: Host and port of the model server only. }
+        model: { type: string }
+        fallback_model: { type: string }
+        reachable: { type: boolean }
+        model_present: { type: boolean }
+        degraded: { type: boolean, description: Only the fallback model has worked recently. }
+        local: { type: boolean, description: False when the host is not this machine or a private network; job text is then sent to it. }
+        queue: { type: integer }
+        enriched: { type: integer }
+        failed: { type: integer }
+        avg_latency_ms: { type: integer }
+        last_error: { type: string }
+        last_checked_at: { type: [string, "null"], format: date-time }
+        probe_ok: { type: boolean }
+        probe_ms: { type: integer }
+    JobAI:
+      type: [object, "null"]
+      description: What the local model added. Null when the model has not read the job or added nothing.
+      required: [model, summary, remote_policy, salary, fields, extra_technologies]
+      properties:
+        model: { type: string }
+        summary: { type: [string, "null"] }
+        remote_policy: { type: [string, "null"] }
+        salary:
+          type: [object, "null"]
+          required: [min, max, currency, period]
+          properties:
+            min: { type: [integer, "null"] }
+            max: { type: [integer, "null"] }
+            currency: { type: string }
+            period: { type: string, enum: [year, month, day, hour] }
+        fields:
+          type: array
+          description: Effective values the model filled because the rules did not know them.
+          items: { type: string, enum: [seniority, work_arrangement, country] }
+        extra_technologies: { type: array, items: { type: string } }
     FacetCount:
       type: object
       required: [value, label, count]

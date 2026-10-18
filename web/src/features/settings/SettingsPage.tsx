@@ -7,6 +7,7 @@ import { inputClass } from "../../components/styles";
 import { data, type AdapterReview, type Setting } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { useCurrentUser } from "../auth/api";
+import { LocalAiCard } from "./LocalAiCard";
 
 const adaptersKey = ["admin", "adapters"] as const;
 
@@ -48,6 +49,7 @@ export function SettingsPage() {
           </div>
         )}
       </Card>
+      <LocalAiCard />
       <Card>
         <h2 className="text-lg font-semibold text-ink">{t("settings.crawl")}</h2>
         <p className="mt-1 text-sm text-ink-muted">{t("settings.crawlHint")}</p>

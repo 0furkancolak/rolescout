@@ -60,6 +60,7 @@ type listingDTO struct {
 
 type jobDetailDTO struct {
 	jobDTO
+	AI       *aiDTO       `json:"ai"`
 	Listings []listingDTO `json:"listings"`
 }
 
@@ -354,12 +355,15 @@ type matchDTO struct {
 	Score   int                  `json:"score"`
 	New     bool                 `json:"new"`
 	Reasons []domain.MatchReason `json:"reasons"`
+	// Explanation is a short reason written by the local model, when there is one.
+	Explanation *string `json:"explanation"`
 }
 
 type workspaceJobDTO struct {
 	jobDTO
 	Saved bool      `json:"saved"`
 	Match *matchDTO `json:"match"`
+	AI    *aiDTO    `json:"ai"`
 }
 
 func toWorkspaceJob(w domain.WorkspaceJob) workspaceJobDTO {

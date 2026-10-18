@@ -533,3 +533,37 @@ func TestExplanationQueueOnlyEnrichedStrongUnexplainedMatches(t *testing.T) {
 		t.Errorf("locale = %q", tk.Locale)
 	}
 }
+
+func TestAIFactsMarksOnlyWhatTheModelAdded(t *testing.T) {
+	ef := newEnrichFixture(t)
+	tr := "TR"
+	rules := ef.effectiveJob(t, "Rules know it", "senior", "remote", []string{"go"}, &tr)
+	gaps := ef.effectiveJob(t, "Model fills", "unknown", "unknown", []string{"go"}, nil)
+	none := ef.effectiveJob(t, "No model", "unknown", "unknown", []string{"go"}, nil)
+	ai := `{"seniority":"junior","work_arrangement":"hybrid","country_code":"DE","technologies":["go","rust"],"summary":"A Go and Rust role.","remote_policy":"2 days a week",
+		"salary_min":90000,"salary_max":110000,"salary_currency":"EUR","salary_period":"year"}`
+	ef.enrich(t, rules, ai)
+	ef.enrich(t, gaps, ai)
+
+	got, err := ef.repo.AIFacts(context.Background(), []string{rules.ID, gaps.ID, none.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := got[none.ID]; ok {
+		t.Fatal("a job the model never read has no AI facts")
+	}
+	r := got[rules.ID]
+	if len(r.Fields) != 0 || !slices.Equal(r.ExtraTechnologies, []string{"rust"}) || r.Summary != "A Go and Rust role." || r.Model != testModel {
+		t.Errorf("rules job: %+v (the rules knew seniority, arrangement and country, so none is the model's)", r)
+	}
+	g := got[gaps.ID]
+	if !slices.Equal(g.Fields, []string{"seniority", "work_arrangement", "country"}) {
+		t.Errorf("gap job fields = %v", g.Fields)
+	}
+	if g.SalaryMin == nil || *g.SalaryMin != 90000 || *g.SalaryMax != 110000 || g.SalaryCurrency != "EUR" || g.SalaryPeriod != "year" || g.RemotePolicy != "2 days a week" {
+		t.Errorf("gap job = %+v", g)
+	}
+	if got, _ := ef.repo.AIFacts(context.Background(), nil); len(got) != 0 {
+		t.Errorf("no ids returned %v", got)
+	}
+}

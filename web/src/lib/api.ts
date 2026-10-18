@@ -70,12 +70,46 @@ export interface Match {
   score: number;
   new: boolean;
   reasons: MatchReason[];
+  // A short reason written by the local model, when there is one.
+  explanation?: string | null;
+}
+
+// JobAI is what the local model added to a job; null or absent when it has
+// not read the job.
+export interface JobAI {
+  model: string;
+  summary: string | null;
+  remote_policy: string | null;
+  salary: { min: number | null; max: number | null; currency: string; period: "year" | "month" | "day" | "hour" } | null;
+  // Effective values the model filled because the rules did not know them.
+  fields: Array<"seniority" | "work_arrangement" | "country">;
+  extra_technologies: string[];
+}
+
+export interface LlmStatus {
+  enabled: boolean;
+  base_host?: string;
+  model?: string;
+  fallback_model?: string;
+  reachable: boolean;
+  model_present: boolean;
+  degraded: boolean;
+  local: boolean;
+  queue: number;
+  enriched: number;
+  failed: number;
+  avg_latency_ms: number;
+  last_error?: string;
+  last_checked_at: string | null;
+  probe_ok: boolean;
+  probe_ms: number;
 }
 
 // WorkspaceJob is a job as the current workspace sees it.
 export interface WorkspaceJob extends Job {
   saved: boolean;
   match: Match | null;
+  ai?: JobAI | null;
 }
 
 export interface FacetCount {
@@ -189,6 +223,7 @@ export interface Listing {
 
 export interface JobDetail extends Job {
   listings: Listing[];
+  ai?: JobAI | null;
 }
 
 export interface SavedJob {

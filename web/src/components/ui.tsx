@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
 import { AlertCircle, Inbox, Loader2 } from "lucide-react";
 import type { ApplicationStatus } from "../lib/api";
 import { buttonClass, errorMessage, type Variant } from "./styles";
@@ -128,8 +128,12 @@ export function Chip({ children }: { children: ReactNode }) {
   return <span className="inline-flex rounded-md bg-canvas px-2 py-0.5 text-xs text-ink">{children}</span>;
 }
 
-export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-card bg-surface p-4 shadow-card sm:p-6 ${className}`}>{children}</section>;
+export function Card({ children, className = "", ...props }: HTMLAttributes<HTMLElement> & { children: ReactNode }) {
+  return (
+    <section {...props} className={`rounded-card bg-surface p-4 shadow-card sm:p-6 ${className}`}>
+      {children}
+    </section>
+  );
 }
 
 export function PageTitle({ children }: { children: ReactNode }) {

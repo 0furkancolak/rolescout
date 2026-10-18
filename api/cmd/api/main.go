@@ -14,7 +14,9 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/recover"
 
 	"example.com/rolescout/api/internal/config"
+	"example.com/rolescout/api/internal/enrich"
 	"example.com/rolescout/api/internal/infrastructure/database"
+	"example.com/rolescout/api/internal/llm"
 	httptransport "example.com/rolescout/api/internal/transport/http"
 )
 
@@ -66,6 +68,7 @@ func run() error {
 	httptransport.RegisterHealthRoutes(app, pool)
 	httptransport.RegisterMetricsRoute(app, metrics, pool)
 	workspaces := database.NewWorkspaceRepository(pool)
+	enrichments := database.NewEnrichmentRepository(pool)
 	httptransport.RegisterAPIRoutes(app, httptransport.Deps{
 		Auth: database.NewAuthRepository(pool),
 		AuthConfig: httptransport.AuthConfig{
@@ -84,6 +87,8 @@ func run() error {
 		Research:       database.NewResearchRepository(pool),
 		Companies:      database.NewCompanyRepository(pool),
 		Activity:       database.NewActivityRepository(pool),
+		Enrichments:    enrichments,
+		LLM:            llmChecker(cfg.LLM, enrichments),
 		CrawlSettings:  crawlSettings(cfg.Crawl),
 		Workspaces:     httptransport.MembershipAuthorizer{Workspaces: workspaces},
 	})
@@ -100,6 +105,18 @@ func run() error {
 		ShutdownTimeout:       10 * time.Second,
 		DisableStartupMessage: true,
 	})
+}
+
+// llmChecker reports on the optional local model; nil when it is off, so the
+// admin endpoints answer {enabled:false} without any network call.
+func llmChecker(cfg config.LLM, repo *database.EnrichmentRepository) httptransport.LLMStatusProvider {
+	if !cfg.Enabled {
+		return nil
+	}
+	return &enrich.Checker{
+		Config: cfg, Repo: repo,
+		Client: llm.NewClient(llm.Options{BaseURL: cfg.BaseURL, Model: cfg.Model, APIKey: cfg.APIKey, Timeout: cfg.Timeout}),
+	}
 }
 
 func main() {

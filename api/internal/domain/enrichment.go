@@ -75,3 +75,27 @@ type ExplanationTask struct {
 	// Locale is the workspace owner's language ("tr" or "en").
 	Locale string
 }
+
+// JobAI is what the local model added for a job, marked as such: it only lists
+// the fields the model filled because the rules did not know them.
+type JobAI struct {
+	JobID          string
+	Model          string
+	Summary        string
+	RemotePolicy   string
+	SalaryMin      *int
+	SalaryMax      *int
+	SalaryCurrency string
+	SalaryPeriod   string
+	// Fields names the effective values that came from the model: "seniority",
+	// "work_arrangement" or "country".
+	Fields []string
+	// ExtraTechnologies are technologies only the model found.
+	ExtraTechnologies []string
+}
+
+// Empty reports whether there is nothing worth showing.
+func (a JobAI) Empty() bool {
+	return a.Summary == "" && a.RemotePolicy == "" && a.SalaryMin == nil && a.SalaryMax == nil &&
+		len(a.Fields) == 0 && len(a.ExtraTechnologies) == 0
+}

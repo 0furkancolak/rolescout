@@ -90,6 +90,13 @@ defined in `api/internal/domain/rules.go` and documented on the
   counts; poll it (the web app polls every 2 seconds) and read new log lines
   with `GET .../research-runs/{id}/events?after=<last id>`.
 - `GET .../activity?days=14` returns the dashboard's zero-filled daily series (`days`, `new_matches`, `jobs_collected`, `applications_created`) and `upcoming_interviews`.
+- `GET /admin/llm` and `POST /admin/llm/check` (administrator) report the optional
+  local model: reachable, model present, degraded, queue counters and whether the
+  host is local. A check also sends one tiny request, at most one per 5 seconds.
+  When the feature is off both answer `{enabled: false}` without a network call.
+  Jobs and matches carry `ai` (what the model added: summary, remote policy,
+  salary, the fields it filled, extra technologies) and `match.explanation`; both
+  are `null` unless the model has read the job.
 - `POST .../research-runs/{id}/cancel` cancels a queued run at once and stops
   a running one at its next progress report.
 - The company catalog is shared by all workspaces. `GET

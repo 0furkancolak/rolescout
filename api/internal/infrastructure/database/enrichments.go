@@ -257,3 +257,71 @@ LIMIT $4`, minScore, model, promptVersion, limit)
 	}
 	return out, rows.Err()
 }
+
+// AIFacts returns what the model added for each job it has read, marking only
+// the values the rules did not already know.
+func (r *EnrichmentRepository) AIFacts(ctx context.Context, jobIDs []string) (map[string]domain.JobAI, error) {
+	out := map[string]domain.JobAI{}
+	if len(jobIDs) == 0 {
+		return out, nil
+	}
+	rows, err := r.pool.Query(ctx, `
+SELECT ai.job_id, ai.model, ai.data, j.seniority, j.work_arrangement, j.country_code, j.technologies
+FROM job_ai ai JOIN jobs j ON j.id = ai.job_id
+WHERE ai.job_id = ANY($1)`, jobIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, model, seniority, arrangement string
+		var data []byte
+		var country *string
+		var rulesTech []string
+		if err := rows.Scan(&id, &model, &data, &seniority, &arrangement, &country, &rulesTech); err != nil {
+			return nil, err
+		}
+		var d struct {
+			Technologies    []string `json:"technologies"`
+			Seniority       string   `json:"seniority"`
+			WorkArrangement string   `json:"work_arrangement"`
+			CountryCode     string   `json:"country_code"`
+			Summary         string   `json:"summary"`
+			RemotePolicy    string   `json:"remote_policy"`
+			SalaryMin       *int     `json:"salary_min"`
+			SalaryMax       *int     `json:"salary_max"`
+			SalaryCurrency  string   `json:"salary_currency"`
+			SalaryPeriod    string   `json:"salary_period"`
+		}
+		if err := json.Unmarshal(data, &d); err != nil {
+			continue // a malformed row is ignored rather than failing the page
+		}
+		a := domain.JobAI{JobID: id, Model: model, Summary: d.Summary, RemotePolicy: d.RemotePolicy,
+			SalaryMin: d.SalaryMin, SalaryMax: d.SalaryMax, SalaryCurrency: d.SalaryCurrency, SalaryPeriod: d.SalaryPeriod}
+		if seniority == "unknown" && d.Seniority != "" && d.Seniority != "unknown" {
+			a.Fields = append(a.Fields, "seniority")
+		}
+		if arrangement == "unknown" && d.WorkArrangement != "" && d.WorkArrangement != "unknown" {
+			a.Fields = append(a.Fields, "work_arrangement")
+		}
+		if country == nil && d.CountryCode != "" {
+			a.Fields = append(a.Fields, "country")
+		}
+		for _, t := range d.Technologies {
+			if !slices.Contains(rulesTech, t) && !slices.Contains(a.ExtraTechnologies, t) {
+				a.ExtraTechnologies = append(a.ExtraTechnologies, t)
+			}
+		}
+		out[id] = a
+	}
+	return out, rows.Err()
+}
+
+// RecentOK counts successful enrichments by one model since a time; it is how
+// the status screen notices that only the fallback model has been working.
+func (r *EnrichmentRepository) RecentOK(ctx context.Context, model string, since time.Time) (int, error) {
+	var n int
+	err := r.pool.QueryRow(ctx, `SELECT count(*)::int FROM job_enrichments
+		WHERE model = $1 AND status = 'ok' AND latency_ms > 0 AND updated_at >= $2`, model, since).Scan(&n)
+	return n, err
+}

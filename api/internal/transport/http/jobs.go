@@ -92,9 +92,15 @@ func (h *handlers) getJob(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(dataResponse[jobDetailDTO]{Data: jobDetailDTO{
-		jobDTO: toJob(job), Listings: mapSlice(listings, toListing),
-	}})
+	detail := jobDetailDTO{jobDTO: toJob(job), Listings: mapSlice(listings, toListing)}
+	if h.Enrichments != nil {
+		if facts, err := h.Enrichments.AIFacts(c.Context(), []string{id}); err == nil {
+			if a, ok := facts[id]; ok {
+				detail.AI = toAI(a)
+			}
+		}
+	}
+	return c.JSON(dataResponse[jobDetailDTO]{Data: detail})
 }
 
 func (h *handlers) listSavedJobs(c fiber.Ctx) error {

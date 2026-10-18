@@ -63,6 +63,8 @@ type Deps struct {
 	Research       ResearchStore
 	Companies      CompanyCatalog
 	Activity       ActivityStore
+	LLM            LLMStatusProvider
+	Enrichments    EnrichmentReader
 	// CrawlSettings are shown read-only to administrators.
 	CrawlSettings []Setting
 	Workspaces    WorkspaceAuthorizer
@@ -99,6 +101,8 @@ func RegisterAPIRoutes(app *fiber.App, d Deps) {
 	admin.Patch("/adapters/:adapter", h.reviewAdapter)
 	admin.Patch("/companies/:companyID", h.setCompanyDisabled)
 	admin.Get("/settings", h.crawlSettings)
+	admin.Get("/llm", h.llmStatus)
+	admin.Post("/llm/check", h.llmCheck)
 
 	ws := private.Group("/workspaces/:workspaceID", h.requireWorkspace)
 	ws.Get("/members", h.listMembers)
