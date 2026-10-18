@@ -129,7 +129,7 @@ export function Chip({ children }: { children: ReactNode }) {
 }
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-6 ${className}`}>{children}</section>;
+  return <section className={`rounded-card bg-surface p-4 shadow-card sm:p-6 ${className}`}>{children}</section>;
 }
 
 export function PageTitle({ children }: { children: ReactNode }) {
