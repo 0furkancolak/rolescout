@@ -153,5 +153,8 @@ failures in the live run. Expect hours for a large backlog.
 - Filtering by technology reads the model-filled fields through a view and
   does not use an index; measure before relying on it with several hundred
   thousand jobs.
-- PostgreSQL needs memory: under Docker on a VM with about 3 GB shared with
-  many containers it was killed twice. Give the VM at least 6 GB.
+- PostgreSQL is configured for a small footprint in `compose.yaml`
+  (`shared_buffers` 128 MB, 40 connections, no parallel workers); idle it uses
+  about 20 MB. It was killed twice on a VM of about 3 GB shared with many
+  containers, so if you share the VM, lower `CRAWL_CONCURRENCY` during a run
+  rather than growing the VM.

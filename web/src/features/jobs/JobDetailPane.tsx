@@ -92,11 +92,10 @@ export function JobDetailPane({
       : []),
   ];
 
-  const aiSummary = summary.data?.source === "ai" ? summary.data.summary : null;
-  const writing = summary.isPending || summary.data?.source === "pending";
-  const shownSummary =
-    aiSummary ??
-    (summary.data?.source === "unavailable" ? ai?.summary || null : null);
+  const streaming = summary.status === "streaming";
+  const aiSummary = summary.text !== "" ? summary.text : null;
+  const writing = summary.status === "loading" || streaming;
+  const shownSummary = aiSummary ?? (summary.status === "unavailable" ? ai?.summary || null : null);
   const reasons = job.match?.reasons ?? [];
   const explanation = job.match?.explanation ?? null;
 
@@ -265,11 +264,21 @@ export function JobDetailPane({
               <div className="rounded-card bg-canvas p-4">
                 <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-muted">
                   {t("ai.summary")}
-                  {ai && aiSummary && <AiBadge model={ai.model} />}
+                  {ai && aiSummary && !streaming && <AiBadge model={ai.model} />}
                 </h3>
                 {shownSummary ? (
-                  <p className="mt-1.5 text-sm leading-relaxed text-ink">
+                  <p
+                    className="mt-1.5 text-sm leading-relaxed text-ink"
+                    aria-live="polite"
+                    aria-busy={streaming}
+                  >
                     {shownSummary}
+                    {streaming && (
+                      <span
+                        aria-hidden
+                        className="ml-0.5 inline-block h-3.5 w-0.5 animate-pulse bg-ink-muted align-[-2px]"
+                      />
+                    )}
                   </p>
                 ) : (
                   <p

@@ -1387,6 +1387,33 @@ paths:
                       source: { type: string, enum: [ai, pending, unavailable] }
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/InvalidInput" }
+  /api/v1/workspaces/{workspaceID}/jobs/{jobID}/summary/stream:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+      - $ref: "#/components/parameters/JobID"
+      - name: lang
+        in: query
+        description: Language of the summary.
+        schema: { type: string, enum: [tr, en], default: en }
+    get:
+      tags: [jobs]
+      summary: The job summary as server-sent events
+      description: |
+        The same summary as `getJobSummary`, streamed as the model writes it.
+        `delta` events carry `{"text": "..."}` pieces to append; the last event is
+        `done` with `{"summary": "..."}` (the checked text, which replaces what was
+        shown) or `unavailable` (discard what was shown). A stored summary arrives
+        as one `delta` followed by `done`. Requests for the same job and language
+        share one model run.
+      operationId: streamJobSummary
+      responses:
+        "200":
+          description: An event stream.
+          content:
+            text/event-stream:
+              schema: { type: string }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
   /api/v1/workspaces/{workspaceID}/jobs/facets:
     parameters:
       - $ref: "#/components/parameters/WorkspaceID"

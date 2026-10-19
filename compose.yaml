@@ -2,6 +2,28 @@ services:
   postgres:
     image: postgres:17
     restart: unless-stopped
+    # Small footprint for a shared laptop VM: a bounded cache, few connections
+    # (the API pool is 10, the worker a few more) and no parallel workers.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=128MB
+      - -c
+      - effective_cache_size=512MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=32MB
+      - -c
+      - max_connections=40
+      - -c
+      - max_parallel_workers_per_gather=0
+      - -c
+      - max_parallel_maintenance_workers=0
+      - -c
+      - autovacuum_max_workers=2
+      - -c
+      - max_wal_size=512MB
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-rolescout}
       POSTGRES_USER: ${POSTGRES_USER:-rolescout}

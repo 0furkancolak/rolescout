@@ -16,6 +16,8 @@ export interface Call {
 export interface Reply {
   status?: number;
   body?: unknown;
+  /** A server-sent events body; sent as text/event-stream. */
+  sse?: string;
 }
 
 type Handler = Reply | ((call: Call) => Reply);
@@ -26,7 +28,7 @@ function fallback(call: Call): Reply | undefined {
   if (call.method === "GET" && /^\/workspaces\/[^/]+\/state\//.test(call.path)) return { status: 404, body: { error: { code: "not_found", message: "none" } } };
   if (call.method === "PUT" && /^\/workspaces\/[^/]+\/state\//.test(call.path)) return { status: 204 };
   if (call.method === "GET" && /^\/workspaces\/[^/]+\/applications$/.test(call.path)) return { body: { data: [] } };
-  if (call.method === "GET" && /\/jobs\/[^/]+\/summary$/.test(call.path)) return { body: { data: { summary: null, source: "unavailable" } } };
+  if (call.method === "GET" && /\/jobs\/[^/]+\/summary\/stream$/.test(call.path)) return { sse: "event: unavailable\ndata: {}\n\n" };
   return undefined;
 }
 
@@ -52,6 +54,7 @@ export function mockApi(handlers: Record<string, Handler>) {
     }
     const reply = typeof handler === "function" ? handler(call) : handler;
     const status = reply.status ?? 200;
+    if (reply.sse !== undefined) return new Response(reply.sse, { status, headers: { "Content-Type": "text/event-stream" } });
     return new Response(status === 204 ? null : JSON.stringify(reply.body ?? {}), {
       status,
       headers: { "Content-Type": "application/json" },

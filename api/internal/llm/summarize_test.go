@@ -2,7 +2,11 @@ package llm
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -17,8 +21,8 @@ func summarizer(t *testing.T, reply string) *Client {
 }
 
 func TestSummarizeKeepsAGroundedSummary(t *testing.T) {
-	c := summarizer(t, `{"summary":"Acme arar: React ve Node.js ile ürün geliştirecek bir mühendis."}`)
-	got, err := Summarize(context.Background(), c, "Engineer", "Acme", "We build with React and Node.js every day.", "tr")
+	c := summarizer(t, `Acme arar: React ve Node.js ile ürün geliştirecek bir mühendis.`)
+	got, err := Summarize(context.Background(), c, "Engineer", "Acme", "We build with React and Node.js every day.", "tr", nil)
 	if err != nil || got == "" {
 		t.Fatalf("got %q, %v", got, err)
 	}
@@ -26,16 +30,39 @@ func TestSummarizeKeepsAGroundedSummary(t *testing.T) {
 
 func TestSummarizeRejectsWhatThePostingDoesNotSay(t *testing.T) {
 	for name, reply := range map[string]string{
-		"technology": `{"summary":"The role uses Kafka and React."}`,
-		"number":     `{"summary":"The team has 250 engineers."}`,
-		"link":       `{"summary":"See https://acme.example for more."}`,
-		"too long":   `{"summary":"One. Two. Three. Four."}`,
-		"empty":      `{"summary":" "}`,
-		"not json":   `nope`,
+		"technology": `The role uses Kafka and React.`,
+		"number":     `The team has 250 engineers.`,
+		"link":       `See https://acme.example for more.`,
+		"too long":   `One. Two. Three. Four.`,
+		"empty":      ` `,
 	} {
 		c := summarizer(t, reply)
-		if _, err := Summarize(context.Background(), c, "Engineer", "Acme", "We build with React.", "en"); !errors.Is(err, ErrInvalidOutput) {
+		if _, err := Summarize(context.Background(), c, "Engineer", "Acme", "We build with React.", "en", nil); !errors.Is(err, ErrInvalidOutput) {
 			t.Errorf("%s: err = %v, want ErrInvalidOutput", name, err)
 		}
+	}
+}
+
+func TestSummarizeStreamsPiecesAndChecksTheWholeText(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		for _, piece := range []string{"Acme arar: ", "React ve Node.js ", "ile çalışacak biri."} {
+			b, _ := json.Marshal(piece)
+			fmt.Fprintf(w, "data: {\"choices\":[{\"delta\":{\"content\":%s}}]}\n\n", b)
+			w.(http.Flusher).Flush()
+		}
+		fmt.Fprint(w, "data: [DONE]\n\n")
+	}))
+	defer srv.Close()
+	c := NewClient(Options{BaseURL: srv.URL, Model: "m", Timeout: 2 * time.Second})
+	var pieces []string
+	got, err := Summarize(context.Background(), c, "Engineer", "Acme", "We build with React and Node.js every day.", "tr", func(p string) { pieces = append(pieces, p) })
+	if err != nil || got != "Acme arar: React ve Node.js ile çalışacak biri." || len(pieces) != 3 {
+		t.Fatalf("got %q, %v, pieces %v", got, err, pieces)
+	}
+	// The same stream with a technology the posting lacks is rejected at the end.
+	_, err = Summarize(context.Background(), c, "Engineer", "Acme", "We build with Go.", "tr", func(string) {})
+	if !errors.Is(err, ErrInvalidOutput) {
+		t.Fatalf("err = %v, want ErrInvalidOutput", err)
 	}
 }

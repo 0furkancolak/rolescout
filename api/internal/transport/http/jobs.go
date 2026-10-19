@@ -1,7 +1,10 @@
 package httptransport
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
@@ -140,6 +143,7 @@ func (h *handlers) unsaveJob(c fiber.Ctx) error {
 // JobSummarizer writes short job summaries with the local model.
 type JobSummarizer interface {
 	Summary(ctx context.Context, jobID, title, company, description, language string) (text string, ready bool, err error)
+	Stream(ctx context.Context, jobID, title, company, description, language string, emit func(string)) (string, error)
 }
 
 type summaryDTO struct {
@@ -176,4 +180,50 @@ func (h *handlers) jobSummary(c fiber.Ctx) error {
 		return c.JSON(dataResponse[summaryDTO]{Data: summaryDTO{Source: "pending"}})
 	}
 	return c.JSON(dataResponse[summaryDTO]{Data: summaryDTO{Summary: &text, Source: "ai"}})
+}
+
+// jobSummaryStream is jobSummary as server-sent events: "delta" events carry
+// the text as the model writes it, then one "done" event with the checked
+// summary, or "unavailable" when there is none (the client drops what it showed).
+func (h *handlers) jobSummaryStream(c fiber.Ctx) error {
+	id, err := pathID(c, "jobID")
+	if err != nil {
+		return err
+	}
+	lang := c.Query("lang", "en")
+	if lang != "tr" && lang != "en" {
+		return (&domain.ValidationError{}).Add("lang", "must be tr or en")
+	}
+	job, err := h.Jobs.GetJob(c.Context(), id)
+	if err != nil {
+		return err
+	}
+	ctx := c.Context()
+	c.Set(fiber.HeaderContentType, "text/event-stream")
+	c.Set(fiber.HeaderCacheControl, "no-cache")
+	c.Set("X-Accel-Buffering", "no")
+	return c.SendStreamWriter(func(w *bufio.Writer) {
+		send := func(event string, v any) bool {
+			b, _ := json.Marshal(v)
+			if _, err := fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, b); err != nil {
+				return false
+			}
+			return w.Flush() == nil
+		}
+		if h.Summaries == nil || len(strings.TrimSpace(job.Description)) < 80 {
+			send("unavailable", map[string]string{})
+			return
+		}
+		alive := true
+		text, err := h.Summaries.Stream(ctx, id, job.Title, job.CompanyName, job.Description, lang, func(piece string) {
+			if alive {
+				alive = send("delta", map[string]string{"text": piece})
+			}
+		})
+		if err != nil || text == "" {
+			send("unavailable", map[string]string{})
+			return
+		}
+		send("done", map[string]string{"summary": text})
+	})
 }

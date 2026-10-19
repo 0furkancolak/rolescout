@@ -30,8 +30,10 @@ function browse(job: ReturnType<typeof makeWorkspaceJob>) {
     [`GET ${base}/jobs/facets`]: { body: { data: facets } },
     [`GET ${base}/jobs`]: { body: { data: [job], next_cursor: null } },
     [`GET /jobs/${job.id}`]: { body: { data: { ...makeJob(1), listings: [] } } },
-    [`GET ${base}/jobs/${job.id}/summary`]: (call: { search: URLSearchParams }) => ({
-      body: { data: { summary: job.ai?.summary ? `${job.ai.summary}` : null, source: job.ai?.summary ? "ai" : "unavailable", lang: call.search.get("lang") } },
+    [`GET ${base}/jobs/${job.id}/summary/stream`]: () => ({
+      sse: job.ai?.summary
+        ? `event: delta\ndata: ${JSON.stringify({ text: job.ai.summary.slice(0, 5) })}\n\nevent: delta\ndata: ${JSON.stringify({ text: job.ai.summary.slice(5) })}\n\nevent: done\ndata: ${JSON.stringify({ summary: job.ai.summary })}\n\n`
+        : "event: unavailable\ndata: {}\n\n",
     }),
   });
 }

@@ -113,6 +113,7 @@ func RegisterAPIRoutes(app *fiber.App, d Deps) {
 	ws.Get("/jobs", h.listWorkspaceJobs)
 	ws.Get("/jobs/facets", h.workspaceJobFacets)
 	ws.Get("/jobs/:jobID/summary", h.jobSummary)
+	ws.Get("/jobs/:jobID/summary/stream", h.jobSummaryStream)
 	ws.Get("/saved-jobs", h.listSavedJobs)
 	ws.Put("/saved-jobs/:jobID", h.saveJob)
 	ws.Delete("/saved-jobs/:jobID", h.unsaveJob)

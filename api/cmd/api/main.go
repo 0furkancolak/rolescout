@@ -53,9 +53,10 @@ func run() error {
 	}
 
 	app := fiber.New(fiber.Config{
-		AppName:      "RoleScout API",
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 15 * time.Second,
+		AppName:     "RoleScout API",
+		ReadTimeout: 10 * time.Second,
+		// Long enough for a summary streamed from the local model.
+		WriteTimeout: 3 * time.Minute,
 		IdleTimeout:  60 * time.Second,
 		BodyLimit:    1 << 20,
 		ErrorHandler: httptransport.ErrorHandler,

@@ -4,6 +4,7 @@
 package llm
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -56,6 +57,12 @@ type Response struct {
 // Completer is what the enricher depends on; tests use the fake server.
 type Completer interface {
 	Complete(ctx context.Context, req Request) (Response, error)
+}
+
+// Streamer is a Completer that can hand over the reply piece by piece.
+type Streamer interface {
+	Completer
+	Stream(ctx context.Context, req Request, onDelta func(string)) (Response, error)
 }
 
 // Health is the result of a cheap reachability check.
@@ -161,6 +168,79 @@ func (c *Client) Complete(ctx context.Context, req Request) (Response, error) {
 		CompletionTokens: env.Usage.CompletionTokens,
 		Latency:          time.Since(start),
 	}, nil
+}
+
+// Stream is Complete with "stream": true: onDelta gets each piece of text as
+// the model writes it, and the joined reply is returned at the end.
+func (c *Client) Stream(ctx context.Context, req Request, onDelta func(string)) (Response, error) {
+	model := req.Model
+	if model == "" {
+		model = c.model
+	}
+	raw, err := json.Marshal(chatBody{
+		Model: model, Temperature: req.Temperature, MaxTokens: req.MaxTokens, Stream: true,
+		Messages: []chatMessage{{Role: "system", Content: req.System}, {Role: "user", Content: req.User}},
+	})
+	if err != nil {
+		return Response{}, fmt.Errorf("%w: encode request", ErrBadResponse)
+	}
+	start := time.Now()
+	hreq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.base+"/chat/completions", bytes.NewReader(raw))
+	if err != nil {
+		return Response{}, fmt.Errorf("%w: invalid base URL", ErrBadResponse)
+	}
+	hreq.Header.Set("Content-Type", "application/json")
+	hreq.Header.Set("Accept", "text/event-stream")
+	if c.key != "" {
+		hreq.Header.Set("Authorization", "Bearer "+c.key)
+	}
+	resp, err := c.http.Do(hreq)
+	if err != nil {
+		return Response{}, classify(ctx, err)
+	}
+	defer resp.Body.Close()
+	switch {
+	case resp.StatusCode >= 500, resp.StatusCode == http.StatusTooManyRequests, resp.StatusCode == http.StatusUnauthorized,
+		resp.StatusCode == http.StatusForbidden, resp.StatusCode == http.StatusNotFound, resp.StatusCode == http.StatusRequestTimeout:
+		return Response{}, fmt.Errorf("%w: HTTP %d", ErrUnavailable, resp.StatusCode)
+	case resp.StatusCode >= 400:
+		return Response{}, fmt.Errorf("%w: HTTP %d", ErrBadResponse, resp.StatusCode)
+	}
+	var all strings.Builder
+	sc := bufio.NewScanner(resp.Body)
+	sc.Buffer(make([]byte, 64<<10), 1<<20)
+	for sc.Scan() {
+		line, ok := strings.CutPrefix(sc.Text(), "data:")
+		if !ok {
+			continue
+		}
+		line = strings.TrimSpace(line)
+		if line == "[DONE]" {
+			break
+		}
+		var ev struct {
+			Choices []struct {
+				Delta struct {
+					Content string `json:"content"`
+				} `json:"delta"`
+			} `json:"choices"`
+		}
+		if json.Unmarshal([]byte(line), &ev) != nil || len(ev.Choices) == 0 || ev.Choices[0].Delta.Content == "" {
+			continue
+		}
+		piece := ev.Choices[0].Delta.Content
+		all.WriteString(piece)
+		if onDelta != nil {
+			onDelta(piece)
+		}
+	}
+	if err := sc.Err(); err != nil {
+		return Response{}, classify(ctx, err)
+	}
+	if all.Len() == 0 {
+		return Response{}, fmt.Errorf("%w: empty stream", ErrBadResponse)
+	}
+	return Response{Content: all.String(), Latency: time.Since(start)}, nil
 }
 
 // Health lists the server's models and reports whether the configured one is

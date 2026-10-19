@@ -13,6 +13,8 @@ include breaking changes, which are called out.
   right; "Başvurdum" can be undone in place.
 - A short summary of each job written by the local model in the interface
   language on first view and stored (`GET /workspaces/{id}/jobs/{id}/summary`).
+  The text streams into the page as the model writes it, as server-sent events
+  (`.../summary/stream`); several viewers of one job share one model run.
 - The job browser remembers where you left off (filters, sort, selected job)
   in the database and continues there on any device
   (`GET`/`PUT /workspaces/{id}/state/{key}`).
@@ -25,6 +27,9 @@ include breaking changes, which are called out.
   employers).
 - `make dev` streams the API and worker logs into the terminal.
 ### Changed
+- PostgreSQL runs with a bounded cache, 40 connections and no parallel workers
+  (about 20 MB idle) instead of the image defaults; the API write timeout is
+  3 minutes so a summary can stream.
 - Any application status can change to any other, so a mistaken one can be
   corrected.
 - Selects have room for their arrow; scrollbars follow the theme.

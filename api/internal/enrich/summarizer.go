@@ -32,6 +32,18 @@ type call struct {
 	done chan struct{}
 	text string
 	err  error
+
+	mu   sync.Mutex
+	buf  string        // what the model has written so far
+	wake chan struct{} // closed and replaced on every write
+}
+
+func (c *call) write(piece string) {
+	c.mu.Lock()
+	c.buf += piece
+	close(c.wake)
+	c.wake = make(chan struct{})
+	c.mu.Unlock()
 }
 
 // waitFor is how long a request waits for a summary being written before it
@@ -39,15 +51,17 @@ type call struct {
 // write timeout.
 const waitFor = 8 * time.Second
 
-// Summary returns the summary and true, writing it if needed. When the model
-// is still working after a short wait it returns ("", false, nil) and the
-// work continues in the background; errors mean the model is unavailable or
-// answered badly.
-func (s *Summarizer) Summary(ctx context.Context, jobID, title, company, description, language string) (string, bool, error) {
+func summaryHash(title, description string) string {
 	sum := sha256.Sum256([]byte(title + "\x00" + description))
-	hash := hex.EncodeToString(sum[:8])
+	return hex.EncodeToString(sum[:8])
+}
+
+// begin returns the summary when stored, or the call that is writing it
+// (starting one if none is).
+func (s *Summarizer) begin(ctx context.Context, jobID, title, company, description, language string) (string, *call) {
+	hash := summaryHash(title, description)
 	if text, ok, err := s.Store.Get(ctx, jobID, language, hash, llm.SummaryPromptVersion); err == nil && ok {
-		return text, true, nil
+		return text, nil
 	}
 	key := jobID + "/" + language
 	s.mu.Lock()
@@ -56,9 +70,9 @@ func (s *Summarizer) Summary(ctx context.Context, jobID, title, company, descrip
 	}
 	if c, ok := s.flight[key]; ok {
 		s.mu.Unlock()
-		return s.await(ctx, c)
+		return "", c
 	}
-	c := &call{done: make(chan struct{})}
+	c := &call{done: make(chan struct{}), wake: make(chan struct{})}
 	s.flight[key] = c
 	s.mu.Unlock()
 
@@ -66,7 +80,7 @@ func (s *Summarizer) Summary(ctx context.Context, jobID, title, company, descrip
 	run, cancel := context.WithTimeout(context.WithoutCancel(ctx), s.timeout())
 	go func() {
 		defer cancel()
-		c.text, c.err = llm.Summarize(run, s.Client, title, company, description, language)
+		c.text, c.err = llm.Summarize(run, s.Client, title, company, description, language, c.write)
 		if c.err == nil {
 			_ = s.Store.Put(run, jobID, language, hash, llm.SummaryPromptVersion, s.Model, c.text)
 		}
@@ -75,7 +89,54 @@ func (s *Summarizer) Summary(ctx context.Context, jobID, title, company, descrip
 		s.mu.Unlock()
 		close(c.done)
 	}()
+	return "", c
+}
+
+// Summary returns the summary and true, writing it if needed. When the model
+// is still working after a short wait it returns ("", false, nil) and the
+// work continues in the background; errors mean the model is unavailable or
+// answered badly.
+func (s *Summarizer) Summary(ctx context.Context, jobID, title, company, description, language string) (string, bool, error) {
+	text, c := s.begin(ctx, jobID, title, company, description, language)
+	if c == nil {
+		return text, true, nil
+	}
 	return s.await(ctx, c)
+}
+
+// Stream is Summary that hands the text over as the model writes it: emit gets
+// each new piece, in order, also for a request that joins a summary already
+// being written. A stored summary is emitted in one piece. The returned error
+// means what was emitted is not a usable summary.
+func (s *Summarizer) Stream(ctx context.Context, jobID, title, company, description, language string, emit func(string)) (string, error) {
+	text, c := s.begin(ctx, jobID, title, company, description, language)
+	if c == nil {
+		emit(text)
+		return text, nil
+	}
+	sent := 0
+	for {
+		c.mu.Lock()
+		piece, wake := c.buf[sent:], c.wake
+		sent = len(c.buf)
+		c.mu.Unlock()
+		if piece != "" {
+			emit(piece)
+		}
+		select {
+		case <-c.done:
+			c.mu.Lock()
+			rest := c.buf[sent:]
+			c.mu.Unlock()
+			if rest != "" && c.err == nil {
+				emit(rest)
+			}
+			return c.text, c.err
+		case <-wake:
+		case <-ctx.Done():
+			return "", ctx.Err()
+		}
+	}
 }
 
 func (s *Summarizer) await(ctx context.Context, c *call) (string, bool, error) {

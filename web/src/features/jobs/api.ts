@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  API_BASE,
   data,
   query,
   request,
@@ -132,20 +134,88 @@ export function useSaveFromBrowser(ws: string) {
 }
 
 export interface JobSummary {
-  summary: string | null;
-  source: "ai" | "pending" | "unavailable";
+  /** The text so far (it grows while status is "streaming"). */
+  text: string;
+  /** loading: nothing yet; streaming: the model is writing; done: checked and stored; unavailable: none (model off or answer rejected). */
+  status: "loading" | "streaming" | "done" | "unavailable";
 }
 
-// useJobSummary asks for the model's short summary in the given language. The
-// first request may take a while; while the server says "pending" it asks again.
-export function useJobSummary(ws: string, jobID: string, lang: string, enabled = true) {
-  return useQuery({
-    queryKey: ["workspaces", ws, "jobs", "summary", jobID, lang],
-    queryFn: ({ signal }) => data<JobSummary>(wsPath(ws, `/jobs/${jobID}/summary`) + query({ lang }), { signal }),
-    enabled: enabled && jobID !== "",
-    staleTime: 10 * 60_000,
-    refetchInterval: (q) => (q.state.data?.source === "pending" ? 4000 : false),
-  });
+const finished = new Map<string, string>();
+
+/** Forgets finished summaries (tests). */
+export const resetSummaryCache = () => finished.clear();
+
+// parseEvents reads server-sent events from a stream and calls on for each.
+async function parseEvents(body: ReadableStream<Uint8Array>, on: (event: string, data: unknown) => void) {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value, { stream: !done });
+    let end: number;
+    while ((end = buffer.indexOf("\n\n")) >= 0) {
+      const block = buffer.slice(0, end);
+      buffer = buffer.slice(end + 2);
+      let event = "message";
+      let payload = "";
+      for (const line of block.split("\n")) {
+        if (line.startsWith("event:")) event = line.slice(6).trim();
+        else if (line.startsWith("data:")) payload += line.slice(5).trim();
+      }
+      try {
+        on(event, payload ? JSON.parse(payload) : {});
+      } catch {
+        /* a malformed event is skipped */
+      }
+    }
+    if (done) return;
+  }
+}
+
+// useJobSummary streams the model's short summary in the given language: the
+// text grows as the model writes it. A summary written before arrives at once.
+export function useJobSummary(ws: string, jobID: string, lang: string, enabled = true): JobSummary {
+  const key = `${ws}/${jobID}/${lang}`;
+  const [state, setState] = useState<{ key: string } & JobSummary>({ key: "", text: "", status: "loading" });
+  useEffect(() => {
+    if (!enabled || jobID === "" || finished.has(key)) return;
+    const controller = new AbortController();
+    const set = (text: string, status: JobSummary["status"]) => setState({ key, text, status });
+    let text = "";
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}${wsPath(ws, `/jobs/${jobID}/summary/stream`)}${query({ lang })}`, {
+          headers: { Accept: "text/event-stream" },
+          credentials: "same-origin",
+          signal: controller.signal,
+        });
+        if (!res.ok || !res.body) return set("", "unavailable");
+        await parseEvents(res.body, (event, payload) => {
+          const p = payload as { text?: string; summary?: string };
+          if (event === "delta" && p.text) {
+            text += p.text;
+            set(text, "streaming");
+          } else if (event === "done" && p.summary) {
+            finished.set(key, p.summary);
+            set(p.summary, "done");
+          } else if (event === "unavailable") {
+            set("", "unavailable");
+          }
+        });
+        // The stream ended without a verdict (connection dropped).
+        setState((cur) => (cur.key === key && cur.status === "streaming" ? { key, text: "", status: "unavailable" } : cur));
+      } catch (err) {
+        if (!(err instanceof DOMException && err.name === "AbortError")) set("", "unavailable");
+      }
+    })();
+    return () => controller.abort();
+  }, [key, enabled, jobID, lang, ws]);
+
+  const cached = finished.get(key);
+  if (cached !== undefined) return { text: cached, status: "done" };
+  if (state.key !== key) return { text: "", status: "loading" };
+  return { text: state.text, status: state.status };
 }
 
 // useApplyToJob records an application with status "applied".
