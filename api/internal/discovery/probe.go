@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 
 	"example.com/rolescout/api/internal/crawl"
 	"example.com/rolescout/api/internal/ingest"
@@ -103,19 +104,30 @@ func (p *Probe) Discover(ctx context.Context, state string, fn func(Candidate) e
 	}
 	end := min(start+batch, len(names))
 	for i := start; i < end; i++ {
+		// The boards of one name live on different hosts, which the crawler
+		// paces separately, so they are asked at the same time.
+		var targets []probeTarget
 		for _, slug := range Slugs(names[i]) {
-			for _, b := range probeTargets(slug) {
-				ok, err := p.exists(ctx, b)
-				if err != nil {
-					if ctx.Err() != nil {
-						return probeState(names, i), ctx.Err()
-					}
-					continue // an unreachable vendor must not stop the others
-				}
-				if ok {
-					if err := fn(Candidate{URL: b.url, Name: names[i], Origin: "probe"}); err != nil {
-						return probeState(names, i), err
-					}
+			targets = append(targets, probeTargets(slug)...)
+		}
+		found := make([]bool, len(targets))
+		var wg sync.WaitGroup
+		for j, tg := range targets {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				// An unreachable vendor must not stop the others: errors count as "no board".
+				found[j], _ = p.exists(ctx, tg)
+			}()
+		}
+		wg.Wait()
+		if ctx.Err() != nil {
+			return probeState(names, i), ctx.Err()
+		}
+		for j, tg := range targets {
+			if found[j] {
+				if err := fn(Candidate{URL: tg.url, Name: names[i], Origin: "probe"}); err != nil {
+					return probeState(names, i), err
 				}
 			}
 		}
