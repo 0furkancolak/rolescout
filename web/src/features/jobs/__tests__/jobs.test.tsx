@@ -119,6 +119,19 @@ describe("JobsPage", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
+  it("opens the country filter with its search box focused and narrows the list", async () => {
+    const api = browse();
+    api.set(`GET ${base}/jobs/facets`, { body: { data: { ...facets, country: { TR: 12, DE: 7, US: 30, FR: 4 } } } });
+    const { router } = renderApp("/jobs");
+    await userEvent.click(await screen.findByRole("button", { name: /^Country/ }));
+    const box = await screen.findByRole("searchbox", { name: "Search Country" });
+    await vi.waitFor(() => expect(box).toHaveFocus());
+    await userEvent.type(box, "germ");
+    expect(screen.queryByRole("checkbox", { name: /United States/ })).toBeNull();
+    await userEvent.click(screen.getByRole("checkbox", { name: /Germany/ }));
+    await vi.waitFor(() => expect(router.state.location.search).toContain("country=DE"));
+  });
+
   it("loads the next page by itself when the end of the list scrolls into view", async () => {
     const observers: Array<() => void> = [];
     vi.stubGlobal(

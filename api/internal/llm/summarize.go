@@ -4,13 +4,12 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"unicode/utf8"
 )
 
 // SummaryPromptVersion is part of the cache key of stored summaries.
-const SummaryPromptVersion = 2
+const SummaryPromptVersion = 3
 
-const summarySystem = `You summarise a job posting for a job seeker in two or three short sentences: what the role does and what the company is. Use only what the posting says; do not add technologies, numbers, salary or promises that are not in it. Reply with the summary text only, no heading, no list, no quotes.`
+const summarySystem = `You summarise a job posting for a job seeker in at most two short sentences (under 220 characters in total): what the role does and what the company is. Start directly with the content, with no introduction. Use only what the posting says; do not add technologies, numbers, salary or promises that are not in it. Reply with the summary text only, no heading, no list, no quotes.`
 
 const maxSummaryInput = 6000
 
@@ -26,7 +25,7 @@ func Summarize(ctx context.Context, c Completer, title, company, description, la
 	}
 	desc := truncateRunes(cleanText(description), maxSummaryInput)
 	user := fmt.Sprintf("Write the summary in %s.\nJob: %s at %s\n\nPosting:\n%s", lang, cleanText(title), cleanText(company), desc)
-	req := Request{System: summarySystem, User: user, MaxTokens: 220}
+	req := Request{System: summarySystem, User: user, MaxTokens: 110, Temperature: 0.2}
 	var resp Response
 	var err error
 	if st, ok := c.(Streamer); ok && onDelta != nil {
@@ -38,7 +37,10 @@ func Summarize(ctx context.Context, c Completer, title, company, description, la
 		return "", err
 	}
 	text := cleanText(strings.Trim(strings.TrimSpace(resp.Content), "\"“”"))
-	if text == "" || urlPattern.MatchString(text) || utf8.RuneCountInString(text) > 450 || sentences(text) > 3 {
+	// A model that runs on is cut at its second sentence, not rejected: the
+	// reader sees a short summary either way.
+	text = firstSentences(text, 2, 300)
+	if text == "" || urlPattern.MatchString(text) {
 		return "", ErrInvalidOutput
 	}
 	source := strings.ToLower(title + "\n" + description)
@@ -54,4 +56,32 @@ func Summarize(ctx context.Context, c Completer, title, company, description, la
 		}
 	}
 	return text, nil
+}
+
+// firstSentences keeps at most n sentences within max characters, ending at a
+// sentence end; text without one that fits is cut at a word.
+func firstSentences(text string, n, max int) string {
+	runes := []rune(text)
+	count, cut := 0, 0
+	for i, r := range runes {
+		if r != '.' && r != '!' && r != '?' {
+			continue
+		}
+		if i+1 > max {
+			break
+		}
+		count++
+		cut = i + 1
+		if count == n {
+			break
+		}
+	}
+	switch {
+	case len(runes) <= max && count <= n && (cut == 0 || cut == len(runes) || sentences(text) <= n):
+		return text
+	case cut > 0:
+		return strings.TrimSpace(string(runes[:cut]))
+	default:
+		return truncateRunes(text, max)
+	}
 }

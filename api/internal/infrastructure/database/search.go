@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -201,21 +203,70 @@ type Facets struct {
 	Companies    []FacetCount
 }
 
+// facetTTL is how long counts are reused; they scan the whole catalog, and a
+// few seconds of staleness does not matter for filter badges.
+const facetTTL = 60 * time.Second
+
 func (r *JobRepository) Facets(ctx context.Context, f JobFilter) (Facets, error) {
-	fc := Facets{Posted: map[string]int{}, Arrangement: map[string]int{}, Seniority: map[string]int{}, Country: map[string]int{}}
-
-	var q sqlQuery
-	from := jobConditions(&q, f, "posted")
-	var d1, d7, d30 int
-	if err := r.pool.QueryRow(ctx, `
-		SELECT count(*) FILTER (WHERE j.first_seen_at >= NOW() - INTERVAL '1 day')::int,
-		       count(*) FILTER (WHERE j.first_seen_at >= NOW() - INTERVAL '7 days')::int,
-		       count(*) FILTER (WHERE j.first_seen_at >= NOW() - INTERVAL '30 days')::int
-		FROM `+from+` WHERE `+q.whereSQL(), q.args...).Scan(&d1, &d7, &d30); err != nil {
-		return fc, translate(err, "count posted facet")
+	key := fmt.Sprintf("%s|%s|%s|%s|%v|%s|%s|%v|%s|%s|%v|%v", f.Query, f.WorkArrangement, f.EmploymentType, f.Seniority, f.Technologies,
+		f.WorkspaceID, f.ProfileID, f.PostedWithin, f.Location, f.ATS, f.Countries, f.CompanyIDs) + fmt.Sprint(f.IncludeClosed)
+	r.facetMu.Lock()
+	if e, ok := r.facetCache[key]; ok && time.Since(e.at) < facetTTL {
+		r.facetMu.Unlock()
+		return e.facets, nil
 	}
-	fc.Posted["24h"], fc.Posted["7d"], fc.Posted["30d"] = d1, d7, d30
+	r.facetMu.Unlock()
+	fc, err := r.computeFacets(ctx, f)
+	if err != nil {
+		return fc, err
+	}
+	r.facetMu.Lock()
+	if len(r.facetCache) > 200 {
+		clear(r.facetCache)
+	}
+	r.facetCache[key] = facetEntry{at: time.Now(), facets: fc}
+	r.facetMu.Unlock()
+	return fc, nil
+}
 
+// computeFacets runs the counts side by side; each is its own scan.
+func (r *JobRepository) computeFacets(ctx context.Context, f JobFilter) (Facets, error) {
+	fc := Facets{Posted: map[string]int{}, Arrangement: map[string]int{}, Seniority: map[string]int{}, Country: map[string]int{}}
+	var (
+		wg       sync.WaitGroup
+		mu       sync.Mutex
+		firstErr error
+	)
+	run := func(fn func() error) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := fn(); err != nil {
+				mu.Lock()
+				if firstErr == nil {
+					firstErr = err
+				}
+				mu.Unlock()
+			}
+		}()
+	}
+
+	run(func() error {
+		var q sqlQuery
+		from := jobConditions(&q, f, "posted")
+		var d1, d7, d30 int
+		if err := r.pool.QueryRow(ctx, `
+			SELECT count(*) FILTER (WHERE j.first_seen_at >= NOW() - INTERVAL '1 day')::int,
+			       count(*) FILTER (WHERE j.first_seen_at >= NOW() - INTERVAL '7 days')::int,
+			       count(*) FILTER (WHERE j.first_seen_at >= NOW() - INTERVAL '30 days')::int
+			FROM `+from+` WHERE `+q.whereSQL(), q.args...).Scan(&d1, &d7, &d30); err != nil {
+			return translate(err, "count posted facet")
+		}
+		mu.Lock()
+		fc.Posted["24h"], fc.Posted["7d"], fc.Posted["30d"] = d1, d7, d30
+		mu.Unlock()
+		return nil
+	})
 	for _, dim := range []struct {
 		skip, column string
 		into         map[string]int
@@ -224,35 +275,48 @@ func (r *JobRepository) Facets(ctx context.Context, f JobFilter) (Facets, error)
 		{"seniority", effSeniority, fc.Seniority},
 		{"country", effCountry, fc.Country},
 	} {
-		var q sqlQuery
-		from := jobConditions(&q, f, dim.skip)
-		rows, err := r.pool.Query(ctx, `SELECT `+dim.column+`, count(*)::int FROM `+from+
-			` WHERE `+q.whereSQL()+` AND `+dim.column+` IS NOT NULL GROUP BY 1`, q.args...)
-		if err != nil {
-			return fc, translate(err, "count "+dim.skip+" facet")
-		}
-		for rows.Next() {
-			var v string
-			var n int
-			if err := rows.Scan(&v, &n); err != nil {
-				rows.Close()
-				return fc, translate(err, "count "+dim.skip+" facet")
+		run(func() error {
+			var q sqlQuery
+			from := jobConditions(&q, f, dim.skip)
+			rows, err := r.pool.Query(ctx, `SELECT `+dim.column+`, count(*)::int FROM `+from+
+				` WHERE `+q.whereSQL()+` AND `+dim.column+` IS NOT NULL GROUP BY 1`, q.args...)
+			if err != nil {
+				return translate(err, "count "+dim.skip+" facet")
 			}
-			dim.into[v] = n
-		}
-		rows.Close()
+			defer rows.Close()
+			counts := map[string]int{}
+			for rows.Next() {
+				var v string
+				var n int
+				if err := rows.Scan(&v, &n); err != nil {
+					return translate(err, "count "+dim.skip+" facet")
+				}
+				counts[v] = n
+			}
+			mu.Lock()
+			maps.Copy(dim.into, counts)
+			mu.Unlock()
+			return translate(rows.Err(), "count "+dim.skip+" facet")
+		})
 	}
-
-	var err error
-	if fc.Technologies, err = r.topFacet(ctx, f, "technology",
-		`SELECT t, t, count(DISTINCT j.id)::int FROM %s CROSS JOIN LATERAL unnest(`+effTechnologies+`) AS t WHERE %s GROUP BY t ORDER BY 3 DESC, 1 LIMIT 20`); err != nil {
-		return fc, err
-	}
-	if fc.Companies, err = r.topFacet(ctx, f, "company",
-		`SELECT j.company_id::text, min(j.company_name), count(*)::int FROM %s WHERE %s AND j.company_id IS NOT NULL GROUP BY j.company_id ORDER BY 3 DESC, 2 LIMIT 20`); err != nil {
-		return fc, err
-	}
-	return fc, nil
+	run(func() error {
+		list, err := r.topFacet(ctx, f, "technology",
+			`SELECT t, t, count(DISTINCT j.id)::int FROM %s CROSS JOIN LATERAL unnest(`+effTechnologies+`) AS t WHERE %s GROUP BY t ORDER BY 3 DESC, 1 LIMIT 100`)
+		mu.Lock()
+		fc.Technologies = list
+		mu.Unlock()
+		return err
+	})
+	run(func() error {
+		list, err := r.topFacet(ctx, f, "company",
+			`SELECT j.company_id::text, min(j.company_name), count(*)::int FROM %s WHERE %s AND j.company_id IS NOT NULL GROUP BY j.company_id ORDER BY 3 DESC, 2 LIMIT 100`)
+		mu.Lock()
+		fc.Companies = list
+		mu.Unlock()
+		return err
+	})
+	wg.Wait()
+	return fc, firstErr
 }
 
 func (r *JobRepository) topFacet(ctx context.Context, f JobFilter, skip, format string) ([]FacetCount, error) {

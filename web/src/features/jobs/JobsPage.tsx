@@ -1,4 +1,4 @@
-import { Search, SlidersHorizontal } from "lucide-react";
+import { Globe, Search, SlidersHorizontal } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Drawer } from "../../components/Drawer";
@@ -33,6 +33,7 @@ export function JobsPage() {
   const facets = useFacets(workspace.id, search, ready);
   const save = useSaveFromBrowser(workspace.id);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [focusCountry, setFocusCountry] = useState(false);
   useResumeView(workspace.id, params, setParams);
   const [text, setText] = useState(raw.q);
   const searchInput = useRef<HTMLInputElement>(null);
@@ -137,7 +138,25 @@ export function JobsPage() {
         </label>
         <button
           type="button"
-          onClick={() => setFiltersOpen(true)}
+          onClick={() => {
+            setFocusCountry(true);
+            setFiltersOpen(true);
+          }}
+          aria-haspopup="dialog"
+          className={buttonClass("secondary")}
+        >
+          <Globe aria-hidden className="size-4" />
+          {t("browse.country")}
+          {raw.countries.length > 0 && (
+            <span className="rounded-full bg-ink px-1.5 text-xs tabular-nums text-ink-inverse">{raw.countries.length}</span>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setFocusCountry(false);
+            setFiltersOpen(true);
+          }}
           aria-haspopup="dialog"
           className={buttonClass("secondary")}
         >
@@ -160,7 +179,7 @@ export function JobsPage() {
       <FilterChips search={raw} facets={facets.data} onChange={(c) => update({ ...c, job: "" })} />
 
       <Drawer open={filtersOpen} title={t("browse.filters")} onClose={() => setFiltersOpen(false)}>
-        <FacetPanel search={raw} facets={facets.data} onChange={(c) => update({ ...c, job: "" })} />
+        <FacetPanel search={raw} facets={facets.data} focusCountry={focusCountry} onChange={(c) => update({ ...c, job: "" })} />
       </Drawer>
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(20rem,27rem)_minmax(0,1fr)]">

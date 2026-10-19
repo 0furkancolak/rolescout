@@ -33,7 +33,6 @@ func TestSummarizeRejectsWhatThePostingDoesNotSay(t *testing.T) {
 		"technology": `The role uses Kafka and React.`,
 		"number":     `The team has 250 engineers.`,
 		"link":       `See https://acme.example for more.`,
-		"too long":   `One. Two. Three. Four.`,
 		"empty":      ` `,
 	} {
 		c := summarizer(t, reply)
@@ -64,5 +63,13 @@ func TestSummarizeStreamsPiecesAndChecksTheWholeText(t *testing.T) {
 	_, err = Summarize(context.Background(), c, "Engineer", "Acme", "We build with Go.", "tr", func(string) {})
 	if !errors.Is(err, ErrInvalidOutput) {
 		t.Fatalf("err = %v, want ErrInvalidOutput", err)
+	}
+}
+
+func TestSummarizeCutsARunOnReplyAtTheSecondSentence(t *testing.T) {
+	c := summarizer(t, "Acme builds React tools. They hire a developer. They offer a team. They are nice.")
+	got, err := Summarize(context.Background(), c, "Engineer", "Acme", "We build with React.", "en", nil)
+	if err != nil || got != "Acme builds React tools. They hire a developer." {
+		t.Fatalf("got %q, %v", got, err)
 	}
 }

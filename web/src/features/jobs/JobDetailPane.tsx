@@ -9,7 +9,7 @@ import {
   Undo2,
   WandSparkles,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { CompanyTile } from "../../components/CompanyTile";
 import { Pill } from "../../components/Pill";
@@ -96,6 +96,7 @@ export function JobDetailPane({
   const aiSummary = summary.text !== "" ? summary.text : null;
   const writing = summary.status === "loading" || streaming;
   const shownSummary = aiSummary ?? (summary.status === "unavailable" ? ai?.summary || null : null);
+  const technologies = mergeTechnologies(job.technologies, ai?.extra_technologies ?? []);
   const reasons = job.match?.reasons ?? [];
   const explanation = job.match?.explanation ?? null;
 
@@ -141,7 +142,7 @@ export function JobDetailPane({
             </div>
           )}
         </div>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+        <div className="mt-3 flex items-center gap-2">
           {application ? (
             <>
               <Link
@@ -151,14 +152,13 @@ export function JobDetailPane({
                 <Check aria-hidden className="size-4" />
                 {t(`status.${application.status}`)}
               </Link>
-              <Button
-                variant="ghost"
+              <IconButton
+                label={t("browse.undoApplied")}
                 busy={remove.isPending}
                 onClick={() => remove.mutate(application.id)}
               >
                 <Undo2 aria-hidden className="size-4" />
-                {t("browse.undoApplied")}
-              </Button>
+              </IconButton>
             </>
           ) : (
             <Button busy={apply.isPending} onClick={() => apply.mutate(job.id)}>
@@ -166,9 +166,11 @@ export function JobDetailPane({
               {t("browse.applied")}
             </Button>
           )}
-          <Button
-            variant="secondary"
+          <span aria-hidden className="mx-1 h-5 w-px bg-line" />
+          <IconButton
+            label={job.saved ? t("jobs.unsave") : t("jobs.save")}
             busy={save.isPending}
+            pressed={job.saved}
             onClick={() => save.mutate({ jobID: job.id, saved: !job.saved })}
           >
             {job.saved ? (
@@ -176,25 +178,24 @@ export function JobDetailPane({
             ) : (
               <Bookmark aria-hidden className="size-4" />
             )}
-            {job.saved ? t("jobs.unsave") : t("jobs.save")}
-          </Button>
-          <Button
-            variant="ghost"
-            aria-expanded={fillOpen}
+          </IconButton>
+          <IconButton
+            label={t("autofill.open")}
+            expanded={fillOpen}
             onClick={() => setFillOpen((o) => !o)}
           >
             <WandSparkles aria-hidden className="size-4" />
-            {t("autofill.open")}
-          </Button>
+          </IconButton>
           {url && (
             <a
               href={url}
               target="_blank"
               rel="noopener noreferrer"
-              className={buttonClass("ghost")}
+              aria-label={t("browse.careerPage")}
+              title={t("browse.careerPage")}
+              className={iconButtonClass}
             >
               <ExternalLink aria-hidden className="size-4" />
-              {t("browse.careerPage")}
             </a>
           )}
         </div>
@@ -208,31 +209,6 @@ export function JobDetailPane({
             {facts.map((f) => (
               <li key={f.label}>
                 <Pill tone={f.fromAI ? "lavender" : "neutral"}>{f.label}</Pill>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {job.technologies.length > 0 && (
-          <ul
-            className="flex flex-wrap gap-1.5"
-            aria-label={t("browse.technologies")}
-          >
-            {job.technologies.map((tech) => (
-              <li
-                key={tech}
-                className="rounded-full bg-lavender px-2.5 py-0.5 text-xs text-ink"
-              >
-                {tech}
-              </li>
-            ))}
-            {ai?.extra_technologies.map((tech) => (
-              <li
-                key={tech}
-                className="rounded-full border border-line px-2.5 py-0.5 text-xs text-ink-muted"
-                title={t("ai.extraTech")}
-              >
-                {tech}
               </li>
             ))}
           </ul>
@@ -291,6 +267,27 @@ export function JobDetailPane({
               </div>
             )}
 
+            {technologies.length > 0 && (
+              <ul
+                className="flex flex-wrap gap-1.5"
+                aria-label={t("browse.technologies")}
+              >
+                {technologies.map((tech) => (
+                  <li
+                    key={tech.name}
+                    className={
+                      tech.extra
+                        ? "rounded-full border border-line px-2.5 py-0.5 text-xs text-ink-muted"
+                        : "rounded-full bg-lavender px-2.5 py-0.5 text-xs text-ink"
+                    }
+                    title={tech.extra ? t("ai.extraTech") : undefined}
+                  >
+                    {tech.name}
+                  </li>
+                ))}
+              </ul>
+            )}
+
             {reasons.length > 0 && (
               <details className="group rounded-card bg-canvas px-4 py-3">
                 <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-semibold text-ink">
@@ -340,4 +337,60 @@ function salaryText(
     currency: s.currency,
     period: t(`ai.period.${s.period}`),
   });
+}
+
+const techAlias: Record<string, string> = { golang: "go", nodejs: "node.js", "node js": "node.js", "google cloud platform": "gcp", k8s: "kubernetes", js: "javascript", ts: "typescript" };
+const techKey = (name: string) => {
+  const k = name.toLowerCase().trim();
+  return techAlias[k] ?? k;
+};
+
+// mergeTechnologies lists each technology once: the rules' names first, then
+// what only the model found; spellings of one thing ("go", "golang") count once.
+function mergeTechnologies(found: string[], extra: string[]): { name: string; extra: boolean }[] {
+  const seen = new Set<string>();
+  const out: { name: string; extra: boolean }[] = [];
+  for (const [list, isExtra] of [[found, false], [extra, true]] as const) {
+    for (const name of list) {
+      const key = techKey(name);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ name: techAlias[name.toLowerCase().trim()] ?? name, extra: isExtra });
+    }
+  }
+  return out;
+}
+
+const iconButtonClass =
+  "inline-flex size-10 shrink-0 items-center justify-center rounded-control text-ink-muted transition-colors hover:bg-canvas hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink aria-pressed:text-ink aria-expanded:bg-canvas aria-expanded:text-ink disabled:opacity-50";
+
+function IconButton({
+  label,
+  busy,
+  pressed,
+  expanded,
+  onClick,
+  children,
+}: {
+  label: string;
+  busy?: boolean;
+  pressed?: boolean;
+  expanded?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      aria-pressed={pressed}
+      aria-expanded={expanded}
+      disabled={busy}
+      onClick={onClick}
+      className={iconButtonClass}
+    >
+      {children}
+    </button>
+  );
 }

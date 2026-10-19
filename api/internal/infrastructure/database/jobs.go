@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -13,10 +14,18 @@ import (
 
 type JobRepository struct {
 	pool *pgxpool.Pool
+
+	facetMu    sync.Mutex
+	facetCache map[string]facetEntry
+}
+
+type facetEntry struct {
+	at     time.Time
+	facets Facets
 }
 
 func NewJobRepository(pool *pgxpool.Pool) *JobRepository {
-	return &JobRepository{pool: pool}
+	return &JobRepository{pool: pool, facetCache: map[string]facetEntry{}}
 }
 
 const jobColumns = `id, dedupe_key, title, company_name, location, work_arrangement,
