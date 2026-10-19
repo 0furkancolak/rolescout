@@ -115,7 +115,7 @@ func newPipelineFixture(t *testing.T) pipelineFixture {
 		Detector: &discovery.Detector{Client: crawler},
 		Sources: []discovery.Source{staticSource{
 			{URL: "https://boards.greenhouse.io/acme", Name: "Acme", Origin: "seed"},
-			{URL: "http://beta.example/careers", Name: "Beta", Origin: "seed"},
+			{URL: "http://beta.example/careers", Name: "Beta", Origin: "probe"},
 			{URL: "http://gone.example/careers", Origin: "seed"},
 		}},
 		Config:        research.Config{DiscoveryInterval: time.Hour, Concurrency: 4, MatchMinScore: 40, CompanySyncInterval: 12 * time.Hour},

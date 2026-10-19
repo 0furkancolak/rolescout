@@ -7,7 +7,7 @@ import "context"
 type Candidate struct {
 	URL    string
 	Name   string
-	Origin string // seed, hackernews, list, link or manual
+	Origin string // seed, hackernews, list, link, manual or probe
 }
 
 // Pender is implemented by sources that know they have new work whatever the
