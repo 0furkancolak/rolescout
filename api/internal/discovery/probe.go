@@ -103,11 +103,20 @@ func (p *Probe) Discover(ctx context.Context, state string, fn func(Candidate) e
 		batch = 250
 	}
 	end := min(start+batch, len(names))
-	for i := start; i < end; i++ {
+	if i, err := p.probeNames(ctx, names[start:end], fn); err != nil {
+		return probeState(names, start+i), err
+	}
+	return probeState(names, end), nil
+}
+
+// probeNames tries each name and reports the boards found. On an error it
+// returns how many names were finished.
+func (p *Probe) probeNames(ctx context.Context, names []string, fn func(Candidate) error) (int, error) {
+	for i, name := range names {
 		// The boards of one name live on different hosts, which the crawler
 		// paces separately, so they are asked at the same time.
 		var targets []probeTarget
-		for _, slug := range Slugs(names[i]) {
+		for _, slug := range Slugs(name) {
 			targets = append(targets, probeTargets(slug)...)
 		}
 		found := make([]bool, len(targets))
@@ -122,17 +131,17 @@ func (p *Probe) Discover(ctx context.Context, state string, fn func(Candidate) e
 		}
 		wg.Wait()
 		if ctx.Err() != nil {
-			return probeState(names, i), ctx.Err()
+			return i, ctx.Err()
 		}
 		for j, tg := range targets {
 			if found[j] {
-				if err := fn(Candidate{URL: tg.url, Name: names[i], Origin: "probe"}); err != nil {
-					return probeState(names, i), err
+				if err := fn(Candidate{URL: tg.url, Name: name, Origin: "probe"}); err != nil {
+					return i, err
 				}
 			}
 		}
 	}
-	return probeState(names, end), nil
+	return len(names), nil
 }
 
 type probeTarget struct{ url, api, kind string }

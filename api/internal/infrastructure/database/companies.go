@@ -362,3 +362,30 @@ func (r *CompanyRepository) UpdateTiers(ctx context.Context, top, mid, low time.
 		top.Seconds(), mid.Seconds(), low.Seconds())
 	return translate(err, "update company sync tiers")
 }
+
+// NamesWithoutBoard lists names (in name order, after the given one) of
+// companies whose career page could not be read, for CatalogProbe.
+func (r *CompanyRepository) NamesWithoutBoard(ctx context.Context, after string, limit int) ([]string, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT name FROM (
+			SELECT DISTINCT ON (lower(name)) name FROM companies
+			WHERE ats = 'unknown' AND status IN ('unreachable', 'empty', 'pending')
+			ORDER BY lower(name), id
+		) n
+		WHERE lower(name) > lower($1)
+		ORDER BY lower(name)
+		LIMIT $2`, after, limit)
+	if err != nil {
+		return nil, translate(err, "list names without board")
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var n string
+		if err := rows.Scan(&n); err != nil {
+			return nil, translate(err, "scan name")
+		}
+		out = append(out, n)
+	}
+	return out, translate(rows.Err(), "list names without board")
+}

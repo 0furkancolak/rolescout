@@ -109,6 +109,18 @@ func (r *ApplicationRepository) Get(ctx context.Context, workspaceID, id string)
 	return a, translate(err, "get application")
 }
 
+// Delete removes an application with its attempts, events, notes and tags.
+func (r *ApplicationRepository) Delete(ctx context.Context, workspaceID, id string) error {
+	tag, err := r.pool.Exec(ctx, `DELETE FROM applications WHERE workspace_id = $1 AND id = $2`, workspaceID, id)
+	if err != nil {
+		return translate(err, "delete application")
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
 // List returns the workspace's applications, most recently updated first,
 // optionally filtered by status.
 func (r *ApplicationRepository) List(ctx context.Context, workspaceID string, status *domain.ApplicationStatus) ([]domain.Application, error) {

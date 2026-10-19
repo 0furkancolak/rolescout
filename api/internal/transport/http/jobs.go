@@ -1,6 +1,7 @@
 package httptransport
 
 import (
+	"context"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
@@ -134,4 +135,45 @@ func (h *handlers) unsaveJob(c fiber.Ctx) error {
 		return err
 	}
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// JobSummarizer writes short job summaries with the local model.
+type JobSummarizer interface {
+	Summary(ctx context.Context, jobID, title, company, description, language string) (text string, ready bool, err error)
+}
+
+type summaryDTO struct {
+	Summary *string `json:"summary"`
+	// Source is "ai" with a summary, "pending" while the model is still
+	// writing it (ask again), or "unavailable" when the model is off,
+	// unreachable or gave an unusable answer.
+	Source string `json:"source"`
+}
+
+// jobSummary returns a short summary in the requested language (tr or en).
+func (h *handlers) jobSummary(c fiber.Ctx) error {
+	id, err := pathID(c, "jobID")
+	if err != nil {
+		return err
+	}
+	lang := c.Query("lang", "en")
+	if lang != "tr" && lang != "en" {
+		return (&domain.ValidationError{}).Add("lang", "must be tr or en")
+	}
+	job, err := h.Jobs.GetJob(c.Context(), id)
+	if err != nil {
+		return err
+	}
+	unavailable := dataResponse[summaryDTO]{Data: summaryDTO{Source: "unavailable"}}
+	if h.Summaries == nil || len(strings.TrimSpace(job.Description)) < 80 {
+		return c.JSON(unavailable)
+	}
+	text, ready, err := h.Summaries.Summary(c.Context(), id, job.Title, job.CompanyName, job.Description, lang)
+	if err != nil || (ready && text == "") {
+		return c.JSON(unavailable)
+	}
+	if !ready {
+		return c.JSON(dataResponse[summaryDTO]{Data: summaryDTO{Source: "pending"}})
+	}
+	return c.JSON(dataResponse[summaryDTO]{Data: summaryDTO{Summary: &text, Source: "ai"}})
 }

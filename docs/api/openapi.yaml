@@ -430,6 +430,43 @@ paths:
         "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/InvalidInput" }
 
+  /api/v1/workspaces/{workspaceID}/state/{key}:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+      - name: key
+        in: path
+        required: true
+        description: "`jobs_view` (where the user left off in the job browser) or `autofill` (details for filling application forms)."
+        schema: { type: string, enum: [jobs_view, autofill] }
+    get:
+      tags: [workspaces]
+      summary: Get the caller's stored state
+      operationId: getUserState
+      responses:
+        "200":
+          description: The stored JSON object.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: object, additionalProperties: true }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [workspaces]
+      summary: Store the caller's state
+      description: Replaces the document. At most 64 KiB; it belongs to the calling user in this workspace.
+      operationId: putUserState
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "204": { description: Stored. }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
   /api/v1/workspaces/{workspaceID}/applications:
     parameters:
       - $ref: "#/components/parameters/WorkspaceID"
@@ -509,13 +546,7 @@ paths:
       summary: Change application status
       description: |
         Allowed transitions:
-        planned → applied, withdrawn;
-        applied → interviewing, offer, rejected, withdrawn;
-        interviewing → offer, rejected, withdrawn;
-        offer → accepted, rejected, withdrawn;
-        accepted → withdrawn;
-        rejected → planned, applied;
-        withdrawn → planned, applied.
+        any status may change to any other, so a mistake can be corrected.
         Setting the current status again succeeds without adding history.
       operationId: updateApplication
       requestBody:
@@ -546,6 +577,14 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
         "422": { $ref: "#/components/responses/InvalidInput" }
+    delete:
+      tags: [applications]
+      summary: Delete an application
+      description: Removes the application with its attempts, events, notes and tags (for example one created by mistake).
+      operationId: deleteApplication
+      responses:
+        "204": { description: Deleted. }
+        "404": { $ref: "#/components/responses/NotFound" }
   /api/v1/workspaces/{workspaceID}/applications/{applicationID}/attempts:
     parameters:
       - $ref: "#/components/parameters/WorkspaceID"
@@ -1313,6 +1352,39 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/WorkspaceJob" }
                   next_cursor: { type: [string, "null"] }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
+  /api/v1/workspaces/{workspaceID}/jobs/{jobID}/summary:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+      - $ref: "#/components/parameters/JobID"
+      - name: lang
+        in: query
+        description: Language of the summary.
+        schema: { type: string, enum: [tr, en], default: en }
+    get:
+      tags: [jobs]
+      summary: A short summary of the job in one language
+      description: |
+        Written by the local model on first request and stored. While the model is still
+        writing it the source is `pending`; ask again a few seconds later.
+        `unavailable` means the model is off, unreachable or answered badly.
+      operationId: getJobSummary
+      responses:
+        "200":
+          description: The summary state.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [summary, source]
+                    properties:
+                      summary: { type: [string, "null"] }
+                      source: { type: string, enum: [ai, pending, unavailable] }
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/InvalidInput" }
   /api/v1/workspaces/{workspaceID}/jobs/facets:

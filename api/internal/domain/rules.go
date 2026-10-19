@@ -59,18 +59,20 @@ func (s ApplicationStatus) Valid() bool {
 	return false
 }
 
-// statusTransitions lists the statuses each status may move to. Rejected and
-// withdrawn applications can be reopened because re-applying is a normal part
-// of a job search; accepted is final except for withdrawing.
-var statusTransitions = map[ApplicationStatus][]ApplicationStatus{
-	StatusPlanned:      {StatusApplied, StatusWithdrawn},
-	StatusApplied:      {StatusInterviewing, StatusOffer, StatusRejected, StatusWithdrawn},
-	StatusInterviewing: {StatusOffer, StatusRejected, StatusWithdrawn},
-	StatusOffer:        {StatusAccepted, StatusRejected, StatusWithdrawn},
-	StatusAccepted:     {StatusWithdrawn},
-	StatusRejected:     {StatusPlanned, StatusApplied},
-	StatusWithdrawn:    {StatusPlanned, StatusApplied},
-}
+// statusTransitions lists the statuses each status may move to. The tracker
+// is the user's own record, so any status may be corrected to any other (a
+// mistaken "applied" goes back to "planned"); only unknown statuses are refused.
+var statusTransitions = func() map[ApplicationStatus][]ApplicationStatus {
+	m := map[ApplicationStatus][]ApplicationStatus{}
+	for _, from := range ApplicationStatuses {
+		for _, to := range ApplicationStatuses {
+			if from != to {
+				m[from] = append(m[from], to)
+			}
+		}
+	}
+	return m
+}()
 
 // ErrTransitionNotAllowed is returned for a status change the workflow forbids.
 // errors.Is(err, ErrConflict) is true because it depends on the current state.

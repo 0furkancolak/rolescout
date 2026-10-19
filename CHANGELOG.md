@@ -5,6 +5,29 @@ All notable changes are listed here. Versions follow
 include breaking changes, which are called out.
 
 ## [Unreleased]
+### Added
+- Job browser: results load as you scroll; filters moved to a drawer behind a
+  "Filters" button; the selected job scrolls on its own with its title and
+  actions pinned; original description on the left and the model's reading
+  (summary in the interface language, remote policy, why it matches) on the
+  right; "Başvurdum" can be undone in place.
+- A short summary of each job written by the local model in the interface
+  language on first view and stored (`GET /workspaces/{id}/jobs/{id}/summary`).
+- The job browser remembers where you left off (filters, sort, selected job)
+  in the database and continues there on any device
+  (`GET`/`PUT /workspaces/{id}/state/{key}`).
+- Application details page and a bookmarklet that fills the common fields of a
+  career page's application form (never submits, never fills files).
+- Applications can be deleted (`DELETE …/applications/{id}`); the list and the
+  board were redesigned (open/closed groups, status chosen in place).
+- Company discovery also looks for the job boards of catalogued companies that
+  have no readable career page (name probe over thousands of Hacker News
+  employers).
+- `make dev` streams the API and worker logs into the terminal.
+### Changed
+- Any application status can change to any other, so a mistaken one can be
+  corrected.
+- Selects have room for their arrow; scrollbars follow the theme.
 
 ## [0.2.0] - 2026-10-19
 ### Added

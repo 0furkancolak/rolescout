@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -89,8 +90,10 @@ func run() error {
 		Research:       database.NewResearchRepository(pool),
 		Companies:      database.NewCompanyRepository(pool),
 		Activity:       database.NewActivityRepository(pool),
+		UserState:      database.NewUserStateRepository(pool),
 		Enrichments:    enrichments,
 		LLM:            llmChecker(cfg.LLM, enrichments),
+		Summaries:      summarizer(cfg.LLM, pool),
 		CrawlSettings:  crawlSettings(cfg.Crawl),
 		Workspaces:     httptransport.MembershipAuthorizer{Workspaces: workspaces},
 	})
@@ -118,6 +121,17 @@ func llmChecker(cfg config.LLM, repo *database.EnrichmentRepository) httptranspo
 	return &enrich.Checker{
 		Config: cfg, Repo: repo,
 		Client: llm.NewClient(llm.Options{BaseURL: cfg.BaseURL, Model: cfg.Model, APIKey: cfg.APIKey, Timeout: cfg.Timeout}),
+	}
+}
+
+// summarizer writes job summaries with the local model; nil when it is off.
+func summarizer(cfg config.LLM, pool *pgxpool.Pool) httptransport.JobSummarizer {
+	if !cfg.Enabled {
+		return nil
+	}
+	return &enrich.Summarizer{
+		Client: llm.NewClient(llm.Options{BaseURL: cfg.BaseURL, Model: cfg.Model, APIKey: cfg.APIKey, Timeout: cfg.Timeout}),
+		Model:  cfg.Model, Store: database.NewSummaryRepository(pool),
 	}
 }
 

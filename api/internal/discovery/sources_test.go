@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -271,5 +272,40 @@ func TestSeedsAndProbeReportPendingWork(t *testing.T) {
 	p.Names = []string{"a", "b", "c"}
 	if !p.Pending(state) {
 		t.Error("a changed list is pending")
+	}
+}
+
+func TestCatalogProbeWalksNamesInBatchesAndFinishes(t *testing.T) {
+	d := sites(t, map[string]string{
+		"api.lever.co/v0/postings/alpha":              `[{"id":"1"}]`,
+		"api.ashbyhq.com/posting-api/job-board/gamma": `{"jobs":[{"id":"1"}]}`,
+	})
+	all := []string{"Alpha", "Beta", "A very long name that is surely a sentence from a post, not a company", "Gamma"}
+	lister := func(_ context.Context, after string, limit int) ([]string, error) {
+		var out []string
+		for _, n := range all {
+			if strings.ToLower(n) > strings.ToLower(after) && len(out) < limit {
+				out = append(out, n)
+			}
+		}
+		return out, nil
+	}
+	c := &CatalogProbe{Probe: &Probe{Client: d.Client}, Names: lister, Batch: 2}
+	var got []string
+	collect := func(c Candidate) error { got = append(got, c.URL); return nil }
+	state, err := c.Discover(ingesttest.Ctx(t), "", collect)
+	if err != nil || state != "Beta" || !c.Pending(state) {
+		t.Fatalf("first batch: state %q err %v", state, err)
+	}
+	state, err = c.Discover(ingesttest.Ctx(t), state, collect)
+	if err != nil || !strings.HasPrefix(state, "done:") || c.Pending(state) {
+		t.Fatalf("second batch: state %q err %v", state, err)
+	}
+	if strings.Join(got, ",") != "https://jobs.lever.co/alpha,https://jobs.ashbyhq.com/gamma" {
+		t.Errorf("found %v", got)
+	}
+	// A finished pass waits.
+	if again, _ := c.Discover(ingesttest.Ctx(t), state, collect); again != state {
+		t.Errorf("finished pass ran again: %q", again)
 	}
 }

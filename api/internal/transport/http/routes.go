@@ -28,6 +28,7 @@ type ApplicationStore interface {
 	Get(ctx context.Context, workspaceID, id string) (domain.Application, error)
 	List(ctx context.Context, workspaceID string, status *domain.ApplicationStatus) ([]domain.Application, error)
 	ChangeStatus(ctx context.Context, workspaceID, id string, to domain.ApplicationStatus, changedBy *string) (domain.Application, error)
+	Delete(ctx context.Context, workspaceID, id string) error
 	AddAttempt(ctx context.Context, workspaceID, applicationID string, p database.AddAttemptParams) (domain.ApplicationAttempt, error)
 	ListAttempts(ctx context.Context, workspaceID, applicationID string) ([]domain.ApplicationAttempt, error)
 	AddEvent(ctx context.Context, workspaceID, applicationID string, p database.ScheduleEventParams) (domain.ApplicationEvent, error)
@@ -63,6 +64,8 @@ type Deps struct {
 	Research       ResearchStore
 	Companies      CompanyCatalog
 	Activity       ActivityStore
+	UserState      UserStateStore
+	Summaries      JobSummarizer // nil when the local model is off
 	LLM            LLMStatusProvider
 	Enrichments    EnrichmentReader
 	// CrawlSettings are shown read-only to administrators.
@@ -109,9 +112,13 @@ func RegisterAPIRoutes(app *fiber.App, d Deps) {
 	ws.Post("/members", h.addMember)
 	ws.Get("/jobs", h.listWorkspaceJobs)
 	ws.Get("/jobs/facets", h.workspaceJobFacets)
+	ws.Get("/jobs/:jobID/summary", h.jobSummary)
 	ws.Get("/saved-jobs", h.listSavedJobs)
 	ws.Put("/saved-jobs/:jobID", h.saveJob)
 	ws.Delete("/saved-jobs/:jobID", h.unsaveJob)
+
+	ws.Get("/state/:key", h.getUserState)
+	ws.Put("/state/:key", h.putUserState)
 
 	ws.Get("/tags", h.listTags)
 	ws.Post("/tags", h.createTag)
@@ -120,6 +127,7 @@ func RegisterAPIRoutes(app *fiber.App, d Deps) {
 	ws.Post("/applications", h.createApplication)
 	ws.Get("/applications/:applicationID", h.getApplication)
 	ws.Patch("/applications/:applicationID", h.updateApplication)
+	ws.Delete("/applications/:applicationID", h.deleteApplication)
 	ws.Get("/applications/:applicationID/attempts", h.listAttempts)
 	ws.Post("/applications/:applicationID/attempts", h.addAttempt)
 	ws.Get("/applications/:applicationID/events", h.listEvents)

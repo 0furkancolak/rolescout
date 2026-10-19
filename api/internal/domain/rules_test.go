@@ -15,9 +15,9 @@ func TestValidateTransition(t *testing.T) {
 		{StatusApplied, StatusInterviewing, nil},
 		{StatusOffer, StatusAccepted, nil},
 		{StatusRejected, StatusApplied, nil},
-		{StatusPlanned, StatusOffer, ErrConflict},
-		{StatusAccepted, StatusRejected, ErrConflict},
-		{StatusInterviewing, StatusPlanned, ErrConflict},
+		{StatusPlanned, StatusOffer, nil},
+		{StatusAccepted, StatusRejected, nil},
+		{StatusApplied, StatusPlanned, nil},
 		{StatusApplied, "ghosted", ErrInvalid},
 	}
 	for _, tt := range tests {

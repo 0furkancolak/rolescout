@@ -54,7 +54,10 @@ scripts/restore.sh backups/<file>.dump --yes
   `internal/discovery/seeds/probe_names.txt` on Lever, Greenhouse, Ashby,
   Workable and Recruitee through their public job APIs, once for each name
   (a release that adds names or seeds triggers discovery at once); add names to that file to find more employers in your
-  region.
+  region. A second pass (`catalog_probe`) tries the names of catalogued
+  companies whose own site could not be read, about a thousand per run, and
+  starts over every 30 days; a name shared by several companies can match the
+  wrong board.
 - **Collection** syncs company sources that are due. Sources refresh every
   12 hours when the company has a matching job, every 3 days when it has
   other open jobs, and weekly when it has none. Failing companies back off

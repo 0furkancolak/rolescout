@@ -106,6 +106,17 @@ func (h *handlers) updateApplication(c fiber.Ctx) error {
 	return c.JSON(dataResponse[applicationDTO]{Data: toApplication(app)})
 }
 
+func (h *handlers) deleteApplication(c fiber.Ctx) error {
+	id, err := pathID(c, "applicationID")
+	if err != nil {
+		return err
+	}
+	if err := h.Applications.Delete(c.Context(), workspaceID(c), id); err != nil {
+		return err
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
 func (h *handlers) listAttempts(c fiber.Ctx) error {
 	id, err := h.applicationID(c)
 	if err != nil {

@@ -303,10 +303,11 @@ func TestApplicationHistory(t *testing.T) {
 		t.Fatalf("events = %d, want 6", len(events))
 	}
 
-	_, err = apps.ChangeStatus(ctx, f.workspace.ID, app.ID, domain.StatusAccepted, nil)
-	var notAllowed domain.ErrTransitionNotAllowed
-	if !errors.As(err, &notAllowed) || !errors.Is(err, domain.ErrConflict) {
-		t.Fatalf("applied->accepted error = %v, want transition conflict", err)
+	// Any status may be corrected to any other; the extra moves are history too.
+	for _, to := range []domain.ApplicationStatus{domain.StatusAccepted, domain.StatusPlanned, domain.StatusApplied} {
+		if _, err = apps.ChangeStatus(ctx, f.workspace.ID, app.ID, to, nil); err != nil {
+			t.Fatalf("change to %s: %v", to, err)
+		}
 	}
 
 	_, err = apps.ChangeStatus(ctx, f.workspace.ID, app.ID, "ghosted", nil)

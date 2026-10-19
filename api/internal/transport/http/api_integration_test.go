@@ -39,6 +39,7 @@ func newIntegrationApp(t *testing.T, cfg AuthConfig) *fiber.App {
 		WorkspaceStore: workspaces,
 		Jobs:           database.NewJobRepository(testPool),
 		Applications:   database.NewApplicationRepository(testPool),
+		UserState:      database.NewUserStateRepository(testPool),
 		Annotations:    database.NewAnnotationRepository(testPool),
 		Workspaces:     MembershipAuthorizer{Workspaces: workspaces},
 	})
@@ -153,11 +154,11 @@ func TestAPIApplicationTrackingFlow(t *testing.T) {
 
 	r = f.a.call(t, f.app, "PATCH", appPath, map[string]string{"status": "interviewing"})
 	expectStatus(t, r, 200)
-	r = f.a.call(t, f.app, "PATCH", appPath, map[string]string{"status": "planned"})
-	expectStatus(t, r, 409)
-	if r.errorCode() != "invalid_transition" {
-		t.Fatalf("code = %q", r.errorCode())
-	}
+	// A status can be corrected to any other (a mistaken "applied" goes back
+	// to planned and forward again); unknown statuses are refused.
+	expectStatus(t, f.a.call(t, f.app, "PATCH", appPath, map[string]string{"status": "planned"}), 200)
+	expectStatus(t, f.a.call(t, f.app, "PATCH", appPath, map[string]string{"status": "interviewing"}), 200)
+	expectStatus(t, f.a.call(t, f.app, "PATCH", appPath, map[string]string{"status": "ghosted"}), 422)
 
 	r = f.a.call(t, f.app, "POST", appPath+"/events", map[string]any{
 		"type": "interview", "occurred_at": "2026-10-20T14:00:00Z", "details": map[string]string{"round": "technical"},
@@ -175,7 +176,7 @@ func TestAPIApplicationTrackingFlow(t *testing.T) {
 	}
 	// History is ordered by when things happened: the attempt on Oct 10 comes
 	// before the application was added to RoleScout.
-	if fmt.Sprint(types) != "[attempt_added created status_changed status_changed interview]" {
+	if fmt.Sprint(types) != "[attempt_added created status_changed status_changed status_changed status_changed interview]" {
 		t.Fatalf("event types = %v", types)
 	}
 
@@ -210,6 +211,46 @@ func TestAPIApplicationTrackingFlow(t *testing.T) {
 	expectStatus(t, r, 201)
 	otherAppPath := ws + "/applications/" + r.data()["id"].(string)
 	expectStatus(t, f.a.call(t, f.app, "PATCH", otherAppPath+"/notes/"+noteID, map[string]string{"body": "moved"}), 404)
+
+	// An application recorded by mistake can be deleted with everything under
+	// it, but not by another workspace, and only once.
+	expectStatus(t, f.b.call(t, f.app, "DELETE", "/api/v1/workspaces/"+f.workspaceB+"/applications/"+r.data()["id"].(string), nil), 404)
+	expectStatus(t, f.a.call(t, f.app, "DELETE", otherAppPath, nil), 204)
+	expectStatus(t, f.a.call(t, f.app, "DELETE", otherAppPath, nil), 404)
+	expectStatus(t, f.a.call(t, f.app, "GET", otherAppPath, nil), 404)
+	expectStatus(t, f.a.call(t, f.app, "DELETE", appPath, nil), 204)
+	expectStatus(t, f.a.call(t, f.app, "GET", appPath+"/notes", nil), 404)
+}
+
+func TestAPIUserState(t *testing.T) {
+	f := newAPIFixture(t)
+	ws := "/api/v1/workspaces/" + f.workspaceA
+	expectStatus(t, f.a.call(t, f.app, "GET", ws+"/state/jobs_view", nil), 404)
+	expectStatus(t, f.a.call(t, f.app, "PUT", ws+"/state/jobs_view", map[string]string{"query": "technology=go&job=" + f.jobID}), 204)
+	r := f.a.call(t, f.app, "GET", ws+"/state/jobs_view", nil)
+	expectStatus(t, r, 200)
+	if r.data()["query"] != "technology=go&job="+f.jobID {
+		t.Fatalf("state = %s", r.Raw)
+	}
+	// Replaced, not merged; unknown keys do not exist; another user sees nothing.
+	expectStatus(t, f.a.call(t, f.app, "PUT", ws+"/state/jobs_view", map[string]string{"other": "x"}), 204)
+	if r = f.a.call(t, f.app, "GET", ws+"/state/jobs_view", nil); r.data()["query"] != nil || r.data()["other"] != "x" {
+		t.Fatalf("state after replace = %s", r.Raw)
+	}
+	expectStatus(t, f.a.call(t, f.app, "PUT", ws+"/state/secrets", map[string]string{"a": "b"}), 404)
+	expectStatus(t, f.b.call(t, f.app, "GET", "/api/v1/workspaces/"+f.workspaceB+"/state/jobs_view", nil), 404)
+	expectStatus(t, f.b.call(t, f.app, "GET", ws+"/state/jobs_view", nil), 404)
+}
+
+func TestAPIJobSummaryIsUnavailableWithoutTheModel(t *testing.T) {
+	f := newAPIFixture(t)
+	ws := "/api/v1/workspaces/" + f.workspaceA
+	r := f.a.call(t, f.app, "GET", ws+"/jobs/"+f.jobID+"/summary?lang=tr", nil)
+	expectStatus(t, r, 200)
+	if r.data()["source"] != "unavailable" || r.data()["summary"] != nil {
+		t.Fatalf("summary = %s", r.Raw)
+	}
+	expectStatus(t, f.a.call(t, f.app, "GET", ws+"/jobs/"+f.jobID+"/summary?lang=de", nil), 422)
 }
 
 func TestAPIWorkspaceIsolation(t *testing.T) {

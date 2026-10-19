@@ -2,7 +2,8 @@
 #
 # make dev starts PostgreSQL, the API and the worker in Docker, then runs the
 # web app with hot reload on http://127.0.0.1:5173 (Ctrl+C stops the web app;
-# "make down" stops the containers).
+# "make down" stops the containers). The API and worker (Go) logs are
+# streamed into the same terminal.
 
 COMPOSE ?= docker compose
 WEB_DEV_PORT ?= 5173
@@ -16,9 +17,11 @@ help: ## List the available tasks
 env: ## Create .env with a random database password if it is missing
 	@scripts/init-env.sh
 
-dev: backend web-deps ## Backend in Docker, web app with hot reload on :5173
+dev: backend web-deps ## Backend in Docker, web app with hot reload on :5173, Go logs in this terminal
 	@port=$$(. ./.env; echo "$${API_HOST_PORT:-8080}"); \
 	echo "RoleScout: http://127.0.0.1:$(WEB_DEV_PORT)  (API on :$$port)"; \
+	$(COMPOSE) logs -f --tail=20 api worker & logs=$$!; \
+	trap 'kill $$logs 2>/dev/null' EXIT INT TERM; \
 	cd web && API_PROXY_TARGET="http://127.0.0.1:$$port" npm run dev -- --host 127.0.0.1 --port $(WEB_DEV_PORT) --strictPort
 
 backend: env ## Start PostgreSQL, the API and the worker in Docker

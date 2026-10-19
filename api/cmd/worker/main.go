@@ -61,6 +61,7 @@ func run() error {
 		Sources: []discovery.Source{
 			discovery.SeedSource{},
 			&discovery.Probe{Client: crawler},
+			&discovery.CatalogProbe{Probe: &discovery.Probe{Client: crawler}, Names: companies.NamesWithoutBoard},
 			&discovery.HackerNews{Client: crawler},
 			&discovery.MarkdownList{Client: crawler, URLs: discovery.DefaultLists},
 		},
