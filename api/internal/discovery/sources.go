@@ -10,6 +10,12 @@ type Candidate struct {
 	Origin string // seed, hackernews, list, link or manual
 }
 
+// Pender is implemented by sources that know they have new work whatever the
+// discovery schedule says, such as a seed list that grew in a new release.
+type Pender interface {
+	Pending(state string) bool
+}
+
 // Source finds candidates. state is what the source returned last time (""
 // at first); Discover returns the state to keep for the next run.
 type Source interface {

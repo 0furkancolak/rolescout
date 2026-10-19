@@ -172,3 +172,31 @@ func TestPipelineEndToEnd(t *testing.T) {
 		t.Errorf("second run = %+v", got2)
 	}
 }
+
+// growingSource is a source with new work on every call, like a seed list a
+// release extended.
+type growingSource struct{ staticSource }
+
+func (growingSource) Pending(string) bool { return true }
+
+func TestPendingSourceRunsDiscoveryDespiteFreshCatalog(t *testing.T) {
+	f := newPipelineFixture(t)
+	ctx, p, runs := f.ctx, f.p, f.runs
+	if _, err := runs.EnqueueRun(ctx, f.ws.ID, f.profiles[0].ID, "manual"); err != nil {
+		t.Fatal(err)
+	}
+	p.Tick(ctx)
+	// Same catalog, fresh: the next run skips discovery...
+	run2, _ := runs.EnqueueRun(ctx, f.ws.ID, f.profiles[0].ID, "manual")
+	p.Tick(ctx)
+	if got, _ := runs.GetRun(ctx, f.ws.ID, run2.ID); got.Stages[domain.StageDiscovery].State != "skipped" {
+		t.Fatalf("fresh catalog: discovery = %s", got.Stages[domain.StageDiscovery].State)
+	}
+	// ...unless a source reports pending work.
+	p.Sources = []discovery.Source{growingSource{p.Sources[0].(staticSource)}}
+	run3, _ := runs.EnqueueRun(ctx, f.ws.ID, f.profiles[0].ID, "manual")
+	p.Tick(ctx)
+	if got, _ := runs.GetRun(ctx, f.ws.ID, run3.ID); got.Stages[domain.StageDiscovery].State != "done" {
+		t.Fatalf("pending source: discovery = %s", got.Stages[domain.StageDiscovery].State)
+	}
+}

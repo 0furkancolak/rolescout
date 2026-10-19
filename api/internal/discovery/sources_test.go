@@ -246,3 +246,30 @@ func TestEmbeddedSeedsAndNamesAreValid(t *testing.T) {
 		t.Errorf("only %d probe names", n)
 	}
 }
+
+func TestSeedsAndProbeReportPendingWork(t *testing.T) {
+	var seed SeedSource
+	if !seed.Pending("") {
+		t.Error("seeds never read are pending")
+	}
+	state, err := seed.Discover(ingesttest.Ctx(t), "", func(Candidate) error { return nil })
+	if err != nil || seed.Pending(state) {
+		t.Fatalf("after reading the seeds: state %q pending %v err %v", state, seed.Pending(state), err)
+	}
+	p := &Probe{Names: []string{"a", "b"}, Batch: 1, Client: sites(t, nil).Client}
+	if !p.Pending("") {
+		t.Error("an unread name list is pending")
+	}
+	state, _ = p.Discover(ingesttest.Ctx(t), "", func(Candidate) error { return nil })
+	if !p.Pending(state) {
+		t.Error("one of two names read: still pending")
+	}
+	state, _ = p.Discover(ingesttest.Ctx(t), state, func(Candidate) error { return nil })
+	if p.Pending(state) {
+		t.Error("all names read: nothing pending")
+	}
+	p.Names = []string{"a", "b", "c"}
+	if !p.Pending(state) {
+		t.Error("a changed list is pending")
+	}
+}

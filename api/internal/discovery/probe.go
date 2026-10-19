@@ -29,8 +29,7 @@ type Probe struct {
 	Client *crawl.Client
 	// Names are company names; default is the embedded list.
 	Names []string
-	// Batch is how many names are tried per Discover call (default 40), so a
-	// long list is worked through over several runs.
+	// Batch is how many names are tried per Discover call (default 250).
 	Batch int
 }
 
@@ -75,6 +74,17 @@ func probeState(names []string, done int) string {
 	return hex.EncodeToString(sum[:6]) + ":" + strconv.Itoa(done)
 }
 
+// Pending is true until every name of the current list has been tried.
+func (p *Probe) Pending(state string) bool {
+	names := p.Names
+	if names == nil {
+		names = ProbeNames()
+	}
+	digest, n, ok := strings.Cut(state, ":")
+	done, _ := strconv.Atoi(n)
+	return !ok || digest != probeState(names, 0)[:12] || done < len(names)
+}
+
 func (p *Probe) Discover(ctx context.Context, state string, fn func(Candidate) error) (string, error) {
 	names := p.Names
 	if names == nil {
@@ -89,7 +99,7 @@ func (p *Probe) Discover(ctx context.Context, state string, fn func(Candidate) e
 	}
 	batch := p.Batch
 	if batch <= 0 {
-		batch = 40
+		batch = 250
 	}
 	end := min(start+batch, len(names))
 	for i := start; i < end; i++ {

@@ -52,8 +52,8 @@ scripts/restore.sh backups/<file>.dump --yes
   threads (12 months on the first run, then new ones and the current month),
   public company lists and a name probe. The probe looks up each company in
   `internal/discovery/seeds/probe_names.txt` on Lever, Greenhouse, Ashby,
-  Workable and Recruitee through their public job APIs, 40 names per
-  discovery run; add names to that file to find more employers in your
+  Workable and Recruitee through their public job APIs, once for each name
+  (a release that adds names or seeds triggers discovery at once); add names to that file to find more employers in your
   region.
 - **Collection** syncs company sources that are due. Sources refresh every
   12 hours when the company has a matching job, every 3 days when it has

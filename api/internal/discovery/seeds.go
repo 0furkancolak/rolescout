@@ -2,7 +2,9 @@ package discovery
 
 import (
 	"context"
+	"crypto/sha256"
 	_ "embed"
+	"encoding/hex"
 	"fmt"
 	"net/url"
 	"strings"
@@ -47,6 +49,15 @@ type SeedSource struct{}
 
 func (SeedSource) Name() string { return "seed" }
 
+// seedDigest identifies the embedded lists; it is the source's state, so a
+// release with new seeds is read at once.
+func seedDigest() string {
+	sum := sha256.Sum256([]byte(seedsFile + "\x00" + turkeySeedsFile))
+	return hex.EncodeToString(sum[:8])
+}
+
+func (SeedSource) Pending(state string) bool { return state != seedDigest() }
+
 func (SeedSource) Discover(_ context.Context, state string, fn func(Candidate) error) (string, error) {
 	seeds, err := Seeds()
 	if err != nil {
@@ -57,5 +68,5 @@ func (SeedSource) Discover(_ context.Context, state string, fn func(Candidate) e
 			return state, err
 		}
 	}
-	return state, nil
+	return seedDigest(), nil
 }

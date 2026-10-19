@@ -301,7 +301,11 @@ func (p *Pipeline) discover(ctx context.Context, rep *reporter) error {
 	if err != nil {
 		return err
 	}
-	if t, err := time.Parse(time.RFC3339, last); err == nil && p.Now().Sub(t) < p.Config.DiscoveryInterval {
+	pending, err := p.pendingSources(ctx)
+	if err != nil {
+		return err
+	}
+	if t, err := time.Parse(time.RFC3339, last); err == nil && p.Now().Sub(t) < p.Config.DiscoveryInterval && !pending {
 		known, err := p.knownCompanies(ctx)
 		if err != nil {
 			return err
@@ -603,4 +607,23 @@ func (p *Pipeline) score(ctx context.Context, run domain.ResearchRun, profile do
 	rep.event("info", stage, "", fmt.Sprintf("%d of %d open jobs match, %d new", len(ms), open, fresh))
 	rep.end(stage, "done", "")
 	return open, len(ms), fresh, nil
+}
+
+// pendingSources reports whether a source has new work now, such as seeds
+// added by a release, although the catalog was refreshed recently.
+func (p *Pipeline) pendingSources(ctx context.Context) (bool, error) {
+	for _, src := range p.Sources {
+		pd, ok := src.(discovery.Pender)
+		if !ok {
+			continue
+		}
+		state, err := p.Runs.State(ctx, "discovery."+src.Name())
+		if err != nil {
+			return false, err
+		}
+		if pd.Pending(state) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
