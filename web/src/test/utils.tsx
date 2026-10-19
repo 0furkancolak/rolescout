@@ -20,6 +20,16 @@ export interface Reply {
 
 type Handler = Reply | ((call: Call) => Reply);
 
+// fallback answers the requests every page makes but few tests care about:
+// nothing saved on the server, no applications, no model summary.
+function fallback(call: Call): Reply | undefined {
+  if (call.method === "GET" && /^\/workspaces\/[^/]+\/state\//.test(call.path)) return { status: 404, body: { error: { code: "not_found", message: "none" } } };
+  if (call.method === "PUT" && /^\/workspaces\/[^/]+\/state\//.test(call.path)) return { status: 204 };
+  if (call.method === "GET" && /^\/workspaces\/[^/]+\/applications$/.test(call.path)) return { body: { data: [] } };
+  if (call.method === "GET" && /\/jobs\/[^/]+\/summary$/.test(call.path)) return { body: { data: { summary: null, source: "unavailable" } } };
+  return undefined;
+}
+
 // mockApi replaces fetch with an in-memory API. Handlers are keyed by
 // "METHOD /path" (without /api/v1 and the query string). Unmatched requests
 // fail the test with a 500 so missing stubs are obvious.
@@ -34,7 +44,7 @@ export function mockApi(handlers: Record<string, Handler>) {
       body: init?.body ? JSON.parse(String(init.body)) : undefined,
     };
     calls.push(call);
-    const handler = handlers[`${call.method} ${call.path}`];
+    const handler = handlers[`${call.method} ${call.path}`] ?? fallback(call);
     if (!handler) {
       return new Response(JSON.stringify({ error: { code: "internal", message: `unmocked ${call.method} ${call.path}` } }), {
         status: 500,

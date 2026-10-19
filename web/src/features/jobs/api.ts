@@ -131,6 +131,23 @@ export function useSaveFromBrowser(ws: string) {
   });
 }
 
+export interface JobSummary {
+  summary: string | null;
+  source: "ai" | "pending" | "unavailable";
+}
+
+// useJobSummary asks for the model's short summary in the given language. The
+// first request may take a while; while the server says "pending" it asks again.
+export function useJobSummary(ws: string, jobID: string, lang: string, enabled = true) {
+  return useQuery({
+    queryKey: ["workspaces", ws, "jobs", "summary", jobID, lang],
+    queryFn: ({ signal }) => data<JobSummary>(wsPath(ws, `/jobs/${jobID}/summary`) + query({ lang }), { signal }),
+    enabled: enabled && jobID !== "",
+    staleTime: 10 * 60_000,
+    refetchInterval: (q) => (q.state.data?.source === "pending" ? 4000 : false),
+  });
+}
+
 // useApplyToJob records an application with status "applied".
 export function useApplyToJob(ws: string) {
   const client = useQueryClient();

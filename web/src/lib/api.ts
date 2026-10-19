@@ -367,17 +367,12 @@ export function isApiError(err: unknown, code?: string): err is ApiError {
   return err instanceof ApiError && (code === undefined || err.code === code);
 }
 
-// Mirrors statusTransitions in api/internal/domain/rules.go so the UI only
-// offers changes the server accepts. The server remains the authority.
-export const statusTransitions: Record<ApplicationStatus, ApplicationStatus[]> = {
-  planned: ["applied", "withdrawn"],
-  applied: ["interviewing", "offer", "rejected", "withdrawn"],
-  interviewing: ["offer", "rejected", "withdrawn"],
-  offer: ["accepted", "rejected", "withdrawn"],
-  accepted: ["withdrawn"],
-  rejected: ["planned", "applied"],
-  withdrawn: ["planned", "applied"],
-};
+// Mirrors statusTransitions in api/internal/domain/rules.go: the tracker is
+// the user's own record, so any status may be corrected to any other.
+const allStatuses: ApplicationStatus[] = ["planned", "applied", "interviewing", "offer", "accepted", "rejected", "withdrawn"];
+export const statusTransitions = Object.fromEntries(
+  allStatuses.map((from) => [from, allStatuses.filter((to) => to !== from)]),
+) as Record<ApplicationStatus, ApplicationStatus[]>;
 
 export const applicationStatuses = Object.keys(statusTransitions) as ApplicationStatus[];
 export const workArrangements = ["onsite", "hybrid", "remote", "unknown"];

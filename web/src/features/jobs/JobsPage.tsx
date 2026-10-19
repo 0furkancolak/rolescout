@@ -1,12 +1,14 @@
 import { Search, SlidersHorizontal } from "lucide-react";
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { Drawer } from "../../components/Drawer";
 import { Segmented } from "../../components/Segmented";
 import { Button, EmptyState, ErrorState, PageTitle, Spinner } from "../../components/ui";
 import { buttonClass, inputClass } from "../../components/styles";
 import type { WorkspaceJob } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { useProfiles } from "../research/api";
+import { useUserState, usePutUserState } from "../state/api";
 import { useWorkspace } from "../workspaces/context";
 import { useFacets, useJob, useSaveFromBrowser, useWorkspaceJobs } from "./api";
 import { FacetPanel } from "./FacetPanel";
@@ -16,8 +18,9 @@ import { JobList } from "./JobList";
 import { effectiveSearch, readJobSearch, writeJobSearch, type JobSearch, type Sort } from "./searchParams";
 import { useJobKeyboard } from "./useJobKeyboard";
 
-// JobsPage is the three-column job browser: filters, results and the
-// selected job. All state lives in the URL.
+// JobsPage is the job browser: results beside the selected job, filters in a
+// drawer. All state lives in the URL, and the last view is also kept on the
+// server so the next visit (on any device) continues where the user left off.
 export function JobsPage() {
   const { t } = useI18n();
   const { workspace } = useWorkspace();
@@ -30,6 +33,7 @@ export function JobsPage() {
   const facets = useFacets(workspace.id, search, ready);
   const save = useSaveFromBrowser(workspace.id);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  useResumeView(workspace.id, params, setParams);
   const [text, setText] = useState(raw.q);
   const searchInput = useRef<HTMLInputElement>(null);
 
@@ -44,6 +48,13 @@ export function JobsPage() {
   const selected: WorkspaceJob | undefined =
     fromList ?? (detail.data && jobs.isSuccess ? { ...detail.data, saved: false, match: null } : undefined);
   const careerURL = detail.data?.id === raw.job ? detail.data.listings[0]?.url : undefined;
+
+  // A restored selection may lie beyond the first page: load a few more.
+  const loadedPages = jobs.data?.pages.length ?? 0;
+  useEffect(() => {
+    if (raw.job && !fromList && jobs.hasNextPage && !jobs.isFetchingNextPage && loadedPages < 6) void jobs.fetchNextPage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [raw.job, fromList, jobs.hasNextPage, jobs.isFetchingNextPage, loadedPages]);
 
   const keyboard = useMemo(() => {
     const index = list.findIndex((j) => j.id === raw.job);
@@ -68,6 +79,9 @@ export function JobsPage() {
     e.preventDefault();
     update({ q: text.trim(), job: "", sort: text.trim() && raw.sort === "relevance" ? "relevance" : raw.sort });
   };
+  const activeFilters =
+    [raw.posted, raw.arrangement, raw.seniority, raw.location, raw.region, raw.ats].filter(Boolean).length +
+    raw.technologies.length + raw.countries.length + raw.companies.length + (raw.closed ? 1 : 0);
   const hasFilters = !!(raw.posted || raw.arrangement || raw.seniority || raw.technologies.length || raw.countries.length || raw.location || raw.region || raw.ats || raw.companies.length || raw.closed);
   const sorts: Exclude<Sort, "">[] = search.profile ? ["score", "recent"] : ["recent"];
   if (search.q) sorts.push("relevance");
@@ -123,12 +137,15 @@ export function JobsPage() {
         </label>
         <button
           type="button"
-          onClick={() => setFiltersOpen((o) => !o)}
-          aria-expanded={filtersOpen}
-          className={buttonClass("secondary", "lg:hidden")}
+          onClick={() => setFiltersOpen(true)}
+          aria-haspopup="dialog"
+          className={buttonClass("secondary")}
         >
           <SlidersHorizontal aria-hidden className="size-4" />
           {t("browse.filters")}
+          {activeFilters > 0 && (
+            <span className="rounded-full bg-ink px-1.5 text-xs tabular-nums text-ink-inverse">{activeFilters}</span>
+          )}
         </button>
         {hasFilters && (
           <Button
@@ -142,13 +159,11 @@ export function JobsPage() {
 
       <FilterChips search={raw} facets={facets.data} onChange={(c) => update({ ...c, job: "" })} />
 
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[15rem_minmax(0,1fr)_minmax(0,1.3fr)]">
-        <aside aria-label={t("browse.filters")} className={`${filtersOpen ? "block" : "hidden"} lg:block`}>
-          <div className="rounded-card bg-surface p-4 shadow-card lg:sticky lg:top-6">
-            <FacetPanel search={raw} facets={facets.data} onChange={(c) => update({ ...c, job: "" })} />
-          </div>
-        </aside>
+      <Drawer open={filtersOpen} title={t("browse.filters")} onClose={() => setFiltersOpen(false)}>
+        <FacetPanel search={raw} facets={facets.data} onChange={(c) => update({ ...c, job: "" })} />
+      </Drawer>
 
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(20rem,27rem)_minmax(0,1fr)]">
         <div className={selected ? "hidden lg:block" : ""}>
           {!ready || jobs.isPending ? (
             <Spinner />
@@ -164,11 +179,7 @@ export function JobsPage() {
             <>
               <JobList jobs={list} selected={raw.job} onSelect={(id) => update({ job: id }, true)} />
               {jobs.hasNextPage && (
-                <div className="mt-3 flex justify-center">
-                  <Button variant="secondary" busy={jobs.isFetchingNextPage} onClick={() => jobs.fetchNextPage()}>
-                    {t("jobs.loadMore")}
-                  </Button>
-                </div>
+                <MoreSentinel busy={jobs.isFetchingNextPage} onVisible={() => !jobs.isFetchingNextPage && void jobs.fetchNextPage()} />
               )}
             </>
           )}
@@ -176,9 +187,7 @@ export function JobsPage() {
 
         <div className={selected ? "" : "hidden lg:block"}>
           {selected ? (
-            <div className="lg:sticky lg:top-6">
-              <JobDetailPane job={selected} onBack={() => update({ job: "" }, true)} />
-            </div>
+            <JobDetailPane job={selected} onBack={() => update({ job: "" }, true)} />
           ) : (
             <p className="rounded-hero border border-dashed border-line-strong p-8 text-center text-sm text-ink-muted">
               {t("browse.selectJob")}
@@ -188,4 +197,57 @@ export function JobsPage() {
       </div>
     </div>
   );
+}
+
+// MoreSentinel loads the next page when it scrolls into view. Where
+// IntersectionObserver is missing it falls back to a button.
+function MoreSentinel({ busy, onVisible }: { busy: boolean; onVisible: () => void }) {
+  const { t } = useI18n();
+  const ref = useRef<HTMLDivElement>(null);
+  const supported = typeof IntersectionObserver !== "undefined";
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !supported) return;
+    const io = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && onVisible(), { rootMargin: "600px" });
+    io.observe(el);
+    return () => io.disconnect();
+  });
+  return (
+    <div ref={ref} className="mt-3 flex min-h-12 justify-center">
+      {busy ? (
+        <Spinner />
+      ) : (
+        !supported && (
+          <Button variant="secondary" onClick={onVisible}>
+            {t("jobs.loadMore")}
+          </Button>
+        )
+      )}
+    </div>
+  );
+}
+
+interface ViewState {
+  query: string;
+}
+
+// useResumeView keeps the job browser's URL (filters, sort, selected job) on
+// the server. A visit to the bare page restores it; later changes are saved.
+function useResumeView(ws: string, params: URLSearchParams, setParams: (p: URLSearchParams, o?: { replace: boolean }) => void) {
+  const saved = useUserState<ViewState>(ws, "jobs_view");
+  const put = usePutUserState<ViewState>(ws, "jobs_view");
+  const ready = useRef(false);
+  const query = params.toString();
+  useEffect(() => {
+    if (ready.current || saved.isPending) return;
+    ready.current = true;
+    if (!query && saved.data?.query) setParams(new URLSearchParams(saved.data.query), { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saved.isPending]);
+  useEffect(() => {
+    if (!ready.current || saved.isPending || (saved.data?.query ?? "") === query) return;
+    const timer = setTimeout(() => put.mutate({ query }), 700);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, saved.isPending, saved.data?.query]);
 }

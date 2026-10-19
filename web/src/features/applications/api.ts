@@ -68,6 +68,11 @@ export function useCreateApplication(ws: string) {
   });
 }
 
+// useDeleteApplication removes an application, for one recorded by mistake.
+export function useDeleteApplication(ws: string) {
+  return useAppMutation(ws, (id: string) => request<void>(wsPath(ws, `/applications/${id}`), { method: "DELETE" }));
+}
+
 export function useChangeStatus(ws: string, id: string) {
   return useAppMutation(ws, (status: ApplicationStatus) =>
     data<Application>(wsPath(ws, `/applications/${id}`), { method: "PATCH", body: { status } }),

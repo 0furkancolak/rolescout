@@ -1,4 +1,4 @@
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { BackLink } from "../../components/BackLink";
 import { NotFound } from "../../components/NotFound";
 import { Card, ErrorState, Spinner, StatusBadge } from "../../components/ui";
@@ -7,6 +7,7 @@ import { useI18n } from "../../lib/i18n";
 import { useJob } from "../jobs/api";
 import { useWorkspace } from "../workspaces/context";
 import { useApplication } from "./api";
+import { DeleteApplication } from "./parts";
 import { AttemptsSection, HistorySection, NotesSection, ScheduleSection, StatusControl, TagsSection } from "./sections";
 
 export function ApplicationDetailPage() {
@@ -15,6 +16,7 @@ export function ApplicationDetailPage() {
   const { workspace } = useWorkspace();
   const app = useApplication(workspace.id, applicationId);
   const job = useJob(app.data?.job_id ?? "");
+  const navigate = useNavigate();
 
   if (app.isPending) return <Spinner />;
   if (isApiError(app.error, "not_found")) return <NotFound />;
@@ -41,7 +43,10 @@ export function ApplicationDetailPage() {
               {t("apps.status")}: <StatusBadge status={app.data.status} />
             </p>
           </div>
-          <StatusControl {...props} />
+          <div className="flex flex-wrap items-end gap-2">
+            <StatusControl {...props} />
+            <DeleteApplication application={app.data} onDeleted={() => navigate("/applications")} />
+          </div>
         </div>
       </Card>
       <div className="grid gap-6 lg:grid-cols-3">

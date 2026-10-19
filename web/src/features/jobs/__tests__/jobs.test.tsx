@@ -53,7 +53,9 @@ describe("JobsPage", () => {
   it("filters with facets and keeps them in the URL", async () => {
     const api = browse();
     const { router } = renderApp("/jobs");
+    await userEvent.click(await screen.findByRole("button", { name: "Filters" }));
     await userEvent.click(await screen.findByRole("checkbox", { name: /react/ }));
+    await userEvent.keyboard("{Escape}");
     await vi.waitFor(() => expect(router.state.location.search).toContain("technology=react"));
     await userEvent.click(screen.getByRole("button", { name: /^Remote/ }));
     await vi.waitFor(() => expect(router.state.location.search).toContain("arrangement=remote"));
@@ -105,15 +107,50 @@ describe("JobsPage", () => {
     expect(within(plain).queryByRole("img")).toBeNull();
   });
 
-  it("marks the selected row and opens the extra filters on small screens", async () => {
+  it("marks the selected row and opens the filters in a drawer that Escape closes", async () => {
     browse();
     renderApp(`/jobs?job=${makeJob(1).id}`);
     const row = await screen.findByRole("button", { name: /Full Stack Engineer 1/ });
     expect(row).toHaveAttribute("aria-current", "true");
-    const more = screen.getByRole("button", { name: "Filters" });
-    expect(more).toHaveAttribute("aria-expanded", "false");
-    await userEvent.click(more);
-    expect(more).toHaveAttribute("aria-expanded", "true");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    expect(screen.getByRole("dialog", { name: "Filters" })).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("loads the next page by itself when the end of the list scrolls into view", async () => {
+    const observers: Array<() => void> = [];
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        constructor(cb: (e: Array<{ isIntersecting: boolean }>) => void) {
+          observers.push(() => cb([{ isIntersecting: true }]));
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    browse();
+    renderApp("/jobs");
+    await screen.findByRole("button", { name: /Full Stack Engineer 1/ });
+    expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
+    await vi.waitFor(() => expect(observers.length).toBeGreaterThan(0));
+    observers.at(-1)!();
+    expect(await screen.findByRole("button", { name: /Full Stack Engineer 3/ })).toBeInTheDocument();
+  });
+
+  it("restores where the user left off and saves later changes", async () => {
+    const api = browse({
+      [`GET ${base}/state/jobs_view`]: { body: { data: { query: `technology=react&job=${makeJob(1).id}` } } },
+      [`PUT ${base}/state/jobs_view`]: { status: 204 },
+    });
+    const { router } = renderApp("/jobs");
+    await vi.waitFor(() => expect(router.state.location.search).toContain("technology=react"));
+    expect(router.state.location.search).toContain(`job=${makeJob(1).id}`);
+    await screen.findByRole("region", { name: "Full Stack Engineer 1" });
+    await userEvent.click(await screen.findByRole("button", { name: /Full Stack Engineer 2/ }));
+    await vi.waitFor(() => expect(api.calls.some((c) => c.method === "PUT" && String((c.body as { query: string }).query).includes(makeJob(2).id))).toBe(true), { timeout: 3000 });
   });
 
   it("shows the selected job with reasons, saves it and links to the career page safely", async () => {
@@ -143,23 +180,34 @@ describe("JobsPage", () => {
     await vi.waitFor(() => expect(router.state.location.search).toContain(`job=${makeJob(1).id}`));
   });
 
-  it("records an application from the job", async () => {
+  it("records an application from the job and takes it back", async () => {
     const app = { id: "a1", job_id: makeJob(1).id, status: "planned", created_by: null, created_at: "2026-10-17T10:00:00Z", updated_at: "2026-10-17T10:00:00Z" };
+    let list: unknown[] = [];
     const api = browse({
-      [`POST ${base}/applications`]: { status: 201, body: { data: app } },
-      [`PATCH ${base}/applications/a1`]: { body: { data: { ...app, status: "applied" } } },
-      [`GET ${base}/applications/a1`]: { body: { data: { ...app, status: "applied" } } },
-      [`GET ${base}/applications/a1/attempts`]: { body: { data: [] } },
-      [`GET ${base}/applications/a1/events`]: { body: { data: [] } },
-      [`GET ${base}/applications/a1/notes`]: { body: { data: [] } },
-      [`GET ${base}/applications/a1/tags`]: { body: { data: [] } },
-      [`GET ${base}/tags`]: { body: { data: [] } },
+      [`GET ${base}/applications`]: () => ({ body: { data: list } }),
+      [`POST ${base}/applications`]: () => {
+        list = [app];
+        return { status: 201, body: { data: app } };
+      },
+      [`PATCH ${base}/applications/a1`]: () => {
+        list = [{ ...app, status: "applied" }];
+        return { body: { data: { ...app, status: "applied" } } };
+      },
+      [`DELETE ${base}/applications/a1`]: () => {
+        list = [];
+        return { status: 204 };
+      },
     });
     const { router } = renderApp(`/jobs?job=${makeJob(1).id}`);
     const pane = await screen.findByRole("region", { name: "Full Stack Engineer 1" });
     await userEvent.click(within(pane).getByRole("button", { name: "I applied" }));
-    await vi.waitFor(() => expect(router.state.location.pathname).toBe("/applications/a1"));
+    // The user stays on the job; the pane now shows the status and a way back.
+    expect(await within(pane).findByRole("link", { name: "Applied" })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/jobs");
     expect(api.calls.find((c) => c.method === "PATCH")?.body).toEqual({ status: "applied" });
+    await userEvent.click(within(pane).getByRole("button", { name: "Undo" }));
+    expect(await within(pane).findByRole("button", { name: "I applied" })).toBeInTheDocument();
+    expect(api.calls.some((c) => c.method === "DELETE")).toBe(true);
   });
 
   it("marks closed jobs and explains an empty catalog", async () => {

@@ -5,6 +5,7 @@ import {
   Building2,
   LayoutDashboard,
   ListChecks,
+  UserRound,
   Menu,
   Radar,
   Settings,
@@ -30,6 +31,7 @@ const navItems: NavItem[] = [
   { to: "/jobs", key: "nav.jobs", icon: Briefcase },
   { to: "/saved", key: "nav.saved", icon: Bookmark },
   { to: "/applications", key: "nav.applications", icon: ListChecks },
+  { to: "/autofill", key: "nav.autofill", icon: UserRound },
   { to: "/companies", key: "nav.companies", icon: Building2 },
   { to: "/settings", key: "nav.settings", icon: Settings, admin: true },
 ];

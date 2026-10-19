@@ -2,6 +2,7 @@ import { type RouteObject } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
 import { NotFound } from "../components/NotFound";
 import { ApplicationDetailPage } from "../features/applications/ApplicationDetailPage";
+import { AutofillPage } from "../features/autofill/AutofillPage";
 import { ApplicationsPage } from "../features/applications/ApplicationsPage";
 import { LoginPage } from "../features/auth/LoginPage";
 import { RegisterPage } from "../features/auth/RegisterPage";
@@ -39,6 +40,7 @@ export const routes: RouteObject[] = [
       { path: "saved", element: <SavedJobsPage /> },
       { path: "applications", element: <ApplicationsPage /> },
       { path: "applications/:applicationId", element: <ApplicationDetailPage /> },
+      { path: "autofill", element: <AutofillPage /> },
       { path: "companies", element: <CompaniesPage /> },
       { path: "settings", element: <SettingsPage /> },
       { path: "*", element: <NotFound /> },

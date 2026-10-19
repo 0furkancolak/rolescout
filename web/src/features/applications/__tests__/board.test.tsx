@@ -38,11 +38,11 @@ describe("ApplicationsBoard", () => {
     await vi.waitFor(() => expect(api.calls.find((c) => c.method === "PATCH")?.body).toEqual({ status: "interviewing" }));
   });
 
-  it("refuses drops on columns the status cannot move to", async () => {
+  it("does not take drops on the closed column", async () => {
     const api = board();
     renderApp("/applications?view=board");
     const card = await screen.findByRole("article", { name: "Backend Engineer 1" });
-    const target = screen.getByRole("region", { name: "Accepted" });
+    const target = screen.getByRole("region", { name: "Closed" });
     const dt = dataTransfer();
     fireEvent.dragStart(card, { dataTransfer: dt });
     fireEvent.dragOver(target, { dataTransfer: dt });
@@ -55,7 +55,7 @@ describe("ApplicationsBoard", () => {
     const api = board(() => ({ status: 409, body: { error: { code: "invalid_transition", message: "no" } } }));
     renderApp("/applications?view=board");
     const card = await screen.findByRole("article", { name: "Backend Engineer 1" });
-    await userEvent.selectOptions(within(card).getByRole("combobox", { name: "Move to…" }), "offer");
+    await userEvent.selectOptions(within(card).getByRole("combobox", { name: "Change status" }), "offer");
     await vi.waitFor(() => expect(api.calls.find((c) => c.method === "PATCH")?.body).toEqual({ status: "offer" }));
     expect(await within(card).findByText("This status change is not allowed from the current status.")).toBeInTheDocument();
   });

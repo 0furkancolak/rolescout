@@ -47,23 +47,42 @@ function detailHandlers(state: { app: Application; events: ApplicationEvent[]; n
 }
 
 describe("ApplicationsPage", () => {
-  it("filters by status", async () => {
-    const api = mockApi({
+  it("groups applications into open and closed", async () => {
+    const closed = { ...app, id: "a2", status: "withdrawn" as const, job_id: makeJob(2).id };
+    mockApi({
       ...signedIn(),
-      [`GET /workspaces/${WS}/applications`]: (call) => ({
-        body: { data: call.search.get("status") === "offer" ? [] : [app] },
-      }),
+      [`GET /workspaces/${WS}/applications`]: { body: { data: [app, closed] } },
       [`GET /jobs/${job.id}`]: { body: { data: { ...job, listings: [] } } },
+      [`GET /jobs/${makeJob(2).id}`]: { body: { data: { ...makeJob(2), listings: [] } } },
     });
     const { router } = renderApp("/applications");
     expect(await screen.findByText("Backend Engineer 1")).toBeInTheDocument();
-    expect(screen.getByText("Applied", { selector: "span" })).toBeInTheDocument();
+    expect(await screen.findByText("Backend Engineer 2")).toBeInTheDocument();
 
-    const filters = screen.getByRole("navigation", { name: "Filter by status" });
-    await userEvent.click(within(filters).getByRole("button", { name: "Offer" }));
-    expect(await screen.findByText("No applications with this status.")).toBeInTheDocument();
-    expect(router.state.location.search).toBe("?status=offer");
-    expect(api.calls.at(-1)?.search.get("status")).toBe("offer");
+    await userEvent.click(screen.getByRole("radio", { name: "Closed" }));
+    expect(router.state.location.search).toBe("?group=closed");
+    expect(screen.queryByText("Backend Engineer 1")).not.toBeInTheDocument();
+    expect(screen.getByText("Backend Engineer 2")).toBeInTheDocument();
+  });
+
+  it("changes a status in the list and deletes a mistaken application after confirming", async () => {
+    const api = mockApi({
+      ...signedIn(),
+      [`GET /workspaces/${WS}/applications`]: { body: { data: [app] } },
+      [`GET /jobs/${job.id}`]: { body: { data: { ...job, listings: [] } } },
+      [`PATCH /workspaces/${WS}/applications/${app.id}`]: { body: { data: { ...app, status: "planned" } } },
+      [`DELETE /workspaces/${WS}/applications/${app.id}`]: { status: 204 },
+    });
+    renderApp("/applications");
+    const select = await screen.findByRole("combobox", { name: "Change status" });
+    // Any status can be chosen, so "applied" by mistake goes back to "planned".
+    await userEvent.selectOptions(select, "planned");
+    await vi.waitFor(() => expect(api.calls.find((c) => c.method === "PATCH")?.body).toEqual({ status: "planned" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Delete application" }));
+    expect(api.calls.some((c) => c.method === "DELETE")).toBe(false);
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+    await vi.waitFor(() => expect(api.calls.some((c) => c.method === "DELETE")).toBe(true));
   });
 
   it("shows an empty state", async () => {
@@ -96,7 +115,7 @@ describe("ApplicationDetailPage", () => {
 
     const select = await screen.findByLabelText("Change status");
     const options = within(select).getAllByRole("option").map((o) => o.getAttribute("value"));
-    expect(options).toEqual(["", "interviewing", "offer", "rejected", "withdrawn"]);
+    expect(options).toEqual(["", "planned", "interviewing", "offer", "accepted", "rejected", "withdrawn"]);
 
     await userEvent.selectOptions(select, "interviewing");
     await userEvent.click(screen.getByRole("button", { name: "Save" }));

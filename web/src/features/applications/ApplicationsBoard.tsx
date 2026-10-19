@@ -1,57 +1,56 @@
-import { CompanyTile } from "../../components/CompanyTile";
 import { useState, type DragEvent } from "react";
 import { Link } from "react-router-dom";
-import { InlineError } from "../../components/ui";
-import { applicationStatuses, statusTransitions, type Application, type ApplicationStatus } from "../../lib/api";
+import { CompanyTile } from "../../components/CompanyTile";
+import { type Application, type ApplicationStatus } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { useJob } from "../jobs/api";
 import { useWorkspace } from "../workspaces/context";
 import { useChangeStatus } from "./api";
+import { DeleteApplication, StatusDot, StatusSelect } from "./parts";
+import { isClosed, openStatuses } from "./statuses";
 
-// ApplicationsBoard shows applications as a kanban board. Cards move by drag
-// and drop, or with each card's "Move to…" menu (keyboard and touch).
+// The board has one column per step that is still going and a last one for
+// everything that ended (accepted, rejected, withdrawn). Cards move by drag
+// and drop between the open columns, or with the card's status menu (which
+// also reaches the closing statuses, keyboard and touch included).
+type Column = ApplicationStatus | "closed";
+const columns: Column[] = [...openStatuses, "closed"];
+
 export function ApplicationsBoard({ applications }: { applications: Application[] }) {
   const { t } = useI18n();
   const [dragging, setDragging] = useState<Application | null>(null);
-  const [over, setOver] = useState<ApplicationStatus | null>(null);
+  const [over, setOver] = useState<Column | null>(null);
   const [moveTo, setMoveTo] = useState<{ app: Application; to: ApplicationStatus } | null>(null);
 
-  const allowed = (app: Application | null, to: ApplicationStatus) => !!app && statusTransitions[app.status].includes(to);
+  const canDrop = (col: Column) => !!dragging && col !== "closed" && dragging.status !== col;
 
   return (
     <div className="-mx-4 overflow-x-auto px-4 pb-2">
-      <div className="grid auto-cols-[minmax(15rem,1fr)] grid-flow-col gap-3">
-        {applicationStatuses.map((status) => {
-          const items = applications.filter((a) => a.status === status);
-          const canDrop = allowed(dragging, status);
+      <div className="grid auto-cols-[minmax(16rem,1fr)] grid-flow-col gap-3">
+        {columns.map((col) => {
+          const items = applications.filter((a) => (col === "closed" ? isClosed(a.status) : a.status === col));
           return (
             <section
-              key={status}
-              aria-label={t(`status.${status}`)}
+              key={col}
+              aria-label={col === "closed" ? t("apps.group.closed") : t(`status.${col}`)}
               onDragOver={(e: DragEvent) => {
-                if (canDrop) {
+                if (canDrop(col)) {
                   e.preventDefault();
-                  setOver(status);
+                  setOver(col);
                 }
               }}
-              onDragLeave={() => setOver((o) => (o === status ? null : o))}
+              onDragLeave={() => setOver((o) => (o === col ? null : o))}
               onDrop={(e: DragEvent) => {
                 e.preventDefault();
                 setOver(null);
-                if (dragging && canDrop) setMoveTo({ app: dragging, to: status });
+                if (dragging && canDrop(col)) setMoveTo({ app: dragging, to: col as ApplicationStatus });
                 setDragging(null);
               }}
-              className={`flex min-h-48 flex-col rounded-card border p-3 transition-colors ${
-                over === status
-                  ? "border-ink bg-lavender"
-                  : dragging && !canDrop && dragging.status !== status
-                    ? "border-line bg-canvas opacity-60"
-                    : "border-line bg-canvas"
-              }`}
+              className={`flex min-h-48 flex-col rounded-card p-3 transition-colors ${over === col ? "bg-lavender" : "bg-canvas"}`}
             >
-              <h2 className="flex items-center justify-between px-1 pb-2 text-sm font-semibold text-ink">
-                {t(`status.${status}`)}
-                <span className="rounded-full bg-surface px-2 text-xs tabular-nums text-ink-muted">{items.length}</span>
+              <h2 className="flex items-center justify-between px-1 pb-3 text-sm font-semibold text-ink">
+                {col === "closed" ? t("apps.group.closed") : t(`status.${col}`)}
+                <span className="text-xs font-normal tabular-nums text-ink-muted">{items.length}</span>
               </h2>
               <ul className="space-y-2">
                 {items.map((a) => (
@@ -87,7 +86,6 @@ function BoardCard({
   onDragStart: () => void;
   onDragEnd: () => void;
 }) {
-  const { t } = useI18n();
   const { workspace } = useWorkspace();
   const job = useJob(application.job_id);
   const change = useChangeStatus(workspace.id, application.id);
@@ -121,27 +119,13 @@ function BoardCard({
             <p className="truncate text-sm text-ink-muted">{job.data?.company_name}</p>
           </div>
         </div>
-        <label className="mt-2 block">
-          <span className="sr-only">{t("board.moveTo")}</span>
-          <select
-            aria-label={t("board.moveTo")}
-            value=""
-            disabled={change.isPending || statusTransitions[application.status].length === 0}
-            onChange={(e) => e.target.value && change.mutate(e.target.value as ApplicationStatus)}
-            className="min-h-9 w-full rounded-control border border-line-strong bg-surface px-2 py-1 text-xs text-ink"
-          >
-            <option value="">{t("board.moveTo")}</option>
-            {statusTransitions[application.status].map((s) => (
-              <option key={s} value={s}>
-                {t(`status.${s}`)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="mt-1">
-          <InlineError error={change.error} />
+        <div className="mt-2 flex items-center justify-between gap-2">
+          {isClosed(application.status) && <StatusDot status={application.status} />}
+          <StatusSelect application={application} className="min-w-0 flex-1 text-xs" />
+          <DeleteApplication application={application} />
         </div>
       </article>
     </li>
   );
 }
+
