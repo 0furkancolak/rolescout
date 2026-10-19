@@ -115,7 +115,7 @@ export function JobDetailPane({
           {t("browse.backToList")}
         </button>
         <div className="flex items-start gap-3">
-          <CompanyTile name={job.company_name} size={44} />
+          <CompanyTile name={job.company_name} size={40} />
           <div className="min-w-0 flex-1">
             <h2 className="text-lg font-bold leading-snug tracking-tight text-ink">
               {job.title}
