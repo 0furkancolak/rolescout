@@ -4,6 +4,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // Dropped counts what validation removed from a model reply.
@@ -81,7 +83,12 @@ func Validate(e Enrichment, title, description string, resolveCountry func(place
 		}
 	}
 
-	e.Technologies = groundTechnologies(e.Technologies, text, &d)
+	if e.WorkArrangement != "unknown" && !hasCue(text, arrangementCues[e.WorkArrangement]) {
+		e.WorkArrangement = "unknown"
+		d.Enums++
+	}
+
+	e.Technologies = groundTechnologies(e.Technologies, text, title+"\n"+description, &d)
 
 	e.SalaryMin, e.SalaryMax, e.SalaryCurrency, e.SalaryPeriod = validateSalary(e, title+"\n"+description, &d)
 
@@ -93,6 +100,12 @@ func Validate(e Enrichment, title, description string, resolveCountry func(place
 		}
 	}
 	if e.CountryCode != "" && !countryPattern.MatchString(e.CountryCode) {
+		e.CountryCode = ""
+		d.Country = true
+	}
+	// A country the rules could not read from the location must be named in
+	// the text, or the model made it up.
+	if e.CountryCode != "" && resolveCountry != nil && resolveCountry(e.Location) != e.CountryCode && !mentionsCountry(title+"\n"+description, e.CountryCode, resolveCountry) {
 		e.CountryCode = ""
 		d.Country = true
 	}
@@ -129,23 +142,47 @@ func hasCue(text string, cues []string) bool {
 	return false
 }
 
-func groundTechnologies(in []string, text string, d *Dropped) []string {
-	var out []string
+func groundTechnologies(in []string, text, original string, d *Dropped) []string {
+	type item struct {
+		name string
+		ok   bool
+	}
+	var items []item
 	seen := map[string]bool{}
 	for _, raw := range in {
 		name := strings.ToLower(strings.TrimSpace(raw))
-		if name == "" {
-			continue
-		}
-		if seen[name] {
+		if name == "" || seen[name] {
 			continue
 		}
 		seen[name] = true
-		if len([]rune(name)) < 2 || len(out) >= maxTechnologies || !grounded(name, text) {
-			d.Technologies++
-			continue
+		items = append(items, item{name: name})
+	}
+	// Ordinary names first: an ambiguous one ("go") is also accepted next to
+	// a technology that was found.
+	var accepted []string
+	for pass := 0; pass < 2; pass++ {
+		for i := range items {
+			it := &items[i]
+			if ambiguousTech[it.name] != (pass == 1) {
+				continue
+			}
+			if len([]rune(it.name)) < 2 || len(accepted) >= maxTechnologies || !grounded(it.name, text) {
+				continue
+			}
+			if pass == 1 && !usedAsTechnology(it.name, original, accepted) {
+				continue
+			}
+			it.ok = true
+			accepted = append(accepted, it.name)
 		}
-		out = append(out, name)
+	}
+	var out []string
+	for _, it := range items {
+		if it.ok {
+			out = append(out, it.name)
+		} else {
+			d.Technologies++
+		}
 	}
 	return out
 }
@@ -232,4 +269,77 @@ func placeholderToEmpty(s string) string {
 		return ""
 	}
 	return s
+}
+
+// arrangementCues are words that support each work arrangement.
+var arrangementCues = map[string][]string{
+	"remote": {"remote", "remotely", "uzaktan", "work from home", "wfh", "home office", "evden", "fully distributed"},
+	"hybrid": {"hybrid", "hibrit", "melez"},
+	"onsite": {"on-site", "onsite", "on site", "in-office", "in office", "office-based", "ofisten", "ofiste", "yerinde", "iş yerinde"},
+}
+
+// mentionsCountry reports whether any short stretch of text names a place in
+// the country. resolve maps a place to its country code.
+func mentionsCountry(text, code string, resolve func(string) string) bool {
+	for _, chunk := range strings.FieldsFunc(text, func(r rune) bool { return r == '\n' || r == '.' || r == '!' || r == '?' }) {
+		if len(chunk) > 400 {
+			chunk = chunk[:400]
+		}
+		if resolve(chunk) == code {
+			return true
+		}
+	}
+	return false
+}
+
+// ambiguousTech are technology names that are also ordinary words, so
+// finding the word is no proof of the technology.
+var ambiguousTech = map[string]bool{"go": true, "spring": true, "swift": true, "rust": true, "ruby": true, "dart": true, "next": true, "express": true, "r": true, "c": true}
+
+// techContext are words that, near an ambiguous name, show it is a
+// technology being asked for.
+var techContext = []string{"experience", "proficien", "skills", "stack", "knowledge", "language", "framework", "developer", "engineer",
+	"backend", "frontend", "golang", "service", "microservice", "code", "coding", "written in", "built in", "programming", "deneyim", "bilgi", "teknoloji", "geliştirici", "yazılım", "kütüphane"}
+
+// usedAsTechnology reports whether an ambiguous name appears capitalised, as
+// a name, with technology wording around it.
+func usedAsTechnology(name, original string, accepted []string) bool {
+	lower := strings.ToLower(original)
+	for from := 0; ; {
+		i := strings.Index(lower[from:], name)
+		if i < 0 {
+			return false
+		}
+		start, end := from+i, from+i+len(name)
+		from = end
+		if !boundaryBefore(lower, start) || !boundaryAfter(lower, end) {
+			continue
+		}
+		// Lower-casing can change byte offsets; check the capital only when it did not.
+		if len(lower) == len(original) && name != "r" && name != "c" {
+			if r, _ := utf8.DecodeRuneInString(original[start:]); !unicode.IsUpper(r) {
+				continue
+			}
+		}
+		lo, hi := max(0, start-60), min(len(lower), end+60)
+		for lo > 0 && !utf8.RuneStart(lower[lo]) {
+			lo--
+		}
+		for hi < len(lower) && !utf8.RuneStart(lower[hi]) {
+			hi++
+		}
+		window := lower[lo:hi]
+		for _, w := range append(slices.Clone(techContext), accepted...) {
+			if strings.Contains(window, w) {
+				return true
+			}
+		}
+	}
+}
+
+func boolInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }

@@ -287,12 +287,16 @@ func TestStats(t *testing.T) {
 	}
 	save(taskFor(t, tasks, a.ID), true, 2000)
 	save(taskFor(t, tasks, b.ID), false, 0)
-	st, err := ef.repo.Stats(ctx, model)
+	st, err := ef.repo.Stats(ctx, model, 1, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if st.Enriched != 1 || st.Failed != 1 || st.AvgLatencyMs != 2000 || st.LastError != "timeout" {
 		t.Fatalf("stats = %+v", st)
+	}
+	// A result of an older prompt neither counts nor takes the job out of the queue.
+	if old, err := ef.repo.Stats(ctx, model, 2, 1); err != nil || old.Enriched != 0 || old.Queue < st.Queue+1 {
+		t.Fatalf("stats for a newer prompt = %+v, %v (queue was %d)", old, err, st.Queue)
 	}
 }
 

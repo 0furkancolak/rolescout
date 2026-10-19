@@ -43,8 +43,9 @@ type posting struct {
 	Description string `json:"description"`
 	Additional  string `json:"additional"`
 	Categories  struct {
-		Commitment string `json:"commitment"`
-		Location   string `json:"location"`
+		Commitment   string   `json:"commitment"`
+		Location     string   `json:"location"`
+		AllLocations []string `json:"allLocations"`
 	} `json:"categories"`
 	Lists []struct {
 		Text    string `json:"text"`
@@ -85,7 +86,7 @@ func (a *Adapter) Fetch(ctx context.Context, config map[string]any) ([]ingest.Ra
 			URL:            p.HostedURL,
 			Title:          p.Text,
 			Company:        company,
-			Location:       p.Categories.Location,
+			Location:       location(p.Categories.Location, p.Categories.AllLocations),
 			Description:    b.String(),
 			EmploymentType: p.Categories.Commitment,
 			CountryCode:    p.Country,
@@ -110,4 +111,19 @@ func arrangement(workplace string) string {
 		return "onsite"
 	}
 	return ""
+}
+
+// location is the posting's main location followed by its other sites, so a
+// job open in Istanbul and Berlin is found by a search for either city.
+func location(main string, all []string) string {
+	parts := []string{}
+	seen := map[string]bool{}
+	for _, l := range append([]string{main}, all...) {
+		l = strings.TrimSpace(l)
+		if l != "" && !seen[strings.ToLower(l)] {
+			seen[strings.ToLower(l)] = true
+			parts = append(parts, l)
+		}
+	}
+	return strings.Join(parts, "; ")
 }

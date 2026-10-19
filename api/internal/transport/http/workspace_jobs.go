@@ -3,14 +3,20 @@ package httptransport
 import (
 	"encoding/base64"
 	"encoding/json"
+	"regexp"
+	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gofiber/fiber/v3"
 
 	"example.com/rolescout/api/internal/domain"
 	"example.com/rolescout/api/internal/infrastructure/database"
+	"example.com/rolescout/api/internal/ingest"
 )
+
+var adapterName = regexp.MustCompile(`^[a-z][a-z0-9_]{1,31}$`)
 
 var postedWindows = map[string]time.Duration{"24h": 24 * time.Hour, "7d": 7 * 24 * time.Hour, "30d": 30 * 24 * time.Hour}
 
@@ -109,6 +115,30 @@ func (h *handlers) workspaceJobFilter(c fiber.Ctx, paging bool) (database.JobFil
 			break
 		}
 		f.Countries = append(f.Countries, cc)
+	}
+	for _, name := range multiQuery(c, "region") {
+		codes := ingest.RegionCountries(name)
+		if codes == nil {
+			v.Add("region", "must be one of %s", strings.Join(ingest.RegionNames(), ", "))
+			break
+		}
+		for _, cc := range codes {
+			if !slices.Contains(f.Countries, cc) {
+				f.Countries = append(f.Countries, cc)
+			}
+		}
+	}
+	if loc := strings.TrimSpace(c.Query("location")); loc != "" {
+		if utf8.RuneCountInString(loc) > 80 {
+			v.Add("location", "must be at most 80 characters")
+		}
+		f.Location = ingest.Fold(loc)
+	}
+	if ats := c.Query("ats"); ats != "" {
+		if !adapterName.MatchString(ats) {
+			v.Add("ats", "must be a job board system such as lever")
+		}
+		f.ATS = ats
 	}
 	for _, id := range multiQuery(c, "company") {
 		if !isUUID(id) {

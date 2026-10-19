@@ -67,7 +67,7 @@ func TestWorkspaceJobsValidation(t *testing.T) {
 	res := &fakeResearch{}
 	app := newTestApp(Deps{Jobs: jobs, Research: res, Workspaces: allowAll})
 	for _, q := range []string{"posted=1y", "sort=newest", "sort=score", "sort=relevance", "country=Turkey",
-		"company=x", "profile=nope", "closed=maybe", "cursor=%%"} {
+		"region=narnia", "ats=Lever!", "company=x", "profile=nope", "closed=maybe", "cursor=%%"} {
 		expectError(t, call(t, app, "GET", wsPath+"/jobs?"+q, nil), 422, "invalid_input")
 	}
 	// A profile from another workspace is not found.
@@ -89,3 +89,23 @@ func TestWorkspaceJobFacets(t *testing.T) {
 }
 
 func strp(s string) *string { return &s }
+
+func TestWorkspaceJobsRegionalFilters(t *testing.T) {
+	jobs := &fakeWorkspaceJobs{}
+	app := newTestApp(Deps{Jobs: jobs, Research: &fakeResearch{}, Workspaces: allowAll})
+	expectStatus(t, call(t, app, "GET", wsPath+"/jobs?region=emea&country=TR&location=%C4%B0zmir&ats=lever", nil), 200)
+	f := jobs.gotFilter
+	if f.Location != "izmir" || f.ATS != "lever" {
+		t.Errorf("location = %q, ats = %q", f.Location, f.ATS)
+	}
+	// A region adds its countries to the ones asked for, once each.
+	n := 0
+	for _, c := range f.Countries {
+		if c == "TR" {
+			n++
+		}
+	}
+	if n != 1 || len(f.Countries) < 30 {
+		t.Errorf("countries = %v", f.Countries)
+	}
+}

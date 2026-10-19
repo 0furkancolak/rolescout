@@ -11,14 +11,17 @@ import (
 //go:embed seeds/companies.txt
 var seedsFile string
 
+//go:embed seeds/turkey.txt
+var turkeySeedsFile string
+
 // Seed is a career page shipped with RoleScout.
 type Seed struct {
 	URL, Name string
 }
 
-// Seeds returns the embedded seed list: one "URL [| Name]" per line, with
+// Seeds returns the embedded seed lists (worldwide and Türkiye): one "URL [| Name]" per line, with
 // "#" comments and blank lines.
-func Seeds() ([]Seed, error) { return ParseSeeds(seedsFile) }
+func Seeds() ([]Seed, error) { return ParseSeeds(seedsFile + "\n" + turkeySeedsFile) }
 
 // ParseSeeds parses a seed list in the embedded format.
 func ParseSeeds(text string) ([]Seed, error) {

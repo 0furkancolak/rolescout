@@ -234,3 +234,50 @@ func TestFacetsExcludeOwnDimension(t *testing.T) {
 		t.Errorf("tech react = %d company = %+v", react, ours)
 	}
 }
+
+func TestWorkspaceJobsFilterByPlaceAndJobBoardSystem(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	pool := requireDB(t)
+	repo := NewJobRepository(pool)
+	co := newCompany(t, NewCompanyRepository(pool), "lever")
+	add := func(key, loc string) {
+		l := loc
+		if _, _, err := repo.UpsertListing(ctx, IngestedListing{
+			SourceID: f.source.ID, ExternalID: uniq(key), URL: "https://x.example/" + key, DedupeKey: uniq("dk"),
+			Title: "Engineer " + key, CompanyName: co.Name, Location: &l, CompanyID: &co.ID, SeenAt: time.Now(),
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	add("a", "İstanbul, Türkiye")
+	add("b", "Şişli / ISTANBUL")
+	add("c", "Berlin, Germany")
+	base := JobFilter{WorkspaceID: f.workspace.ID, CompanyIDs: []string{co.ID}, Limit: 50}
+	count := func(mod func(*JobFilter)) int {
+		fl := base
+		mod(&fl)
+		got, _, err := repo.WorkspaceJobs(ctx, fl)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return len(got)
+	}
+	for in, want := range map[string]int{"istanbul": 2, "turkiye": 1, "sisli": 1, "100%": 0, "berlin": 1} {
+		if got := count(func(fl *JobFilter) { fl.Location = in }); got != want {
+			t.Errorf("location %q matched %d jobs, want %d", in, got, want)
+		}
+	}
+	if got := count(func(fl *JobFilter) { fl.ATS = "lever" }); got != 0 {
+		t.Errorf("ats lever before the source is a Lever source: %d", got)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE job_sources SET adapter = 'lever' WHERE id = $1`, f.source.ID); err != nil {
+		t.Fatal(err)
+	}
+	if got := count(func(fl *JobFilter) { fl.ATS = "lever" }); got != 3 {
+		t.Errorf("ats lever matched %d jobs, want 3", got)
+	}
+	if got := count(func(fl *JobFilter) { fl.ATS = "greenhouse" }); got != 0 {
+		t.Errorf("ats greenhouse matched %d jobs", got)
+	}
+}

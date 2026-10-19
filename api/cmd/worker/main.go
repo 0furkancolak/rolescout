@@ -60,6 +60,7 @@ func run() error {
 		Detector:  &discovery.Detector{Client: crawler},
 		Sources: []discovery.Source{
 			discovery.SeedSource{},
+			&discovery.Probe{Client: crawler},
 			&discovery.HackerNews{Client: crawler},
 			&discovery.MarkdownList{Client: crawler, URLs: discovery.DefaultLists},
 		},

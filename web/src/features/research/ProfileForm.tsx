@@ -4,6 +4,7 @@ import { z } from "zod";
 import { Button, Field, InlineError } from "../../components/ui";
 import { inputClass } from "../../components/styles";
 import type { RemotePreference } from "../../lib/api";
+import { resolveCountry } from "../../lib/countries";
 import { useI18n } from "../../lib/i18n";
 import type { ProfileInput } from "./api";
 import { ChipInput, MAX_ITEMS } from "./ChipInput";
@@ -75,7 +76,7 @@ export function ProfileForm({
         {chips("technologies", t("research.technologies"), (s) => s.toLowerCase())}
         {chips("keywords", t("research.keywords"))}
         {chips("excluded_keywords", t("research.excluded"))}
-        {chips("countries", t("research.countries"), (s) => (/^[a-z]{2}$/i.test(s) ? s.toUpperCase() : ""), t("research.countriesHint"))}
+        {chips("countries", t("research.countries"), resolveCountry, t("research.countriesHint"))}
         {chips("locations", t("research.locations"))}
       </div>
       <fieldset>

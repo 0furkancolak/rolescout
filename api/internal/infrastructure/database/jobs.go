@@ -274,10 +274,15 @@ type JobFilter struct {
 	After           *JobCursor
 	Limit           int
 
-	WorkspaceID   string
-	ProfileID     string        // restricts to the profile's matches
-	PostedWithin  time.Duration // first seen within this long
-	Countries     []string
+	WorkspaceID  string
+	ProfileID    string        // restricts to the profile's matches
+	PostedWithin time.Duration // first seen within this long
+	Countries    []string
+	// Location matches job locations containing this folded text, such as
+	// a city ("istanbul"); ATS keeps jobs read from one job board system
+	// ("lever", "greenhouse"...).
+	Location      string
+	ATS           string
 	CompanyIDs    []string
 	IncludeClosed bool
 	// Sort is "recent" (first seen, newest first; the default), "score"
@@ -303,23 +308,26 @@ func (r *JobRepository) SearchJobs(ctx context.Context, f JobFilter) (jobs []dom
 		afterTime, afterID = &f.After.LastSeenAt, &f.After.ID
 	}
 
+	// Rules win and the local model fills gaps, as in the workspace browser.
 	rows, err := r.pool.Query(ctx, `
-		SELECT `+jobColumns+` FROM jobs
-		WHERE ($1 = '' OR title ILIKE $1 OR company_name ILIKE $1 OR location ILIKE $1)
-		  AND ($2 = '' OR work_arrangement = $2)
-		  AND ($3 = '' OR employment_type = $3)
-		  AND ($4 = '' OR seniority = $4)
-		  AND (cardinality($5::text[]) = 0 OR technologies @> $5::text[])
-		  AND ($6::timestamptz IS NULL OR (last_seen_at, id) < ($6, $7::uuid))
-		ORDER BY last_seen_at DESC, id DESC
+		SELECT `+effectiveJobColumns()+` FROM jobs j`+aiJoin+`
+		WHERE ($1 = '' OR j.title ILIKE $1 OR j.company_name ILIKE $1 OR j.location ILIKE $1)
+		  AND ($2 = '' OR `+effArrangement+` = $2)
+		  AND ($3 = '' OR j.employment_type = $3)
+		  AND ($4 = '' OR `+effSeniority+` = $4)
+		  AND (cardinality($5::text[]) = 0 OR `+effTechnologies+` @> $5::text[])
+		  AND (cardinality($9::text[]) = 0 OR `+effCountry+` = ANY($9::text[]))
+		  AND ($6::timestamptz IS NULL OR (j.last_seen_at, j.id) < ($6, $7::uuid))
+		ORDER BY j.last_seen_at DESC, j.id DESC
 		LIMIT $8`,
 		pattern, f.WorkArrangement, f.EmploymentType, f.Seniority,
-		normalizeTechnologies(f.Technologies), afterTime, afterID, f.Limit+1)
+		normalizeTechnologies(f.Technologies), afterTime, afterID, f.Limit+1, append([]string{}, f.Countries...))
 	if err != nil {
 		return nil, false, translate(err, "search jobs")
 	}
 	jobs, err = pgx.CollectRows(rows, func(row pgx.CollectableRow) (domain.Job, error) {
-		return scanJob(row)
+		var j domain.Job
+		return j, row.Scan(jobDest(&j)...)
 	})
 	if err != nil {
 		return nil, false, translate(err, "search jobs")

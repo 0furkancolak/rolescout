@@ -1,0 +1,14 @@
+# Career pages of employers with open jobs in Türkiye: "URL | Company".
+# Each board listed jobs located in Türkiye on 2026-10-19. Check with: admin seeds check
+https://boards.greenhouse.io/goodjobgames | Good Job Games
+https://jobs.ashbyhq.com/agavegames | Agave Games
+https://jobs.ashbyhq.com/codeway | Codeway
+https://jobs.ashbyhq.com/doktortakvimi | Doktor Takvimi
+https://jobs.ashbyhq.com/voodoo | Voodoo
+https://jobs.lever.co/dreamgames | Dream Games (Lever)
+https://jobs.lever.co/insiderone | Insider One
+https://jobs.lever.co/iyzico | iyzico
+https://jobs.lever.co/spyke-games | Spyke Games
+https://jobs.lever.co/trendyol-go | Trendyol Go
+https://obilet.recruitee.com | obilet
+https://parasut.recruitee.com | Paraşüt

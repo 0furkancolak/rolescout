@@ -10,6 +10,7 @@ import (
 	"unicode"
 
 	"example.com/rolescout/api/internal/domain"
+	"example.com/rolescout/api/internal/ingest"
 )
 
 // Score weights. They add up to 100.
@@ -39,7 +40,8 @@ func Score(p domain.ResearchProfile, j domain.Job, now time.Time) (int, []domain
 	}
 	inCountry := j.CountryCode != nil && slices.Contains(p.Countries, *j.CountryCode)
 	inLocation := j.Location != nil && matchesAny(strings.ToLower(*j.Location), p.Locations)
-	if p.Remote == domain.RemoteOnly && j.WorkArrangement == "onsite" && !inCountry && !inLocation {
+	inRegion := j.Location != nil && ingest.InRegion(*j.Location, p.Countries)
+	if p.Remote == domain.RemoteOnly && j.WorkArrangement == "onsite" && !inCountry && !inLocation && !inRegion {
 		return 0, nil, false
 	}
 
@@ -81,14 +83,24 @@ func Score(p domain.ResearchProfile, j domain.Job, now time.Time) (int, []domain
 	// Location and arrangement.
 	switch {
 	case j.WorkArrangement == "remote" && p.Remote != domain.OnsiteOK:
-		score += locationWeight
-		add("remote", nil)
+		// A remote job open only to another country is worth less than one
+		// the profile's countries can take.
+		if len(p.Countries) > 0 && j.CountryCode != nil && !inCountry && !inRegion {
+			score += locationWeight / 3
+			add("remote_abroad", map[string]string{"value": *j.CountryCode})
+		} else {
+			score += locationWeight
+			add("remote", nil)
+		}
 	case inCountry:
 		score += locationWeight
 		add("country", map[string]string{"value": *j.CountryCode})
 	case inLocation:
 		score += locationWeight
 		add("location", map[string]string{"value": *j.Location})
+	case inRegion:
+		score += locationWeight * 2 / 3
+		add("region", map[string]string{"value": *j.Location})
 	case j.WorkArrangement == "hybrid" && p.Remote == domain.RemoteOrHybrid:
 		score += locationWeight * 2 / 3
 		add("hybrid", nil)

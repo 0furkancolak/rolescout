@@ -197,3 +197,52 @@ func TestCommentNameIsCutOnCharacterBoundary(t *testing.T) {
 		t.Fatalf("name = %q", got[0].Name)
 	}
 }
+
+func TestProbeFindsBoardsByName(t *testing.T) {
+	d := sites(t, map[string]string{
+		"api.lever.co/v0/postings/iyzico":                     `[{"id":"1"}]`,
+		"api.lever.co/v0/postings/emptyco":                    `[]`,
+		"boards-api.greenhouse.io/v1/boards/dream-games/jobs": `{"jobs":[{"id":1}]}`,
+		"parasut.recruitee.com/api/offers/":                   `{"offers":[{"id":1}]}`,
+	})
+	p := &Probe{Client: d.Client, Names: []string{"iyzico", "Dream Games", "Paraşüt", "Emptyco", "Nobody"}, Batch: 3}
+	var got []string
+	collect := func(c Candidate) error { got = append(got, c.URL+"|"+c.Name); return nil }
+	state, err := p.Discover(ingesttest.Ctx(t), "", collect)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"https://jobs.lever.co/iyzico|iyzico", "https://boards.greenhouse.io/dream-games|Dream Games", "https://parasut.recruitee.com|Paraşüt"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("found %v, want %v", got, want)
+	}
+	// The next call continues after the first three names; a changed list starts over.
+	got = nil
+	if state, err = p.Discover(ingesttest.Ctx(t), state, collect); err != nil || len(got) != 0 {
+		t.Fatalf("second batch found %v, err %v", got, err)
+	}
+	if again, _ := p.Discover(ingesttest.Ctx(t), state, collect); again != state {
+		t.Errorf("finished state changed: %q -> %q", state, again)
+	}
+	p.Names = []string{"iyzico"}
+	got = nil
+	if _, err = p.Discover(ingesttest.Ctx(t), state, collect); err != nil || len(got) != 1 {
+		t.Errorf("changed list: found %v, err %v", got, err)
+	}
+}
+
+func TestSlugs(t *testing.T) {
+	if got := strings.Join(Slugs("Paraşüt Yazılım A.Ş."), ","); got != "parasutyazilimas,parasut-yazilim-a-s" {
+		t.Errorf("slugs = %s", got)
+	}
+}
+
+func TestEmbeddedSeedsAndNamesAreValid(t *testing.T) {
+	seeds, err := Seeds()
+	if err != nil || len(seeds) < 140 {
+		t.Fatalf("seeds: %d, %v", len(seeds), err)
+	}
+	if n := len(ProbeNames()); n < 100 {
+		t.Errorf("only %d probe names", n)
+	}
+}

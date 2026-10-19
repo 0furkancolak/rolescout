@@ -24,16 +24,20 @@ type Repository interface {
 // Tick. It never blocks anything else: rules-based values stay the baseline and
 // the fallback whenever the model is off, slow or wrong.
 type Enricher struct {
-	Repo           Repository
-	LLM            llm.Completer
-	Model          string
-	FallbackModel  string
-	Concurrency    int
-	Batch          int
-	MaxChars       int
-	MaxTokens      int
-	Breaker        *Breaker
-	Now            func() time.Time
+	Repo          Repository
+	LLM           llm.Completer
+	Model         string
+	FallbackModel string
+	Concurrency   int
+	Batch         int
+	MaxChars      int
+	MaxTokens     int
+	Breaker       *Breaker
+	Now           func() time.Time
+
+	// held back explanations after trouble: key -> when to try again.
+	heldMu         sync.Mutex
+	held           map[string]hold
 	Logger         *slog.Logger
 	ResolveCountry func(place string) string
 	// ExplainMinScore turns on match explanations for matches at or above it;
@@ -195,15 +199,22 @@ func (e *Enricher) explain(ctx context.Context, model string) (int, error) {
 	if !ok || e.ExplainMinScore <= 0 {
 		return 0, nil
 	}
-	tasks, err := xr.ExplanationQueue(ctx, model, llm.ExplainPromptVersion, e.ExplainMinScore, e.Batch)
+	// Items waiting out a failure still sit at the head of the queue, so ask
+	// for enough to fill a batch past them.
+	tasks, err := xr.ExplanationQueue(ctx, model, llm.ExplainPromptVersion, e.ExplainMinScore, e.Batch+e.heldCount())
 	if err != nil {
 		return 0, err
 	}
-	done := 0
+	done, tried := 0, 0
 	for _, t := range tasks {
-		if ctx.Err() != nil || e.Breaker.Open() {
+		if ctx.Err() != nil || e.Breaker.Open() || tried >= e.Batch {
 			break
 		}
+		key := t.WorkspaceID + "/" + t.ProfileID + "/" + t.JobID + "/" + t.DescriptionHash
+		if e.isHeld(key) {
+			continue
+		}
+		tried++
 		text, err := llm.Explain(ctx, e.LLM, llm.JobFacts{
 			Title: t.Title, Company: t.CompanyName, Score: t.Score, Reasons: reasonFacts(t.Reasons),
 			Technologies: t.Technologies, MatchedTechnologies: t.MatchedTechnologies,
@@ -212,10 +223,12 @@ func (e *Enricher) explain(ctx context.Context, model string) (int, error) {
 		switch {
 		case err == nil:
 			done++
+			e.release(key)
 		case errors.Is(err, context.Canceled):
 			return done, nil
 		case errors.Is(err, llm.ErrUnavailable), errors.Is(err, llm.ErrTimeout):
 			e.fail(false)
+			e.hold(key)
 			continue
 		default:
 			text = "" // ungrounded or malformed: remember the attempt, show nothing
@@ -294,4 +307,52 @@ func (e *Enricher) Loop(ctx context.Context, every time.Duration) {
 		case <-time.After(pause):
 		}
 	}
+}
+
+// hold is one explanation waiting out a failure.
+type hold struct {
+	until time.Time
+	n     int
+}
+
+const (
+	holdBase = 5 * time.Minute
+	holdMax  = time.Hour
+)
+
+// hold delays an explanation after trouble: 5 minutes, doubling up to an hour,
+// so one item that keeps timing out cannot take every tick.
+func (e *Enricher) hold(key string) {
+	e.heldMu.Lock()
+	defer e.heldMu.Unlock()
+	if e.held == nil {
+		e.held = map[string]hold{}
+	}
+	h := e.held[key]
+	h.n++
+	wait := min(holdBase<<min(h.n-1, 6), holdMax)
+	h.until = e.now().Add(wait)
+	e.held[key] = h
+}
+
+func (e *Enricher) release(key string) {
+	e.heldMu.Lock()
+	delete(e.held, key)
+	e.heldMu.Unlock()
+}
+
+func (e *Enricher) isHeld(key string) bool {
+	e.heldMu.Lock()
+	defer e.heldMu.Unlock()
+	h, ok := e.held[key]
+	if ok && !e.now().Before(h.until) {
+		return false
+	}
+	return ok
+}
+
+func (e *Enricher) heldCount() int {
+	e.heldMu.Lock()
+	defer e.heldMu.Unlock()
+	return len(e.held)
 }

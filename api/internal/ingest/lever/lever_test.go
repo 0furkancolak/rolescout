@@ -65,3 +65,12 @@ func TestFetchErrors(t *testing.T) {
 		return err
 	})
 }
+
+func TestLocationJoinsAllSites(t *testing.T) {
+	if got := location("Istanbul", []string{"Istanbul", "Berlin", " "}); got != "Istanbul; Berlin" {
+		t.Errorf("location = %q", got)
+	}
+	if got := location("", nil); got != "" {
+		t.Errorf("empty location = %q", got)
+	}
+}

@@ -252,3 +252,187 @@ lagos	NG
 nairobi	KE
 baku	AZ
 tbilisi	GE
+
+# Turkish provinces and districts, US states and cities, other common places
+adiyaman	TR
+afyonkarahisar	TR
+agri	TR
+aksaray	TR
+amasya	TR
+artvin	TR
+aydin	TR
+balikesir	TR
+bartin	TR
+batman	TR
+bayburt	TR
+bilecik	TR
+bingol	TR
+bitlis	TR
+bolu	TR
+burdur	TR
+canakkale	TR
+cankiri	TR
+corum	TR
+denizli	TR
+diyarbakir	TR
+duzce	TR
+edirne	TR
+elazig	TR
+erzincan	TR
+erzurum	TR
+gaziantep	TR
+giresun	TR
+gumushane	TR
+hakkari	TR
+hatay	TR
+igdir	TR
+isparta	TR
+karabuk	TR
+karaman	TR
+kars	TR
+kastamonu	TR
+kilis	TR
+kirikkale	TR
+kirklareli	TR
+kirsehir	TR
+mardin	TR
+mersin	TR
+mugla	TR
+nevsehir	TR
+nigde	TR
+ordu	TR
+osmaniye	TR
+rize	TR
+sakarya	TR
+samsun	TR
+sanliurfa	TR
+siirt	TR
+sinop	TR
+sirnak	TR
+sivas	TR
+tekirdag	TR
+tokat	TR
+tunceli	TR
+usak	TR
+yalova	TR
+yozgat	TR
+zonguldak	TR
+malatya	TR
+manisa	TR
+kahramanmaras	TR
+bodrum	TR
+fethiye	TR
+marmaris	TR
+alanya	TR
+cesme	TR
+kusadasi	TR
+sisli	TR
+kadikoy	TR
+besiktas	TR
+maslak	TR
+levent	TR
+umraniye	TR
+atasehir	TR
+pendik	TR
+kartal	TR
+maltepe	TR
+sariyer	TR
+beylikduzu	TR
+esenyurt	TR
+bakirkoy	TR
+uskudar	TR
+cankaya	TR
+cayyolu	TR
+etimesgut	TR
+gaziosmanpasa	TR
+sultanbeyli	TR
+tuzla	TR
+kucukcekmece	TR
+bahcesehir	TR
+basaksehir	TR
+kagithane	TR
+zekeriyakoy	TR
+darica	TR
+izmit	TR
+corlu	TR
+nilufer	TR
+osmangazi	TR
+karsiyaka	TR
+bornova	TR
+buca	TR
+konak	TR
+balcova	TR
+urla	TR
+alabama	US
+alaska	US
+arizona	US
+arkansas	US
+california	US
+colorado	US
+connecticut	US
+delaware	US
+florida	US
+hawaii	US
+idaho	US
+illinois	US
+indiana	US
+iowa	US
+kansas	US
+kentucky	US
+louisiana	US
+maryland	US
+massachusetts	US
+michigan	US
+minnesota	US
+mississippi	US
+missouri	US
+montana	US
+nebraska	US
+nevada	US
+ohio	US
+oklahoma	US
+oregon	US
+pennsylvania	US
+tennessee	US
+texas	US
+utah	US
+vermont	US
+wisconsin	US
+wyoming	US
+new hampshire	US
+new jersey	US
+new mexico	US
+north carolina	US
+north dakota	US
+rhode island	US
+south carolina	US
+south dakota	US
+west virginia	US
+district of columbia	US
+silicon valley	US
+bay area	US
+san diego	US
+dallas	US
+houston	US
+portland	US
+mountain view	US
+palo alto	US
+menlo park	US
+sunnyvale	US
+san jose	US
+redwood city	US
+cupertino	US
+long beach	US
+bethesda	US
+arlington	US
+bellevue	US
+ontario	CA
+quebec	CA
+british columbia	CA
+alberta	CA
+gurugram	IN
+gurgaon	IN
+noida	IN
+delhi	IN
+cebu	PH
+manila	PH

@@ -62,9 +62,36 @@ func TestValidateTechnologiesAreGrounded(t *testing.T) {
 
 func TestValidateTechnologiesAreWholeWords(t *testing.T) {
 	got, _ := validate(Enrichment{Technologies: []string{"go", "java", "r"}}, "t", "We love algorithms and javascript. Let's go further.")
-	// "go" is a word in the text, "java" only appears inside "javascript", "r" is too short to trust.
-	if !reflect.DeepEqual(got.Technologies, []string{"go"}) {
+	// "go" is ordinary prose here, "java" only appears inside "javascript", "r" is too short to trust.
+	if len(got.Technologies) != 0 {
 		t.Fatalf("technologies = %v", got.Technologies)
+	}
+	got, _ = validate(Enrichment{Technologies: []string{"go", "spring"}}, "t", "Backend developer with Go experience. We spring into action every Monday. Spring Boot is a plus.")
+	if !reflect.DeepEqual(got.Technologies, []string{"go", "spring"}) {
+		t.Fatalf("technologies = %v, want go and spring used as technologies", got.Technologies)
+	}
+	got, _ = validate(Enrichment{Technologies: []string{"swift"}}, "t", "Swift action is expected when customers call.")
+	if len(got.Technologies) != 0 {
+		t.Fatalf("technologies = %v, want a capitalised ordinary word dropped", got.Technologies)
+	}
+}
+
+func TestValidateWorkArrangementNeedsACue(t *testing.T) {
+	got, d := validate(Enrichment{WorkArrangement: "remote"}, "Engineer", "Join our office in Berlin.")
+	if got.WorkArrangement != "unknown" || d.Enums != 1 {
+		t.Fatalf("arrangement = %q dropped %+v", got.WorkArrangement, d)
+	}
+	for in, want := range map[string]string{"This role is fully remote.": "remote", "Haftada iki gün ofiste, hibrit çalışma.": "hybrid", "On-site in Izmir": "onsite"} {
+		arr := map[string]string{"remote": "remote", "hibrit": "hybrid", "on-site": "onsite"}
+		var claim string
+		for k, v := range arr {
+			if strings.Contains(strings.ToLower(in), k) {
+				claim = v
+			}
+		}
+		if got, _ := validate(Enrichment{WorkArrangement: claim}, "t", in); got.WorkArrangement != want {
+			t.Errorf("%q: arrangement = %q, want %q", in, got.WorkArrangement, want)
+		}
 	}
 }
 
@@ -126,9 +153,13 @@ func TestValidateCountryRulesWin(t *testing.T) {
 	if got.CountryCode != "DE" {
 		t.Fatalf("country = %q, the rules say DE", got.CountryCode)
 	}
-	got, _ = validate(Enrichment{Location: "Nowhere Land", CountryCode: "tr"}, "t", "x")
+	got, _ = validate(Enrichment{Location: "Nowhere Land", CountryCode: "tr"}, "t", "Our team sits in\nTürkiye")
 	if got.CountryCode != "TR" {
-		t.Fatalf("country = %q, want TR kept (upper-cased) when the rules do not know the place", got.CountryCode)
+		t.Fatalf("country = %q, want TR kept (upper-cased) when the rules do not know the place but the text names one", got.CountryCode)
+	}
+	got, d0 := validate(Enrichment{Location: "Nowhere Land", CountryCode: "tr"}, "t", "x")
+	if got.CountryCode != "" || !d0.Country {
+		t.Fatalf("country = %q, want a country the text never mentions dropped", got.CountryCode)
 	}
 	got, d := validate(Enrichment{Location: "", CountryCode: "Turkey"}, "t", "x")
 	if got.CountryCode != "" || !d.Country {

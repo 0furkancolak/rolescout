@@ -68,7 +68,7 @@ export function JobsPage() {
     e.preventDefault();
     update({ q: text.trim(), job: "", sort: text.trim() && raw.sort === "relevance" ? "relevance" : raw.sort });
   };
-  const hasFilters = !!(raw.posted || raw.arrangement || raw.seniority || raw.technologies.length || raw.countries.length || raw.companies.length || raw.closed);
+  const hasFilters = !!(raw.posted || raw.arrangement || raw.seniority || raw.technologies.length || raw.countries.length || raw.location || raw.region || raw.ats || raw.companies.length || raw.closed);
   const sorts: Exclude<Sort, "">[] = search.profile ? ["score", "recent"] : ["recent"];
   if (search.q) sorts.push("relevance");
 
@@ -133,7 +133,7 @@ export function JobsPage() {
         {hasFilters && (
           <Button
             variant="ghost"
-            onClick={() => update({ posted: "", arrangement: "", seniority: "", technologies: [], countries: [], companies: [], closed: false })}
+            onClick={() => update({ posted: "", arrangement: "", seniority: "", technologies: [], countries: [], location: "", region: "", ats: "", companies: [], closed: false })}
           >
             {t("browse.clear")}
           </Button>

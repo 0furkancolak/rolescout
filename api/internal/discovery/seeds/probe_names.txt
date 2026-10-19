@@ -1,0 +1,195 @@
+# Company names to look up on Lever, Greenhouse, Ashby, Workable and Recruitee (see discovery.Probe).
+# Mostly employers in Türkiye. Add names freely; a name that matches no board costs a few requests once.
+Trendyol
+Hepsiburada
+Getir
+Insider
+Peak Games
+Dream Games
+Papara
+Iyzico
+Param
+Sipay
+Midas
+Colendi
+Paribu
+BtcTurk
+Garanti BBVA Teknoloji
+Akbank
+Yapi Kredi
+Isbank
+Ziraat
+Turkcell
+Turk Telekom
+Vodafone Turkey
+Baykar
+Aselsan
+Roketsan
+Havelsan
+Tusas
+Arcelik
+Beko
+Vestel
+Koc Digital
+Sabanci Digital
+Migros
+Yemeksepeti
+Banabi
+Gittigidiyor
+N11
+Sahibinden
+Letgo
+Armut
+Bi Taksi
+Marti
+Scotty
+Tikla Gelsin
+Trendyol Go
+Hepsijet
+Yurtici Kargo
+Mng Kargo
+Aras Kargo
+Obilet
+Enuygun
+Etstur
+Jolly
+Tatilbudur
+Biletall
+Paximum
+Setur
+Ucuzabilet
+Gram Games
+Spyke Games
+Mdocument
+Hyperclub
+Agave Games
+Ace Games
+Tilting Point
+Rollic
+Voodoo
+Ketchapp
+Good Job Games
+Lessmore
+Magic Dust
+Playtika
+Stormind
+Zynga Turkey
+Nika Games
+Boomerang
+Picus Security
+Siemens Turkey
+Logo Yazilim
+Netas
+Figopara
+Papel
+Fups
+Tosla
+Enpara
+Hayat Finans
+Fibabanka
+Odeabank
+Sekerbank
+Denizbank
+Vakifbank
+Halkbank
+Kuveyt Turk
+Albaraka
+Ininal
+Moneypay
+Paycell
+Tompay
+Payten
+Cardtek
+Mastercard Turkey
+Bilyoner
+Misli
+Nesine
+Codeway
+Appsflyer
+Smartly
+Mobilist
+Vispera
+Useinsider
+Madduck
+Sendeo
+Botego
+Inveon
+Ideasoft
+Ticimax
+Tsoft
+Ikas
+Shopify Turkey
+Parasut
+Bizim Hesap
+Bordro Plus
+Eczacibasi
+Koc Holding
+Sabanci Holding
+Dogus
+Dogus Teknoloji
+Ulker
+Yildiz Holding
+Pegasus
+Turkish Airlines
+Turkish Technic
+Tui Turkey
+Sodexo Turkey
+Unilever Turkey
+P&G Turkey
+Nielsen Turkey
+Coca Cola Icecek
+Anadolu Efes
+Tofas
+Ford Otosan
+Togg
+Oyak Renault
+Mercedes Benz Turk
+Bosch Turkey
+Schneider Turkey
+ABB Turkey
+Hepsiburada Tech
+Teknasyon
+Sofa Games
+Mobiroller
+Ingenico
+Verifone Turkey
+Gelirler
+Kloia
+Patika
+Pozitim
+Anadolu Sigorta
+Allianz Turkey
+Axa Turkey
+Garanti Emeklilik
+Doktor Takvimi
+Doktorsitesi
+Medicana
+Acibadem
+Memorial
+Dentalpark
+Insider One
+Atlassian Turkey
+Lucid Software
+Vercel
+Mobven
+Mobilexpress
+Softtech
+Bilge Adam
+Tubitak
+Netcad
+Intertech
+Kocsistem
+Turkcell Teknoloji
+Digitürk
+Tivibu
+Blutv
+Exxen
+Puhutv
+Spotify Turkey
+Fizy
+Muud
+Getirbuyuk
+Getirfinans
+Getiryemek
+GetirMore
+Kolay Optik

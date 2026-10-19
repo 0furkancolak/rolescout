@@ -149,19 +149,21 @@ ORDER BY e.job_id, e.created_at DESC`, jobIDs)
 	return out, rows.Err()
 }
 
-// Stats summarises the queue and recent behaviour for one model.
-func (r *EnrichmentRepository) Stats(ctx context.Context, model string) (domain.EnrichmentStats, error) {
+// Stats summarises the queue and recent behaviour for one model, counting
+// only results of the current prompt and schema versions: a result of an
+// older prompt does not take a job out of the queue.
+func (r *EnrichmentRepository) Stats(ctx context.Context, model string, promptVersion, schemaVersion int) (domain.EnrichmentStats, error) {
 	var s domain.EnrichmentStats
 	err := r.pool.QueryRow(ctx, `
 SELECT
   (SELECT count(*) FROM jobs j WHERE j.closed_at IS NULL AND btrim(j.description) <> ''
      AND NOT EXISTS (SELECT 1 FROM job_enrichments e WHERE e.job_id = j.id AND e.description_hash = j.description_hash
-                     AND e.model = $1 AND e.status = 'ok')),
-  (SELECT count(*) FROM job_enrichments WHERE model = $1 AND status = 'ok'),
-  (SELECT count(*) FROM job_enrichments WHERE model = $1 AND status = 'failed'),
+                     AND e.model = $1 AND e.prompt_version = $2 AND e.schema_version = $3 AND e.status = 'ok')),
+  (SELECT count(*) FROM job_enrichments WHERE model = $1 AND prompt_version = $2 AND schema_version = $3 AND status = 'ok'),
+  (SELECT count(*) FROM job_enrichments WHERE model = $1 AND prompt_version = $2 AND schema_version = $3 AND status = 'failed'),
   COALESCE((SELECT avg(latency_ms)::int FROM (SELECT latency_ms FROM job_enrichments
             WHERE model = $1 AND status = 'ok' AND latency_ms > 0 ORDER BY updated_at DESC LIMIT 200) l), 0)`,
-		model).Scan(&s.Queue, &s.Enriched, &s.Failed, &s.AvgLatencyMs)
+		model, promptVersion, schemaVersion).Scan(&s.Queue, &s.Enriched, &s.Failed, &s.AvgLatencyMs)
 	if err != nil {
 		return s, err
 	}

@@ -41,6 +41,10 @@ func (q *sqlQuery) whereSQL() string {
 	return strings.Join(q.where, " AND ")
 }
 
+// foldedLocation is the job's location without diacritics, in lower case,
+// matching ingest.Fold on the search text.
+const foldedLocation = `lower(translate(COALESCE(j.location, ''), 'İIıçÇğĞöÖşŞüÜâÂîÎûÛ', 'iiicCgGoOsSuUaAiIuU'))`
+
 // jobConditions adds the filter's conditions except the dimension named in
 // skip ("posted", "arrangement", "seniority", "country", "technology",
 // "company"), so facets can count a dimension without its own filter. It
@@ -76,6 +80,13 @@ func jobConditions(q *sqlQuery, f JobFilter, skip string) string {
 	}
 	if len(f.Countries) > 0 && skip != "country" {
 		q.cond(effCountry+" = ANY(%s::text[])", f.Countries)
+	}
+	if f.Location != "" {
+		q.cond(foldedLocation+" LIKE %s", "%"+escapeLike(f.Location)+"%")
+	}
+	if f.ATS != "" {
+		q.cond(`EXISTS (SELECT 1 FROM job_source_listings l JOIN job_sources s ON s.id = l.source_id
+			WHERE l.job_id = j.id AND l.closed_at IS NULL AND s.adapter = %s)`, f.ATS)
 	}
 	if len(f.CompanyIDs) > 0 && skip != "company" {
 		q.cond("j.company_id = ANY(%s::uuid[])", f.CompanyIDs)

@@ -46,6 +46,7 @@ var version = "dev"
 const usage = `usage: admin sources <list|add|review|enable|disable|sync|runs> [flags]
        admin adapters <list|review|enable|disable> [flags]
        admin companies <list|add> [flags]
+       admin countries backfill
        admin seeds check [-file FILE] [-write GOOD_FILE]
        admin llm <check|eval|enrich> [flags]
        admin version
@@ -76,7 +77,7 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 		}
 		return llmCommand(ctx, cfg, args[1:], out)
 	}
-	if len(args) < 2 || (args[0] != "sources" && args[0] != "adapters" && args[0] != "companies" && args[0] != "seeds") {
+	if len(args) < 2 || (args[0] != "sources" && args[0] != "adapters" && args[0] != "companies" && args[0] != "seeds" && args[0] != "countries") {
 		return errors.New(usage)
 	}
 	cfg, err := config.Load()
@@ -91,6 +92,12 @@ func run(ctx context.Context, args []string, out io.Writer) error {
 		return err
 	}
 	defer pool.Close()
+	if args[0] == "countries" {
+		if args[1] != "backfill" {
+			return errors.New(countriesUsage)
+		}
+		return backfillCountries(ctx, pool, out)
+	}
 
 	c := &cli{
 		sources:   database.NewSourceRepository(pool),

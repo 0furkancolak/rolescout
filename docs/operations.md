@@ -48,8 +48,13 @@ scripts/restore.sh backups/<file>.dump --yes
   tick. Only one run executes the shared stages (discovery, detection,
   collection) at a time; others wait and then reuse the fresh results.
 - **Discovery** runs at most every `DISCOVERY_INTERVAL` (7 days). It reads
-  the seed list, Hacker News "Who is hiring?" threads (12 months on the first
-  run, then new ones and the current month) and public company lists.
+  the seed lists (worldwide and Türkiye), Hacker News "Who is hiring?"
+  threads (12 months on the first run, then new ones and the current month),
+  public company lists and a name probe. The probe looks up each company in
+  `internal/discovery/seeds/probe_names.txt` on Lever, Greenhouse, Ashby,
+  Workable and Recruitee through their public job APIs, 40 names per
+  discovery run; add names to that file to find more employers in your
+  region.
 - **Collection** syncs company sources that are due. Sources refresh every
   12 hours when the company has a matching job, every 3 days when it has
   other open jobs, and weekly when it has none. Failing companies back off
@@ -66,6 +71,9 @@ scripts/restore.sh backups/<file>.dump --yes
 - **Companies.** `docker compose run --rm admin companies list -status unreachable`
   shows companies that fail and why; disable one for everyone under
   **Companies** (administrator) or with the API.
+- **Countries.** After the place list grows, `docker compose run --rm admin
+  countries backfill` gives stored jobs without a country the one their
+  location names.
 - **Seeds.** Before a release, check the seed list:
   `docker compose run --rm admin seeds check` (entries without a supported
   board or open jobs are reported as `DEAD`).

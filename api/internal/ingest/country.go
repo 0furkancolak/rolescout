@@ -10,7 +10,22 @@ import (
 //go:embed places.tsv
 var placesTSV string
 
-// places maps lower-case country and city names to ISO 3166-1 alpha-2 codes.
+// folder removes the diacritics of Turkish and common European letters, so
+// "İstanbul", "Istanbul" and "istanbul" are the same place and "Türkiye"
+// matches "turkiye".
+var folder = strings.NewReplacer(
+	"İ", "I", "ı", "i", "ç", "c", "Ç", "C", "ğ", "g", "Ğ", "G", "ö", "o", "Ö", "O", "ş", "s", "Ş", "S", "ü", "u", "Ü", "U",
+	"â", "a", "Â", "A", "î", "i", "Î", "I", "û", "u", "Û", "U", "é", "e", "è", "e", "ê", "e", "ë", "e", "É", "E",
+	"á", "a", "à", "a", "ä", "a", "ã", "a", "å", "a", "ñ", "n", "ó", "o", "ò", "o", "ô", "o", "õ", "o", "í", "i", "ì", "i",
+	"ï", "i", "ú", "u", "ù", "u", "ß", "ss", "ø", "o", "æ", "ae", "ł", "l",
+)
+
+// Fold lower-cases s and removes diacritics. Search uses it so a query for
+// "izmir" finds "İzmir".
+func Fold(s string) string { return strings.ToLower(folder.Replace(s)) }
+
+// places maps folded country, region and city names to ISO 3166-1 alpha-2
+// codes.
 var places = func() map[string]string {
 	m := map[string]string{}
 	for _, line := range strings.Split(placesTSV, "\n") {
@@ -19,7 +34,7 @@ var places = func() map[string]string {
 		}
 		name, code, ok := strings.Cut(line, "\t")
 		if ok {
-			m[name] = strings.TrimSpace(code)
+			m[Fold(name)] = strings.TrimSpace(code)
 		}
 	}
 	return m
@@ -89,8 +104,7 @@ type locWord struct {
 }
 
 func splitWords(s string) []locWord {
-	// Turkish dotted capital I lower-cases to "i" plus a combining dot.
-	s = strings.ReplaceAll(s, "İ", "I")
+	s = folder.Replace(s)
 	var out []locWord
 	start := -1
 	afterComma := false

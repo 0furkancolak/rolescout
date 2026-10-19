@@ -1270,6 +1270,23 @@ paths:
           in: query
           schema: { type: array, items: { type: string, pattern: "^[A-Za-z]{2}$" } }
           explode: true
+        - name: region
+          in: query
+          description: >-
+            A named group of countries, such as emea or europe; its countries
+            are added to those in `country`. Repeatable.
+          schema: { type: array, items: { type: string, enum: [europe, eu, emea, mena, dach, nordics, benelux, north america, americas, latam, apac, uk] } }
+          explode: true
+        - name: location
+          in: query
+          description: >-
+            Text found in the job's location, ignoring case and diacritics
+            ("izmir" finds "İzmir"). At most 80 characters.
+          schema: { type: string, maxLength: 80 }
+        - name: ats
+          in: query
+          description: Keep jobs read from one job board system, such as lever or greenhouse.
+          schema: { type: string, pattern: "^[a-z][a-z0-9_]{1,31}$" }
         - name: company
           in: query
           schema: { type: array, items: { type: string, format: uuid } }
@@ -1336,6 +1353,23 @@ paths:
           in: query
           schema: { type: array, items: { type: string, pattern: "^[A-Za-z]{2}$" } }
           explode: true
+        - name: region
+          in: query
+          description: >-
+            A named group of countries, such as emea or europe; its countries
+            are added to those in `country`. Repeatable.
+          schema: { type: array, items: { type: string, enum: [europe, eu, emea, mena, dach, nordics, benelux, north america, americas, latam, apac, uk] } }
+          explode: true
+        - name: location
+          in: query
+          description: >-
+            Text found in the job's location, ignoring case and diacritics
+            ("izmir" finds "İzmir"). At most 80 characters.
+          schema: { type: string, maxLength: 80 }
+        - name: ats
+          in: query
+          description: Keep jobs read from one job board system, such as lever or greenhouse.
+          schema: { type: string, pattern: "^[a-z][a-z0-9_]{1,31}$" }
         - name: company
           in: query
           schema: { type: array, items: { type: string, format: uuid } }
@@ -1778,7 +1812,7 @@ components:
                     type: object
                     required: [code]
                     properties:
-                      code: { type: string, enum: [title, keyword, role, tech, remote, country, location, hybrid, seniority, fresh] }
+                      code: { type: string, enum: [title, keyword, role, tech, remote, remote_abroad, country, location, region, hybrid, seniority, fresh] }
                       params: { type: object, additionalProperties: { type: string } }
     LlmStatus:
       type: object

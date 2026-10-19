@@ -155,3 +155,29 @@ func TestEnrichedTechnologiesRaiseTheScoreByAtMostTheTechnologyWeight(t *testing
 		t.Fatalf("unchanged job scored %d, want %d", same, base)
 	}
 }
+
+func TestScoreRegionalRemote(t *testing.T) {
+	now := time.Now()
+	p := domain.ResearchProfile{TitleKeywords: []string{"full stack"}, Countries: []string{"TR"}, Remote: domain.RemoteAny}
+	job := func(loc, cc string) domain.Job {
+		j := domain.Job{Title: "Full Stack Engineer", WorkArrangement: "remote", Location: &loc, FirstSeenAt: now.Add(-48 * time.Hour)}
+		if cc != "" {
+			j.CountryCode = &cc
+		}
+		return j
+	}
+	worldwide, _, _ := Score(p, job("Remote", ""), now)
+	emea, reasons, _ := Score(p, job("Remote - EMEA", ""), now)
+	us, usReasons, _ := Score(p, job("Remote, United States", "US"), now)
+	if worldwide != emea || us >= emea {
+		t.Errorf("scores worldwide=%d emea=%d us=%d: a US-only remote job must rank below", worldwide, emea, us)
+	}
+	if len(reasons) == 0 || usReasons[len(usReasons)-1].Code == "remote" {
+		t.Errorf("reasons: %v / %v", reasons, usReasons)
+	}
+	hybrid := job("Hybrid - Europe", "")
+	hybrid.WorkArrangement = "onsite"
+	if _, rs, ok := Score(domain.ResearchProfile{Countries: []string{"DE"}, Remote: domain.RemoteOnly}, hybrid, now); !ok {
+		t.Errorf("a job in the profile's region survives remote-only: %v", rs)
+	}
+}

@@ -78,6 +78,10 @@ check "research run log" 200 GET "/api/v1/workspaces/$ws/research-runs/$run/even
 # Stop the run again so a smoke test never leaves a crawl behind.
 check "cancel research run" 202 POST "/api/v1/workspaces/$ws/research-runs/$run/cancel"
 check "browse matches" 200 GET "/api/v1/workspaces/$ws/jobs?profile=$profile&sort=score&limit=5"
+check "filter by place" 200 GET "/api/v1/workspaces/$ws/jobs?location=istanbul&limit=5"
+check "filter by region" 200 GET "/api/v1/workspaces/$ws/jobs?region=emea&country=TR&limit=5"
+check "filter by job board system" 200 GET "/api/v1/workspaces/$ws/jobs?ats=lever&limit=5"
+check "region must be known" 422 GET "/api/v1/workspaces/$ws/jobs?region=narnia"
 check "job facets" 200 GET "/api/v1/workspaces/$ws/jobs/facets"
 check "company catalog" 200 GET "/api/v1/workspaces/$ws/companies?limit=5"
 check "activity series" 200 GET "/api/v1/workspaces/$ws/activity?days=7"

@@ -16,7 +16,7 @@ type fakeStats struct {
 	recent map[string]int
 }
 
-func (f fakeStats) Stats(context.Context, string) (domain.EnrichmentStats, error) {
+func (f fakeStats) Stats(context.Context, string, int, int) (domain.EnrichmentStats, error) {
 	return f.stats, nil
 }
 func (f fakeStats) RecentOK(_ context.Context, model string, _ time.Time) (int, error) {

@@ -6,6 +6,19 @@ include breaking changes, which are called out.
 
 ## [Unreleased]
 ### Added
+- Regional search: filter jobs by place (`location`, ignoring case and
+  diacritics), by region (`region`: EU, EMEA, DACH…) and by job board system
+  (`ats`, such as Lever); a "Türkiye" quick filter; countries in research
+  profiles can be typed by name in English or Turkish. Match scores know
+  regions ("Remote - EMEA") and rate remote jobs open only to another country
+  lower (`remote_abroad`).
+- Türkiye coverage: all 81 provinces and main districts, US states and more
+  places are recognised (`admin countries backfill` fixes stored jobs); a
+  second seed list of employers with open jobs in Türkiye; a discovery source
+  that finds Lever, Greenhouse, Ashby, Workable and Recruitee boards from
+  company names (`internal/discovery/seeds/probe_names.txt`).
+- Lever postings with several sites keep all of them in the location.
+- Retry delays for match explanations that keep failing.
 - `Makefile` with `make dev` (backend in Docker, web app with hot reload) and
   `up`, `down`, `logs`, `test`, `lint` and `smoke` tasks.
 - `scripts/init-env.sh` creates `.env` with a random database password.
@@ -43,6 +56,11 @@ include breaking changes, which are called out.
   `scripts/llm-bench.sh` / `scripts/llm-eval.sh` to measure a model.
 
 ### Changed
+- The model's work arrangement and country must be supported by the text;
+  technology names that are also ordinary words ("Go", "Spring") need
+  technology wording around them.
+- The global job search and the enrichment queue count use the same rules as
+  the workspace browser (effective fields; current prompt version).
 - Source reviews are recorded per adapter type (ADR 0004); a source can be
   enabled when its adapter type is reviewed and enabled.
 - The worker runs sources in parallel (`CRAWL_CONCURRENCY`).

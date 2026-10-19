@@ -1,7 +1,9 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { Facets } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
-import type { JobSearch } from "./searchParams";
+import { countryName } from "../../lib/countries";
+import { inputClass } from "../../components/styles";
+import { atsList, regions, type JobSearch } from "./searchParams";
 
 // FacetPanel offers filter values with how many jobs each one has.
 export function FacetPanel({
@@ -13,7 +15,9 @@ export function FacetPanel({
   facets?: Facets;
   onChange: (changes: Partial<JobSearch>) => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const [place, setPlace] = useState(search.location);
+  useEffect(() => setPlace(search.location), [search.location]);
   const toggle = (list: string[], v: string) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
   const count = (n?: number) => <span className="ml-auto text-xs tabular-nums text-ink-muted">{(n ?? 0).toLocaleString()}</span>;
 
@@ -21,6 +25,55 @@ export function FacetPanel({
 
   return (
     <div className="space-y-5">
+      <Group title={t("browse.place")}>
+        <form
+          role="search"
+          onSubmit={(e) => {
+            e.preventDefault();
+            onChange({ location: place.trim() });
+          }}
+        >
+          <label htmlFor="browse-location" className="sr-only">
+            {t("browse.location")}
+          </label>
+          <input
+            id="browse-location"
+            type="search"
+            value={place}
+            maxLength={80}
+            onChange={(e) => setPlace(e.target.value)}
+            onBlur={() => place.trim() !== search.location && onChange({ location: place.trim() })}
+            placeholder={t("browse.locationPlaceholder")}
+            className={inputClass}
+          />
+        </form>
+        <select
+          aria-label={t("browse.region")}
+          value={search.region}
+          onChange={(e) => onChange({ region: e.target.value })}
+          className="min-h-10 w-full rounded-control border border-line-strong bg-surface px-2 text-sm text-ink"
+        >
+          <option value="">{t("browse.anyRegion")}</option>
+          {regions.map((r) => (
+            <option key={r} value={r}>
+              {t(`region.${r}`)}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label={t("browse.ats")}
+          value={search.ats}
+          onChange={(e) => onChange({ ats: e.target.value })}
+          className="min-h-10 w-full rounded-control border border-line-strong bg-surface px-2 text-sm text-ink"
+        >
+          <option value="">{t("browse.anyAts")}</option>
+          {atsList.map((a) => (
+            <option key={a} value={a}>
+              {t(`ats.${a}`)}
+            </option>
+          ))}
+        </select>
+      </Group>
       {(facets?.technologies.length ?? 0) > 0 && (
         <Group title={t("browse.technology")}>
           {facets!.technologies.map((f) => (
@@ -39,7 +92,7 @@ export function FacetPanel({
         <Group title={t("browse.country")}>
           {countries.map(([k, n]) => (
             <Check key={k} checked={search.countries.includes(k)} onChange={() => onChange({ countries: toggle(search.countries, k) })}>
-              {countryName(k)}
+              {countryName(k, locale)}
               {count(n)}
             </Check>
           ))}
@@ -65,14 +118,6 @@ export function FacetPanel({
       </label>
     </div>
   );
-}
-
-function countryName(code: string): string {
-  try {
-    return new Intl.DisplayNames([document.documentElement.lang || "en"], { type: "region" }).of(code) ?? code;
-  } catch {
-    return code;
-  }
 }
 
 function Group({ title, children }: { title: string; children: ReactNode }) {

@@ -1,6 +1,7 @@
 import { Pill } from "../../components/Pill";
 import type { Facets } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
+import { countryName } from "../../lib/countries";
 import { enumLabel } from "../../lib/labels";
 import type { JobSearch, Posted } from "./searchParams";
 
@@ -18,7 +19,7 @@ export function FilterChips({
   facets?: Facets;
   onChange: (changes: Partial<JobSearch>) => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const arrangements = Object.entries(facets?.arrangement ?? {}).filter(([k]) => k !== "unknown");
   const seniorities = Object.entries(facets?.seniority ?? {}).filter(([k]) => k !== "unknown");
   const label = (text: string, n?: number) => (n === undefined ? text : `${text} ${n.toLocaleString()}`);
@@ -30,6 +31,9 @@ export function FilterChips({
           {label(t(`browse.posted.${p}`), facets?.posted[p])}
         </Pill>
       ))}
+      <Pill selected={search.countries.length === 1 && search.countries[0] === "TR"} onClick={() => onChange({ countries: search.countries.includes("TR") ? [] : ["TR"] })}>
+        {label(countryName("TR", locale), facets?.country?.TR)}
+      </Pill>
       {arrangements.length > 0 && <span aria-hidden className="mx-1 h-5 w-px bg-line-strong" />}
       {arrangements.map(([k, n]) => (
         <Pill key={k} selected={search.arrangement === k} onClick={() => onChange({ arrangement: search.arrangement === k ? "" : k })}>

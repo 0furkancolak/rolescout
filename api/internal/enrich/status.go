@@ -15,7 +15,7 @@ import (
 
 // StatsRepository is what the status screen reads from the database.
 type StatsRepository interface {
-	Stats(ctx context.Context, model string) (domain.EnrichmentStats, error)
+	Stats(ctx context.Context, model string, promptVersion, schemaVersion int) (domain.EnrichmentStats, error)
 	RecentOK(ctx context.Context, model string, since time.Time) (int, error)
 }
 
@@ -90,7 +90,7 @@ func (c *Checker) Status(ctx context.Context, probe bool) (Status, error) {
 			s.ProbeOK, s.ProbeMs = true, int(resp.Latency/time.Millisecond)
 		}
 	}
-	if st, err := c.Repo.Stats(ctx, c.Config.Model); err == nil {
+	if st, err := c.Repo.Stats(ctx, c.Config.Model, llm.PromptVersion, llm.SchemaVersion); err == nil {
 		s.Queue, s.Enriched, s.Failed, s.AvgLatencyMs, s.LastError = st.Queue, st.Enriched, st.Failed, st.AvgLatencyMs, st.LastError
 	} else {
 		return Status{}, err

@@ -338,3 +338,32 @@ func TestMissingModelKeepsJobsQueuedAndOpensTheBreaker(t *testing.T) {
 		t.Fatalf("404 must not burn job attempts and must open the breaker: saved %d open %v", len(h.repo.saved), h.e.Breaker.Open())
 	}
 }
+
+func TestHeldExplanationsWaitAndGrow(t *testing.T) {
+	now := time.Date(2026, 10, 19, 12, 0, 0, 0, time.UTC)
+	e := &Enricher{Now: func() time.Time { return now }}
+	if e.isHeld("k") {
+		t.Fatal("nothing is held yet")
+	}
+	e.hold("k")
+	if !e.isHeld("k") || e.heldCount() != 1 {
+		t.Fatal("a failed explanation must wait")
+	}
+	now = now.Add(5*time.Minute + time.Second)
+	if e.isHeld("k") {
+		t.Fatal("the first wait is 5 minutes")
+	}
+	e.hold("k") // fails again: 10 minutes
+	now = now.Add(6 * time.Minute)
+	if !e.isHeld("k") {
+		t.Fatal("the second wait doubles")
+	}
+	now = now.Add(5 * time.Minute)
+	if e.isHeld("k") {
+		t.Fatal("the second wait is 10 minutes")
+	}
+	e.release("k")
+	if e.heldCount() != 0 {
+		t.Fatal("a success forgets the wait")
+	}
+}
