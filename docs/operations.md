@@ -142,3 +142,13 @@ failures in the live run. Expect hours for a large backlog.
 | Sign-in works but the session is lost | `COOKIE_SECURE=true` while serving plain HTTP. |
 | `429 rate_limited` for everyone | `TRUSTED_PROXIES` does not include your reverse proxy, so all clients share its IP. |
 | A source never syncs | It must be reviewed and enabled; see `admin sources list`. |
+
+## Known limits
+- Enrichments stored before the grounding rules (country, work arrangement,
+  ambiguous technology names) are not re-checked until a job's description or
+  the prompt version changes.
+- Filtering by technology reads the model-filled fields through a view and
+  does not use an index; measure before relying on it with several hundred
+  thousand jobs.
+- PostgreSQL needs memory: under Docker on a VM with about 3 GB shared with
+  many containers it was killed twice. Give the VM at least 6 GB.

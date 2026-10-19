@@ -5,6 +5,8 @@ All notable changes are listed here. Versions follow
 include breaking changes, which are called out.
 
 ## [Unreleased]
+
+## [0.2.0] - 2026-10-19
 ### Added
 - Regional search: filter jobs by place (`location`, ignoring case and
   diacritics), by region (`region`: EU, EMEA, DACH…) and by job board system
@@ -91,5 +93,6 @@ First release.
   IDs, Prometheus metrics, sign-in rate limits, backup, restore and smoke test
   scripts, and an HTTPS override with Caddy.
 
-[Unreleased]: https://github.com/0furkancolak/rolescout/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/0furkancolak/rolescout/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/0furkancolak/rolescout/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/0furkancolak/rolescout/releases/tag/v0.1.0
