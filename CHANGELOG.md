@@ -72,7 +72,7 @@ include breaking changes, which are called out.
   stage shows sources finished), names are probed eight at a time, defaults are
   32 hosts in parallel and 8 requests per job board API (150 ms apart), the
   sector search asks four sector/region questions at once, and larger career
-  sites are read in full (500 pages, Workday 250 pages of 20).
+  sites are read in full (no page cap: every page found is read, Workday until its list ends).
 - All SQL is written out as literal statements with parameters; the dynamic
   query builder (job search, facets) is replaced by fixed statements with
   optional filters, and a test fails if SQL is ever built at run time.

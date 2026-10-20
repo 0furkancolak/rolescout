@@ -23,9 +23,6 @@ var (
 	daysAgo     = regexp.MustCompile(`(\d+)\+? Days? Ago`)
 )
 
-// defaultMaxPages bounds one fetch (Workday caps results anyway).
-const defaultMaxPages = 250
-
 // Adapter fetches one career site per source. Config:
 //
 //	{"host": "acme.wd5.myworkdayjobs.com", "tenant": "acme", "site": "External"}
@@ -35,7 +32,7 @@ type Adapter struct {
 	Client   *crawl.Client
 	BaseURL  string // overrides https://{host} (for tests)
 	PageSize int    // default 20, Workday's maximum
-	MaxPages int    // default 250
+	MaxPages int    // 0 reads every page
 	Now      func() time.Time
 }
 
@@ -82,14 +79,10 @@ func (a *Adapter) Fetch(ctx context.Context, config map[string]any) ([]ingest.Ra
 	if a.Now != nil {
 		now = a.Now
 	}
-	pages := a.MaxPages
-	if pages <= 0 {
-		pages = defaultMaxPages
-	}
 	endpoint := base + "/wday/cxs/" + url.PathEscape(tenant) + "/" + url.PathEscape(site) + "/jobs"
 	var out []ingest.RawListing
 	total := 0
-	for page := 0; page < pages; page++ {
+	for page := 0; a.MaxPages <= 0 || page < a.MaxPages; page++ {
 		var resp jobsResponse
 		body := map[string]any{"limit": size, "offset": page * size, "searchText": "", "appliedFacets": map[string]any{}}
 		if err := ingest.PostJSON(ctx, a.Client, endpoint, body, &resp); err != nil {
@@ -121,7 +114,7 @@ func (a *Adapter) Fetch(ctx context.Context, config map[string]any) ([]ingest.Ra
 			return out, nil
 		}
 	}
-	return out, ingest.Incomplete("page limit of %d reached (%d of %d jobs read)", pages, len(out), total)
+	return out, ingest.Incomplete("page limit of %d reached (%d of %d jobs read)", a.MaxPages, len(out), total)
 }
 
 // pathLocation reads the primary location from a job path such as

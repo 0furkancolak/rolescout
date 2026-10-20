@@ -55,7 +55,7 @@ limits how fast it calls each host.
 | `DISCOVERY_INTERVAL` | `168h` | How often the company catalog is grown from Common Crawl and seeds, at least `1h`. |
 | `COMPANY_SYNC_INTERVAL` | `12h` | Refresh interval for companies with matching jobs, at least `1h`. Others refresh every 3 days, companies without jobs weekly. |
 | `RESEARCH_INTERVAL` | `12h` | Default schedule of research profiles, at least `1h`. |
-| `JSONLD_MAX_PAGES` | `500` | Pages read per company career site without a supported job board (1–10000). |
+| `JSONLD_MAX_PAGES` | `0` | Pages read per company career site without a supported job board. `0` (default) reads every page it finds, within the one-hour time budget per site. |
 | `MATCH_MIN_SCORE` | `40` | Lowest score (0–100) stored as a match. |
 | `CLOSED_JOB_RETENTION` | `2160h` | Closed jobs nobody saved or applied to are deleted after this long; `0` keeps them. At least `24h` otherwise. |
 

@@ -227,7 +227,7 @@ func loadCrawl() (Crawl, error) {
 	if c.VendorConcurrency, err = rangeEnv("CRAWL_VENDOR_CONCURRENCY", 8, 1, 32); err != nil {
 		return c, err
 	}
-	if c.JSONLDMaxPages, err = rangeEnv("JSONLD_MAX_PAGES", 500, 1, 10000); err != nil {
+	if c.JSONLDMaxPages, err = rangeEnv("JSONLD_MAX_PAGES", 0, 0, 1000000); err != nil {
 		return c, err
 	}
 	if c.MatchMinScore, err = rangeEnv("MATCH_MIN_SCORE", 40, 0, 100); err != nil {
