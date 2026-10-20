@@ -3,6 +3,7 @@ package ingest
 import (
 	"errors"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -155,5 +156,17 @@ func TestInferCountry(t *testing.T) {
 		if got := InferCountry(in); got != want {
 			t.Errorf("InferCountry(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestExtractTechnologiesReadsACVsShortSpellings(t *testing.T) {
+	got := ExtractTechnologies("Skills: Go, TS, Node / Spring ve PostgreSQL. I like to go home and spring cleaning.")
+	for _, want := range []string{"go", "typescript", "node.js", "spring", "postgresql"} {
+		if !slices.Contains(got, want) {
+			t.Errorf("%q missing from %v", want, got)
+		}
+	}
+	if got := ExtractTechnologies("We will go to market in spring with python"); slices.Contains(got, "go") || slices.Contains(got, "spring") {
+		t.Errorf("everyday words counted as skills: %v", got)
 	}
 }

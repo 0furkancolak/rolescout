@@ -8,6 +8,7 @@ import (
 	"html"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -325,8 +326,29 @@ func technologies(title, text string) []string {
 	return out
 }
 
+// cvShortNames are technologies whose short spelling is also an everyday word
+// or an abbreviation. A CV names them as skills, usually capitalised or in a
+// list, so they count only in that spelling ("Go", "JS", "TS", "Node").
+var cvShortNames = []struct {
+	name string
+	re   *regexp.Regexp
+}{
+	{"go", regexp.MustCompile(`(^|[\s,;:/(•·|*-])Go($|[\s,;:/).•·|*-])`)},
+	{"javascript", regexp.MustCompile(`(^|[\s,;:/(•·|*-])(JS|JavaScript)($|[\s,;:/).•·|*-])`)},
+	{"typescript", regexp.MustCompile(`(^|[\s,;:/(•·|*-])(TS|TypeScript)($|[\s,;:/).•·|*-])`)},
+	{"node.js", regexp.MustCompile(`(^|[\s,;:/(•·|*-])Node($|[\s,;:/).•·|*-])`)},
+	{"spring", regexp.MustCompile(`(^|[\s,;:/(•·|*-])Spring($|[\s,;:/).•·|*-])`)},
+}
+
 // ExtractTechnologies lists the technologies a free text names, in the same
-// canonical spelling the job normalizer uses (a CV is read the way a posting is).
+// canonical spelling the job normalizer uses (a CV is read the way a posting
+// is, plus the short spellings a CV lists its skills with).
 func ExtractTechnologies(text string) []string {
-	return technologies("", strings.ToLower(text))
+	out := technologies("", strings.ToLower(text))
+	for _, c := range cvShortNames {
+		if !slices.Contains(out, c.name) && c.re.MatchString(text) {
+			out = append(out, c.name)
+		}
+	}
+	return out
 }
