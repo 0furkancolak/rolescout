@@ -31,6 +31,7 @@ type RunStore interface {
 	SetState(ctx context.Context, key, value string) error
 	TryStageLock(ctx context.Context) (func(), bool, error)
 	ClaimRun(ctx context.Context) (domain.ResearchRun, bool, error)
+	RequeueRun(ctx context.Context, id string) error
 	FailStaleRuns(ctx context.Context, maxAge time.Duration) (int64, error)
 	DueProfiles(ctx context.Context, now time.Time) ([]domain.ResearchProfile, error)
 	EnqueueRun(ctx context.Context, workspaceID, profileID, trigger string) (domain.ResearchRun, error)
@@ -66,8 +67,13 @@ type Config struct {
 	DiscoveryInterval   time.Duration
 	CompanySyncInterval time.Duration
 	Concurrency         int
-	MatchMinScore       int
-	ClosedJobRetention  time.Duration
+	// ConcurrencyFn, when set, is asked each time work starts and takes the
+	// place of Concurrency, so the pace can change while the worker runs.
+	ConcurrencyFn func() int
+	// RunSlots is how many research runs execute at the same time (default 1).
+	RunSlots           int
+	MatchMinScore      int
+	ClosedJobRetention time.Duration
 }
 
 // Pipeline executes research runs: discovery, detection and collection are
@@ -92,9 +98,11 @@ type Pipeline struct {
 
 const (
 	detectionBatch = 200
-	staleRunAfter  = 15 * time.Minute
-	eventRetention = 30 * 24 * time.Hour
-	lastFullKey    = "discovery.last_full"
+	// detectionPerWorker keeps every worker busy through a batch's slow tail.
+	detectionPerWorker = 8
+	staleRunAfter      = 15 * time.Minute
+	eventRetention     = 30 * 24 * time.Hour
+	lastFullKey        = "discovery.last_full"
 )
 
 func (p *Pipeline) defaults() {
@@ -116,6 +124,16 @@ func (p *Pipeline) defaults() {
 	if p.Config.CompanySyncInterval <= 0 {
 		p.Config.CompanySyncInterval = 12 * time.Hour
 	}
+}
+
+// concurrency is how many companies are worked on at once right now.
+func (p *Pipeline) concurrency() int {
+	if p.Config.ConcurrencyFn != nil {
+		if n := p.Config.ConcurrencyFn(); n > 0 {
+			return n
+		}
+	}
+	return max(p.Config.Concurrency, 1)
 }
 
 // Loop runs Tick every interval until ctx is cancelled.
@@ -141,28 +159,8 @@ func (p *Pipeline) Tick(ctx context.Context) {
 	} else if n > 0 {
 		p.Logger.Warn("marked abandoned research runs as failed", "count", n)
 	}
-	due, err := p.Runs.DueProfiles(ctx, p.Now())
-	if err != nil {
-		p.Logger.Error("list due research profiles", "error", err)
-	}
-	for _, prof := range due {
-		if _, err := p.Runs.EnqueueRun(ctx, prof.WorkspaceID, prof.ID, "schedule"); err != nil && !errors.Is(err, domain.ErrConflict) {
-			p.Logger.Error("queue scheduled research run", "profile", prof.ID, "error", err)
-		}
-	}
-	for ctx.Err() == nil {
-		run, ok, err := p.Runs.ClaimRun(ctx)
-		if err != nil {
-			p.Logger.Error("claim research run", "error", err)
-			break
-		}
-		if !ok {
-			break
-		}
-		if err := p.Execute(ctx, run); err != nil {
-			p.Logger.Error("research run failed", "run", run.ID, "error", err)
-		}
-	}
+	p.queueDue(ctx)
+	p.runQueued(ctx)
 	if p.Now().Sub(p.lastPurge) >= 24*time.Hour && ctx.Err() == nil {
 		p.lastPurge = p.Now()
 		if p.Config.ClosedJobRetention > 0 {
@@ -174,6 +172,70 @@ func (p *Pipeline) Tick(ctx context.Context) {
 		}
 		if _, err := p.Runs.PurgeRunEvents(ctx, eventRetention); err != nil {
 			p.Logger.Error("purge research run events", "error", err)
+		}
+	}
+}
+
+// queueDue queues a run for every profile whose schedule says it is due.
+func (p *Pipeline) queueDue(ctx context.Context) {
+	due, err := p.Runs.DueProfiles(ctx, p.Now())
+	if err != nil {
+		p.Logger.Error("list due research profiles", "error", err)
+	}
+	for _, prof := range due {
+		if _, err := p.Runs.EnqueueRun(ctx, prof.WorkspaceID, prof.ID, "schedule"); err != nil && !errors.Is(err, domain.ErrConflict) {
+			p.Logger.Error("queue scheduled research run", "profile", prof.ID, "error", err)
+		}
+	}
+}
+
+// runQueued executes queued runs, RunSlots at a time, until none is queued and
+// the last one has finished. Runs queued while it works are picked up as
+// slots free. The shared stages still go one run at a time (see lockStages),
+// so parallel runs do not read the same sites twice; their own stages overlap.
+func (p *Pipeline) runQueued(ctx context.Context) {
+	slots := max(p.Config.RunSlots, 1)
+	sem := make(chan struct{}, slots)
+	freed := make(chan struct{}, 1)
+	var wg sync.WaitGroup
+	defer wg.Wait()
+	for ctx.Err() == nil {
+		select {
+		case sem <- struct{}{}:
+			run, ok, err := p.Runs.ClaimRun(ctx)
+			if err != nil || !ok {
+				<-sem
+				if err != nil {
+					p.Logger.Error("claim research run", "error", err)
+					return
+				}
+				if len(sem) == 0 {
+					return
+				}
+				break
+			}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				if err := p.Execute(ctx, run); err != nil {
+					p.Logger.Error("research run failed", "run", run.ID, "error", err)
+				}
+				<-sem
+				select {
+				case freed <- struct{}{}:
+				default:
+				}
+			}()
+			continue
+		default:
+		}
+		// Every slot is busy, or nothing is queued while runs are still going.
+		select {
+		case <-ctx.Done():
+			return
+		case <-freed:
+		case <-time.After(p.LockWait):
+			p.queueDue(ctx)
 		}
 	}
 }
@@ -196,7 +258,13 @@ func (p *Pipeline) Execute(ctx context.Context, run domain.ResearchRun) error {
 	case rep.isCancelled():
 		state = domain.RunCancelled
 	case err != nil && ctx.Err() != nil:
-		state, msg = domain.RunFailed, strp("the worker stopped during the run")
+		// The worker is stopping (an update, a restart): the run goes back in
+		// the queue and starts again when a worker is up, instead of failing.
+		if rerr := p.Runs.RequeueRun(context.WithoutCancel(ctx), run.ID); rerr != nil {
+			return errors.Join(err, rerr)
+		}
+		log.Info("research run put back in the queue: the worker is stopping")
+		return nil
 	case err != nil:
 		state, msg = domain.RunFailed, strp(err.Error())
 	}
@@ -439,7 +507,7 @@ func (p *Pipeline) detect(ctx context.Context, rep *reporter) error {
 	rep.begin(stage)
 	seen := map[string]bool{}
 	for {
-		batch, err := p.Companies.PendingDetection(ctx, detectionBatch)
+		batch, err := p.Companies.PendingDetection(ctx, max(detectionBatch, detectionPerWorker*p.concurrency()))
 		if err != nil {
 			return err
 		}
@@ -456,7 +524,7 @@ func (p *Pipeline) detect(ctx context.Context, rep *reporter) error {
 		rep.update(stage, func(sp *domain.StageProgress) { sp.Total += len(todo) })
 		work := make(chan domain.Company)
 		var wg sync.WaitGroup
-		for range min(p.Config.Concurrency, len(todo)) {
+		for range min(p.concurrency(), len(todo)) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
@@ -582,7 +650,7 @@ func (p *Pipeline) collect(ctx context.Context, rep *reporter) (int, error) {
 	var mu sync.Mutex
 	collected := 0
 	err := p.Ingest.RunDue(ctx, ingest.RunDueOptions{
-		Concurrency: p.Config.Concurrency,
+		Concurrency: p.concurrency(),
 		OnStart: func(total int) {
 			rep.update(stage, func(sp *domain.StageProgress) { sp.Total = total })
 		},
@@ -660,14 +728,15 @@ func (p *Pipeline) score(ctx context.Context, run domain.ResearchRun, profile do
 func (p *Pipeline) pendingSources(ctx context.Context) (bool, error) {
 	for _, src := range p.Sources {
 		pd, ok := src.(discovery.Pender)
-		if !ok {
+		cpd, cok := src.(discovery.CtxPender)
+		if !ok && !cok {
 			continue
 		}
 		state, err := p.Runs.State(ctx, "discovery."+src.Name())
 		if err != nil {
 			return false, err
 		}
-		if pd.Pending(state) {
+		if (ok && pd.Pending(state)) || (cok && cpd.PendingCtx(ctx, state)) {
 			return true, nil
 		}
 	}

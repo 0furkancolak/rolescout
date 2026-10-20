@@ -235,6 +235,7 @@ func (e *Enricher) explain(ctx context.Context, model string) (int, error) {
 		text, err := llm.Explain(ctx, e.LLM, llm.JobFacts{
 			Title: t.Title, Company: t.CompanyName, Score: t.Score, Reasons: reasonFacts(t.Reasons),
 			Technologies: t.Technologies, MatchedTechnologies: t.MatchedTechnologies,
+			MissingTechnologies: t.MissingTechnologies, CVSkills: t.CVSkills, About: t.About,
 			Seniority: t.Seniority, Arrangement: t.Arrangement, Country: t.Country, Language: t.Locale,
 		})
 		switch {

@@ -103,7 +103,7 @@ func TestLoadRejectsInvalidOperationalSettings(t *testing.T) {
 
 var crawlVars = []string{
 	"CRAWL_CONCURRENCY", "CRAWL_HOST_INTERVAL", "CRAWL_VENDOR_CONCURRENCY", "CRAWL_USER_AGENT_URL", "CRAWL_ALLOW_PRIVATE",
-	"DISCOVERY_INTERVAL", "COMPANY_SYNC_INTERVAL", "RESEARCH_INTERVAL", "JSONLD_MAX_PAGES",
+	"DISCOVERY_INTERVAL", "COMPANY_SYNC_INTERVAL", "RESEARCH_INTERVAL", "JSONLD_MAX_PAGES", "CRAWL_VENDOR_INTERVAL", "RESEARCH_PARALLEL",
 	"MATCH_MIN_SCORE", "CLOSED_JOB_RETENTION",
 }
 
@@ -116,10 +116,10 @@ func TestLoadCrawlDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := Crawl{
-		Concurrency: 32, HostInterval: time.Second, VendorConcurrency: 8,
+		Concurrency: 128, HostInterval: 500 * time.Millisecond, VendorConcurrency: 16, VendorInterval: 100 * time.Millisecond,
 		UserAgentURL:      "https://github.com/0furkancolak/rolescout",
 		DiscoveryInterval: 168 * time.Hour, CompanySyncInterval: 12 * time.Hour,
-		ResearchInterval: 12 * time.Hour, JSONLDMaxPages: 0, MatchMinScore: 40,
+		ResearchInterval: 12 * time.Hour, JSONLDMaxPages: 0, ResearchParallel: 3, MatchMinScore: 40,
 		ClosedJobRetention: 2160 * time.Hour,
 	}
 	if cfg.Crawl != want {
@@ -143,10 +143,10 @@ func TestLoadCrawlSettings(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := Crawl{
-		Concurrency: 4, HostInterval: 2 * time.Second, VendorConcurrency: 2,
+		Concurrency: 4, HostInterval: 2 * time.Second, VendorConcurrency: 2, VendorInterval: 100 * time.Millisecond,
 		UserAgentURL: "https://example.com/bot", DiscoveryInterval: 24 * time.Hour,
 		CompanySyncInterval: 6 * time.Hour, ResearchInterval: 3 * time.Hour,
-		JSONLDMaxPages: 50, MatchMinScore: 60, ClosedJobRetention: 0,
+		JSONLDMaxPages: 50, ResearchParallel: 3, MatchMinScore: 60, ClosedJobRetention: 0,
 	}
 	if cfg.Crawl != want {
 		t.Fatalf("crawl = %+v, want %+v", cfg.Crawl, want)
@@ -158,6 +158,7 @@ func TestLoadRejectsInvalidCrawlSettings(t *testing.T) {
 		"CRAWL_CONCURRENCY":        "0",
 		"CRAWL_HOST_INTERVAL":      "10ms",
 		"CRAWL_VENDOR_CONCURRENCY": "0",
+		"CRAWL_VENDOR_INTERVAL":    "1ms",
 		"CRAWL_USER_AGENT_URL":     "not a url",
 		"DISCOVERY_INTERVAL":       "5m",
 		"COMPANY_SYNC_INTERVAL":    "abc",

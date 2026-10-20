@@ -1,4 +1,5 @@
-import { Pencil, Play, Plus } from "lucide-react";
+import { CalendarClock, Pencil, Play, Plus } from "lucide-react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button, Card, EmptyState, ErrorState, InlineError, PageTitle, Spinner } from "../../components/ui";
 import { buttonClass } from "../../components/styles";
@@ -7,6 +8,7 @@ import { useI18n } from "../../lib/i18n";
 import { useWorkspace } from "../workspaces/context";
 import { isActive, useProfiles, useRuns, useStartRun } from "./api";
 import { secondsBetween } from "./duration";
+import { MemoryCard } from "./MemoryCard";
 import { RunStateBadge } from "./RunStateBadge";
 
 export function ResearchPage() {
@@ -24,6 +26,7 @@ export function ResearchPage() {
           {t("research.newProfile")}
         </Link>
       </div>
+      <MemoryCard />
       {profiles.isPending ? (
         <Spinner />
       ) : profiles.isError ? (
@@ -47,17 +50,27 @@ function ProfileCard({ profile, runs }: { profile: ResearchProfile; runs: Resear
   const start = useStartRun(workspace.id);
   const navigate = useNavigate();
   const active = runs.find((r) => isActive(r));
+  const [nowMs] = useState(Date.now);
   const terms = [...profile.title_keywords, ...profile.technologies];
+  const nextRunLabel = (() => {
+    if (!profile.schedule_enabled) return t("research.autoOff");
+    if (active) return t("research.nextAfterRun", { hours: profile.schedule_hours });
+    const newest = runs.reduce<string | null>((acc, r) => (acc === null || r.queued_at > acc ? r.queued_at : acc), null);
+    const due = newest ? Date.parse(newest) + profile.schedule_hours * 3_600_000 : 0;
+    return due <= nowMs ? t("research.nextSoon") : t("research.nextRun", { date: formatDate(new Date(due).toISOString(), true) });
+  })();
 
   return (
-    <Card>
+    <Card className="transition-shadow hover:shadow-md">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-lg font-semibold text-ink">{profile.name}</h2>
           <p className="text-sm text-ink-muted">
             {profile.last_run_at ? t("research.lastRun", { date: formatDate(profile.last_run_at, true) }) : t("research.never")}
-            {" · "}
-            {t("research.every", { hours: profile.schedule_hours })}
+          </p>
+          <p className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-canvas px-2.5 py-0.5 text-xs text-ink-muted">
+            <CalendarClock aria-hidden className="size-3.5" />
+            {nextRunLabel}
           </p>
         </div>
         <div className="flex gap-2">
@@ -101,13 +114,23 @@ function ProfileCard({ profile, runs }: { profile: ResearchProfile; runs: Resear
       {runs.length === 0 ? (
         <p className="mt-2 text-sm text-ink-muted">{t("research.noRuns")}</p>
       ) : (
-        <ul className="mt-2 divide-y divide-line">
+        <ul className="mt-2 space-y-1">
           {runs.slice(0, 10).map((r) => {
             const secs = secondsBetween(r.started_at, r.finished_at);
-            const counts = (["companies_checked", "jobs_collected", "matches", "new_matches"] as const).filter((k) => r.summary[k] !== undefined);
+            const counts = (
+              [
+                ["companies_checked", "research.stat.checked"],
+                ["jobs_collected", "research.stat.jobs"],
+                ["matches", "research.stat.matches"],
+                ["new_matches", "research.stat.new"],
+              ] as const
+            ).filter(([k]) => r.summary[k] !== undefined);
             return (
               <li key={r.id}>
-                <Link to={`/research/runs/${r.id}`} className="block py-2.5 text-sm hover:text-lavender-deep">
+                <Link
+                  to={`/research/runs/${r.id}`}
+                  className="block cursor-pointer rounded-control border border-transparent px-3 py-2.5 text-sm transition-colors hover:border-line hover:bg-canvas focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus"
+                >
                   <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
                     <RunStateBadge state={r.state} />
                     <span className="text-ink">{formatDate(r.queued_at, true)}</span>
@@ -119,10 +142,11 @@ function ProfileCard({ profile, runs }: { profile: ResearchProfile; runs: Resear
                     )}
                   </span>
                   {counts.length > 0 && (
-                    <span className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-ink-muted">
-                      {counts.map((k) => (
-                        <span key={k}>
-                          {t(`run.sum.${k}`)} <span className="font-semibold tabular-nums text-ink">{r.summary[k].toLocaleString()}</span>
+                    <span className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {counts.map(([k, label]) => (
+                        <span key={k} className="rounded-md bg-canvas px-2 py-1">
+                          <span className="block text-[11px] text-ink-muted">{t(label)}</span>
+                          <span className="block text-sm font-semibold tabular-nums text-ink">{r.summary[k].toLocaleString()}</span>
                         </span>
                       ))}
                     </span>

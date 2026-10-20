@@ -186,6 +186,7 @@ func (h *handlers) listWorkspaceJobs(c fiber.Ctx) error {
 	}
 	resp := pageResponse[workspaceJobDTO]{Data: mapSlice(jobs, toWorkspaceJob)}
 	h.attachAI(c, f.ProfileID, resp.Data)
+	h.attachFit(c, f.ProfileID, resp.Data)
 	if more && (f.Sort != "relevance" || f.After == nil || f.After.Offset+f.Limit < database.MaxRelevanceOffset) {
 		next := encodeJobCursor(database.CursorAfter(f, jobs[len(jobs)-1]))
 		resp.NextCursor = &next

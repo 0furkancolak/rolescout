@@ -76,6 +76,11 @@ func newPipelineFixture(t *testing.T) pipelineFixture {
 		t.Fatal(err)
 	}
 
+	// The shipped kariyer.net sources would read a site this fake internet does not have.
+	if _, err := pool.Exec(ctx, `UPDATE job_sources SET enabled = FALSE WHERE adapter = 'kariyernet'`); err != nil {
+		t.Fatal(err)
+	}
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Host + r.URL.Path {
 		case "boards-api.greenhouse.io/v1/boards/acme/jobs":

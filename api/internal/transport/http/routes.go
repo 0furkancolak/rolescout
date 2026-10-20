@@ -69,8 +69,11 @@ type Deps struct {
 	LLM            LLMStatusProvider
 	AI             MatchAnalyzer // writes AI text for one job on request
 	Suggester      ProfileSuggester
+	Memory         MemoryStore // the person's note and CV; nil when not wired
+	CVReader       CVAnalyzer
 	System         SystemReporter
 	LLMSettings    LLMSettingsStore
+	CrawlPace      CrawlPaceStore
 	Enrichments    EnrichmentReader
 	// CrawlSettings are shown read-only to administrators.
 	CrawlSettings []Setting
@@ -116,6 +119,8 @@ func RegisterAPIRoutes(app *fiber.App, d Deps) {
 	admin.Post("/llm/check", h.llmCheck)
 	admin.Get("/llm/config", h.getLLMConfig)
 	admin.Put("/llm/config", h.putLLMConfig)
+	admin.Get("/crawl/config", h.getCrawlPace)
+	admin.Put("/crawl/config", h.putCrawlPace)
 
 	ws := private.Group("/workspaces/:workspaceID", h.requireWorkspace)
 	ws.Get("/members", h.listMembers)
@@ -153,6 +158,10 @@ func RegisterAPIRoutes(app *fiber.App, d Deps) {
 
 	ws.Get("/research-profiles", h.listProfiles)
 	ws.Post("/research-profiles", h.createProfile)
+	ws.Get("/context", h.getContext)
+	ws.Put("/context", h.putContext)
+	ws.Post("/context/cv", rateLimit(d.RateLimits.Analyze, false), renderErrors, h.uploadCV)
+	ws.Delete("/context/cv", h.deleteCV)
 	ws.Post("/research-profiles/suggest", rateLimit(d.RateLimits.Analyze, false), renderErrors, h.suggestProfile)
 	ws.Get("/research-profiles/:profileID", h.getProfile)
 	ws.Patch("/research-profiles/:profileID", h.updateProfile)

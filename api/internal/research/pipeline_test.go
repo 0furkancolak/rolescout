@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -148,6 +149,29 @@ func TestCancelDuringCollection(t *testing.T) {
 	}
 }
 
+func TestStoppingWorkerPutsTheRunBackInTheQueue(t *testing.T) {
+	h := newHarness()
+	h.ingest.block = make(chan struct{})
+	ctx, stop := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- h.p.Execute(ctx, testRun) }()
+	time.Sleep(50 * time.Millisecond)
+	stop()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("run did not stop")
+	}
+	h.runs.mu.Lock()
+	defer h.runs.mu.Unlock()
+	if len(h.runs.requeued) != 1 || h.runs.requeued[0] != "run-1" {
+		t.Fatalf("requeued = %v", h.runs.requeued)
+	}
+	if _, finished := h.runs.finished["run-1"]; finished {
+		t.Fatal("an interrupted run must not be finished as failed")
+	}
+}
+
 func TestDetectorPanicFailsOnlyThatCompany(t *testing.T) {
 	h := newHarness()
 	src := h.p.Sources[0].(fakeSource)
@@ -274,5 +298,44 @@ func TestDiscoverySourcesRunAtTheSameTime(t *testing.T) {
 	disc := lastSaved(h.runs).Stages[domain.StageDiscovery]
 	if disc.Failed != 0 || disc.Detail["alpha"] != 1 || disc.Detail["beta"] != 1 || disc.Detail["gamma"] != 1 {
 		t.Fatalf("discovery = %+v", disc)
+	}
+}
+
+// meetingJobs lets scoring return only once n runs are scoring together.
+type meetingJobs struct {
+	fakeJobs
+	n       int
+	mu      sync.Mutex
+	arrived int
+	gate    chan struct{}
+}
+
+func (m *meetingJobs) OpenJobsForScoring(ctx context.Context, ws string, fn func(domain.Job) error) error {
+	m.mu.Lock()
+	m.arrived++
+	if m.arrived == m.n {
+		close(m.gate)
+	}
+	m.mu.Unlock()
+	select {
+	case <-m.gate:
+	case <-time.After(3 * time.Second):
+		return errors.New("the runs did not score at the same time")
+	}
+	return m.fakeJobs.OpenJobsForScoring(ctx, ws, fn)
+}
+
+func TestSeveralRunsExecuteAtTheSameTime(t *testing.T) {
+	h := newHarness()
+	h.p.Config.RunSlots = 3
+	h.p.Jobs = &meetingJobs{fakeJobs: *h.p.Jobs.(*fakeJobs), n: 3, gate: make(chan struct{})}
+	for i := 1; i <= 3; i++ {
+		h.runs.queued = append(h.runs.queued, domain.ResearchRun{ID: fmt.Sprintf("q-%d", i), WorkspaceID: "ws", ProfileID: "prof", State: domain.RunRunning})
+	}
+	h.p.Tick(context.Background())
+	for i := 1; i <= 3; i++ {
+		if got := h.runs.finished[fmt.Sprintf("q-%d", i)]; got != domain.RunSucceeded {
+			t.Fatalf("run q-%d finished %q, errors %v", i, got, h.runs.errs)
+		}
 	}
 }

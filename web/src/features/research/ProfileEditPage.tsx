@@ -7,6 +7,7 @@ import { inputClass } from "../../components/styles";
 import { isApiError } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { useWorkspace } from "../workspaces/context";
+import { useMemory } from "./memory";
 import { useDeleteProfile, useProfile, useSaveProfile, useSuggestProfile, type ProfileInput } from "./api";
 import { ProfileForm } from "./ProfileForm";
 import { emptyProfile, toInput } from "./profileInput";
@@ -21,6 +22,9 @@ export function ProfileEditPage() {
   const remove = useDeleteProfile(workspace.id);
   const navigate = useNavigate();
   const suggest = useSuggestProfile(workspace.id);
+  const memory = useMemory(workspace.id);
+  // With a note or a CV the AI can draft a profile from them alone.
+  const known = !!memory.data && (memory.data.about.trim() !== "" || memory.data.cv !== null);
   const [description, setDescription] = useState("");
   // A draft from the AI replaces the form's starting values; the key remounts it.
   const [draft, setDraft] = useState<{ n: number; input: ProfileInput } | null>(null);
@@ -55,6 +59,7 @@ export function ProfileEditPage() {
             {t("research.aiTitle")}
           </h2>
           <p className="mt-1 text-sm text-ink-muted">{t("research.aiHint")}</p>
+          {known && <p className="mt-1 text-sm text-ink-muted">{t("research.aiFromMemory")}</p>}
           <label htmlFor="profile-ai-description" className="sr-only">
             {t("research.aiTitle")}
           </label>
@@ -72,7 +77,7 @@ export function ProfileEditPage() {
               type="button"
               variant="secondary"
               busy={suggest.isPending}
-              disabled={description.trim().length < 10}
+              disabled={description.trim().length < 10 && !(known && description.trim() === "")}
               onClick={() =>
                 suggest.mutate(description.trim(), {
                   onSuccess: (input) => setDraft({ n: (draft?.n ?? 0) + 1, input }),

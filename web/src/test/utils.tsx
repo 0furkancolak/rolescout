@@ -28,6 +28,7 @@ function fallback(call: Call): Reply | undefined {
   if (call.method === "GET" && /^\/workspaces\/[^/]+\/state\//.test(call.path)) return { status: 404, body: { error: { code: "not_found", message: "none" } } };
   if (call.method === "PUT" && /^\/workspaces\/[^/]+\/state\//.test(call.path)) return { status: 204 };
   if (call.method === "GET" && /^\/workspaces\/[^/]+\/applications$/.test(call.path)) return { body: { data: [] } };
+  if (call.method === "GET" && /^\/workspaces\/[^/]+\/context$/.test(call.path)) return { body: { data: { about: "", ai_read: false, cv: null } } };
   if (call.method === "GET" && /\/jobs\/[^/]+\/summary\/stream$/.test(call.path)) return { sse: "event: unavailable\ndata: {}\n\n" };
   return undefined;
 }
@@ -43,7 +44,7 @@ export function mockApi(handlers: Record<string, Handler>) {
       method: init?.method ?? "GET",
       path: url.pathname.replace(/^\/api\/v1/, ""),
       search: url.searchParams,
-      body: init?.body ? JSON.parse(String(init.body)) : undefined,
+      body: typeof init?.body === "string" ? JSON.parse(init.body) : init?.body instanceof FormData ? Object.fromEntries([...init.body.entries()].map(([k, v]) => [k, v instanceof File ? v.name : v])) : undefined,
     };
     calls.push(call);
     const handler = handlers[`${call.method} ${call.path}`] ?? fallback(call);
@@ -128,7 +129,7 @@ export function makeProfile(overrides: Partial<ResearchProfile> = {}): ResearchP
     excluded_keywords: [],
     remote: "any",
     seniority: [],
-    schedule_hours: 12,
+    schedule_enabled: true, schedule_hours: 12,
     last_run_at: null,
     created_at: "2026-10-01T10:00:00Z",
     updated_at: "2026-10-01T10:00:00Z",

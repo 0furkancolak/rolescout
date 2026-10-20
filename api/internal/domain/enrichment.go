@@ -69,9 +69,14 @@ type ExplanationTask struct {
 	Reasons             []MatchReason
 	Technologies        []string
 	MatchedTechnologies []string
-	Seniority           string
-	Arrangement         string
-	Country             string
+	// MissingTechnologies are the job's technologies the profile and CV lack.
+	MissingTechnologies []string
+	// CVSkills and About are what the workspace's CV and note say.
+	CVSkills    []string
+	About       string
+	Seniority   string
+	Arrangement string
+	Country     string
 	// Locale is the workspace owner's language ("tr" or "en").
 	Locale string
 }

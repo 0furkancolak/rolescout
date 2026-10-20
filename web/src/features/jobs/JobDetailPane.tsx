@@ -9,6 +9,7 @@ import {
   Sparkles,
   Undo2,
   WandSparkles,
+  X,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
@@ -17,7 +18,7 @@ import { Pill } from "../../components/Pill";
 import { ScoreRing } from "../../components/ScoreRing";
 import { Button, InlineError } from "../../components/ui";
 import { buttonClass } from "../../components/styles";
-import { isApiError, type WorkspaceJob } from "../../lib/api";
+import { isApiError, type TechFit, type WorkspaceJob } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { enumLabel } from "../../lib/labels";
 import { useApplications, useDeleteApplication } from "../applications/api";
@@ -104,6 +105,7 @@ export function JobDetailPane({
   const writing = summary.status === "loading" || streaming;
   const shownSummary = aiSummary ?? (summary.status === "unavailable" ? ai?.summary || null : null);
   const technologies = mergeTechnologies(job.technologies, ai?.extra_technologies ?? []);
+  const fit = job.tech_fit ?? null;
   const reasons = job.match?.reasons ?? [];
   const explanation = job.match?.explanation ?? generated?.explanation ?? null;
   const canGenerate = !!job.match && !!profileId && !explanation;
@@ -276,24 +278,51 @@ export function JobDetailPane({
             )}
 
             {technologies.length > 0 && (
-              <ul
-                className="flex flex-wrap gap-1.5"
-                aria-label={t("browse.technologies")}
-              >
-                {technologies.map((tech) => (
-                  <li
-                    key={tech.name}
-                    className={
-                      tech.extra
-                        ? "rounded-full border border-line px-2.5 py-0.5 text-xs text-ink-muted"
-                        : "rounded-full bg-lavender px-2.5 py-0.5 text-xs text-ink"
+              <div>
+                {fit && (
+                  <p className="mb-1.5 text-xs text-ink-muted">
+                    <span className="font-semibold uppercase tracking-wide">{t("tech.fitTitle")}</span>
+                    {" · "}
+                    {t("tech.fitCount", { matched: fit.matched.length, total: fit.matched.length + fit.missing.length })}
+                    {" · "}
+                    {fit.from_cv ? t("tech.fromCV") : t("tech.fromProfile")}
+                  </p>
+                )}
+                <ul className="flex flex-wrap gap-1.5" aria-label={t("browse.technologies")}>
+                  {technologies.map((tech) => {
+                    const state = fitState(fit, tech.name);
+                    if (state) {
+                      const label = state === "match" ? t("tech.have") : state === "excluded" ? t("tech.excluded") : t("tech.lack");
+                      return (
+                        <li
+                          key={tech.name}
+                          title={label}
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs ${
+                            state === "match" ? "bg-sage text-sage-deep" : "bg-danger-soft text-danger"
+                          } ${state === "excluded" ? "font-semibold line-through" : ""}`}
+                        >
+                          {state === "match" ? <Check aria-hidden className="size-3" /> : <X aria-hidden className="size-3" />}
+                          {tech.name}
+                          <span className="sr-only">{label}</span>
+                        </li>
+                      );
                     }
-                    title={tech.extra ? t("ai.extraTech") : undefined}
-                  >
-                    {tech.name}
-                  </li>
-                ))}
-              </ul>
+                    return (
+                      <li
+                        key={tech.name}
+                        className={
+                          tech.extra
+                            ? "rounded-full border border-line px-2.5 py-0.5 text-xs text-ink-muted"
+                            : "rounded-full bg-lavender px-2.5 py-0.5 text-xs text-ink"
+                        }
+                        title={tech.extra ? t("ai.extraTech") : undefined}
+                      >
+                        {tech.name}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
             )}
 
             {job.match && (reasons.length > 0 || canGenerate) && (
@@ -377,6 +406,18 @@ const techKey = (name: string) => {
   const k = name.toLowerCase().trim();
   return techAlias[k] ?? k;
 };
+
+// fitState says whether the person has a technology (match), lacks it
+// (missing) or ruled it out (excluded); null when nothing was compared.
+function fitState(fit: TechFit | null, name: string): "match" | "missing" | "excluded" | null {
+  if (!fit) return null;
+  const key = techKey(name);
+  const has = (list: string[]) => list.some((x) => techKey(x) === key);
+  if (has(fit.excluded)) return "excluded";
+  if (has(fit.missing)) return "missing";
+  if (has(fit.matched)) return "match";
+  return null;
+}
 
 // mergeTechnologies lists each technology once: the rules' names first, then
 // what only the model found; spellings of one thing ("go", "golang") count once.

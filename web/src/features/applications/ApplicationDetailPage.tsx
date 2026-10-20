@@ -8,7 +8,7 @@ import { useJob } from "../jobs/api";
 import { useWorkspace } from "../workspaces/context";
 import { useApplication } from "./api";
 import { DeleteApplication } from "./parts";
-import { AttemptsSection, HistorySection, NotesSection, ScheduleSection, StatusControl, TagsSection } from "./sections";
+import { AttemptsSection, HistorySection, InfoSection, NotesSection, ScheduleSection, StatusControl, TagsSection } from "./sections";
 
 export function ApplicationDetailPage() {
   const { applicationId = "" } = useParams();
@@ -51,6 +51,7 @@ export function ApplicationDetailPage() {
       </Card>
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
+          <InfoSection {...props} job={job.data} />
           <NotesSection {...props} />
           <HistorySection {...props} />
         </div>

@@ -5,8 +5,11 @@ source is one configured feed, such as one company's Greenhouse board.
 
 ## Rules
 - Only use access methods a source offers for this purpose: documented public
-  APIs or feeds. Do not scrape pages, bypass authentication, rate limits or
-  robots rules, or use credentials that were not issued for this use.
+  APIs or feeds. The exception is pages a site serves to every visitor as its
+  job list (`jsonld`, `htmlpage`, `kariyernet`): they are read only where
+  `robots.txt` allows, politely and capped, and each has its own review. Do
+  not bypass authentication, rate limits or robots rules, or use credentials
+  that were not issued for this use.
 - Every adapter has a review in this folder describing the access method, the
   terms that apply and the limits the adapter respects.
 - A source can only be enabled when its adapter type has an enabled review
@@ -79,6 +82,8 @@ docker compose run --rm admin companies list -status pending
 | `personio` | Personio XML job feed | [personio.md](personio.md) |
 | `bamboohr` | BambooHR careers list | [bamboohr.md](bamboohr.md) |
 | `jsonld` | schema.org JobPosting data on company career sites | [jsonld.md](jsonld.md) |
+| `htmlpage` | job cards printed in the HTML of a company's own career page | [htmlpage.md](htmlpage.md) |
+| `kariyernet` | kariyer.net public category lists (cards only), paced and capped | [kariyernet.md](kariyernet.md) |
 | `workday` | Workday career site endpoint, **off until reviewed** | [workday.md](workday.md) |
 
 SmartRecruiters is not supported: the robots.txt of its API host disallows all
@@ -90,7 +95,17 @@ catalog. Sources, in order: the shipped seed lists, the name probe, **stock
 exchange listings** (Nasdaq Trader: Nasdaq, NYSE and other US exchanges),
 **sectors** (the AI names companies per industry and region; only when AI is
 on), a probe of catalog names without a board, Hacker News "Who is hiring?"
-and community Markdown lists. Exchange and sector sources produce only names; a
+and community Markdown lists. **DBpedia** lists, per country (the run's focus countries first, then TR, US, GB,
+DE, NL and FR), the companies that have a website on that country's domain
+(`.tr`, `.de`, `.uk`, …) or, for the US, are placed there; their sites go to the
+detector, which looks for a board, JSON-LD or job cards on the page and then
+tries the usual career addresses (`/kariyer`, `/careers`, `/is-ilanlari`, … and
+career pages named in `sitemap.xml`). Its public SPARQL endpoint is read 2 000
+rows at a time, five requests per run at most; a finished country is read again
+on the normal discovery schedule. Wikidata's endpoint would give more companies
+but its `robots.txt` disallows `/sparql`, so it is not used. OpenStreetMap's
+Overpass service was tried and left out: a country query takes over a minute.
+Exchange and sector sources produce only names; a
 name is added only when its job board exists on Lever, Greenhouse, Ashby,
 Workable or Recruitee, so a wrong name costs a few requests and nothing else.
 They are read in batches (150 names, two sector/region pairs per run).

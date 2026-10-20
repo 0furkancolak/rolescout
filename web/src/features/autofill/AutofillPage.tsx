@@ -1,7 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Button, Card, ErrorState, Field, InlineError, PageTitle, Spinner } from "../../components/ui";
 import { inputClass } from "../../components/styles";
-import { autofillFields, bookmarklet, type AutofillProfile } from "../../lib/autofill";
+import { autofillFields, type AutofillProfile } from "../../lib/autofill";
+import { BookmarkletTools } from "./BookmarkletTools";
 import { useI18n } from "../../lib/i18n";
 import { usePutUserState, useUserState } from "../state/api";
 import { useWorkspace } from "../workspaces/context";
@@ -36,6 +37,7 @@ export function AutofillPage() {
       <p className="text-sm text-ink-muted">{t("autofill.intro")}</p>
       <Card>
         <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
+          <p className="text-sm text-ink-muted sm:col-span-2">{t("autofill.progress", { done: autofillFields.filter((f) => (form[f] ?? "").trim()).length, total: autofillFields.length })}</p>
           {autofillFields.map((f) => (
             <Field key={f} id={`af-${f}`} label={t(`autofill.field.${f}`)}>
               <input
@@ -69,14 +71,9 @@ export function AutofillPage() {
       <Card>
         <h2 className="text-lg font-semibold text-ink">{t("autofill.bookmarklet")}</h2>
         <p className="mt-1 text-sm text-ink-muted">{t("autofill.howTo")}</p>
-        <a
-          ref={(el) => el?.setAttribute("href", bookmarklet(form))}
-          onClick={(e) => e.preventDefault()}
-          draggable
-          className="mt-3 inline-flex min-h-10 cursor-grab items-center rounded-control border border-dashed border-line-strong bg-surface px-3 text-sm font-medium text-ink"
-        >
-          {t("autofill.bookmarklet")}
-        </a>
+        <div className="mt-3">
+          <BookmarkletTools profile={form} />
+        </div>
         <p className="mt-3 text-xs text-ink-muted">{t("autofill.privacy")}</p>
       </Card>
     </div>

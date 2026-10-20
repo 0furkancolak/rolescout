@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"example.com/rolescout/api/internal/config"
+	"example.com/rolescout/api/internal/crawl"
+	"example.com/rolescout/api/internal/crawlconfig"
 	"example.com/rolescout/api/internal/discovery"
 	"example.com/rolescout/api/internal/enrich"
 	"example.com/rolescout/api/internal/infrastructure/database"
@@ -43,7 +45,12 @@ func run() error {
 	}
 	defer pool.Close()
 
-	crawler := adapters.NewCrawler(version, cfg.Crawl)
+	// The pace of the crawl comes from the environment and can be changed in
+	// Settings; the worker follows the saved values every few seconds.
+	crawlSettings := &crawlconfig.Resolver{Env: cfg.Crawl, Store: database.NewSettingsRepository(pool)}
+	pace := crawl.NewLive(crawlSettings.Current(ctx))
+	go crawlSettings.Follow(ctx, pace, 5*time.Second)
+	crawler := adapters.NewCrawlerLive(version, cfg.Crawl, pace)
 	jobs := database.NewJobRepository(pool)
 	companies := database.NewCompanyRepository(pool)
 	runner := &ingest.Runner{
@@ -68,6 +75,9 @@ func run() error {
 			&discovery.FeedSource{Feed: &discovery.ExchangeFeed{Client: crawler}, Probe: &discovery.Probe{Client: crawler}},
 			&discovery.FeedSource{Feed: &discovery.SectorFeed{LLM: llmconfig.Dynamic{R: resolver},
 				Enabled: func(ctx context.Context) bool { return resolver.Current(ctx).Enabled }}, Probe: &discovery.Probe{Client: crawler}},
+			// The companies of the focus countries (and a few big ones) with a
+			// website in DBpedia; the detector finds their career pages.
+			&discovery.DBpedia{Client: crawler},
 			&discovery.CatalogProbe{Probe: &discovery.Probe{Client: crawler}, Names: companies.NamesWithoutBoard},
 			&discovery.HackerNews{Client: crawler, ThreadURL: "https://hn.algolia.com/api/v1"},
 			&discovery.MarkdownList{Client: crawler, URLs: discovery.DefaultLists},
@@ -76,6 +86,8 @@ func run() error {
 			DiscoveryInterval:   cfg.Crawl.DiscoveryInterval,
 			CompanySyncInterval: cfg.Crawl.CompanySyncInterval,
 			Concurrency:         cfg.Crawl.Concurrency,
+			RunSlots:            cfg.Crawl.ResearchParallel,
+			ConcurrencyFn:       func() int { return pace.Get().Concurrency },
 			MatchMinScore:       cfg.Crawl.MatchMinScore,
 			ClosedJobRetention:  cfg.Crawl.ClosedJobRetention,
 		},
@@ -113,7 +125,7 @@ func run() error {
 	}()
 	go func() {
 		defer wg.Done()
-		runner.Loop(ctx, cfg.WorkerTick, ingest.RunDueOptions{Concurrency: cfg.Crawl.Concurrency})
+		runner.Loop(ctx, cfg.WorkerTick, ingest.RunDueOptions{Concurrency: cfg.Crawl.Concurrency, ConcurrencyFn: func() int { return pace.Get().Concurrency }})
 	}()
 	go func() {
 		defer wg.Done()

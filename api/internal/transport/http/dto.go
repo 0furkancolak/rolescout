@@ -238,6 +238,7 @@ type profileDTO struct {
 	Remote           string     `json:"remote"`
 	Seniority        []string   `json:"seniority"`
 	ScheduleHours    int        `json:"schedule_hours"`
+	ScheduleEnabled  bool       `json:"schedule_enabled"`
 	LastRunAt        *time.Time `json:"last_run_at"`
 	CreatedAt        time.Time  `json:"created_at"`
 	UpdatedAt        time.Time  `json:"updated_at"`
@@ -255,7 +256,7 @@ func toProfile(p domain.ResearchProfile) profileDTO {
 		ID: p.ID, Name: p.Name, TitleKeywords: nonNil(p.TitleKeywords), Keywords: nonNil(p.Keywords),
 		Technologies: nonNil(p.Technologies), Countries: nonNil(p.Countries), Locations: nonNil(p.Locations),
 		ExcludedKeywords: nonNil(p.ExcludedKeywords), Remote: string(p.Remote), Seniority: nonNil(p.Seniority),
-		ScheduleHours: int(p.ScheduleInterval.Hours()), LastRunAt: utcPtr(p.LastRunAt),
+		ScheduleHours: int(p.ScheduleInterval.Hours()), ScheduleEnabled: !p.SchedulePaused, LastRunAt: utcPtr(p.LastRunAt),
 		CreatedAt: p.CreatedAt.UTC(), UpdatedAt: p.UpdatedAt.UTC(),
 	}
 }
@@ -368,6 +369,8 @@ type workspaceJobDTO struct {
 	Saved bool      `json:"saved"`
 	Match *matchDTO `json:"match"`
 	AI    *aiDTO    `json:"ai"`
+	// TechFit compares the job's technologies with the profile's and the CV's.
+	TechFit *techFitDTO `json:"tech_fit"`
 }
 
 func toWorkspaceJob(w domain.WorkspaceJob) workspaceJobDTO {

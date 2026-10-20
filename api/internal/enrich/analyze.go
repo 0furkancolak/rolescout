@@ -92,6 +92,7 @@ func (a *Analyzer) Analyze(ctx context.Context, workspaceID, profileID, jobID, l
 	text, err := llm.Explain(ctx, a.LLM, llm.JobFacts{
 		Title: task.Title, Company: task.CompanyName, Score: task.Score, Reasons: reasonFacts(task.Reasons),
 		Technologies: task.Technologies, MatchedTechnologies: task.MatchedTechnologies,
+		MissingTechnologies: task.MissingTechnologies, CVSkills: task.CVSkills, About: task.About,
 		Seniority: task.Seniority, Arrangement: task.Arrangement, Country: task.Country, Language: task.Locale,
 	})
 	if err != nil {

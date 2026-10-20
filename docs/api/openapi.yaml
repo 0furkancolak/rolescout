@@ -1138,6 +1138,57 @@ paths:
                   data: { $ref: "#/components/schemas/LlmConfig" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/InvalidInput" }
+  /api/v1/admin/crawl/config:
+    get:
+      tags: [admin]
+      summary: Crawl pace in effect (administrator)
+      description: >
+        How many companies are worked on at once and how closely requests are
+        spaced, with the environment defaults and which values were saved in the app.
+      operationId: getCrawlPace
+      responses:
+        "200":
+          description: The effective pace.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/CrawlPace" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    put:
+      tags: [admin]
+      summary: Change the crawl pace (administrator)
+      description: >
+        Saves the pace in the database; the worker follows within seconds, with no
+        restart. A field left out stays as it is; `0` removes the saved value so
+        the environment default applies again.
+      operationId: putCrawlPace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                concurrency: { type: integer, minimum: 0, maximum: 1024, description: Companies detected and synced at once. }
+                host_interval_ms: { type: integer, minimum: 0, maximum: 60000, description: "Gap between requests to one ordinary host (at least 100)." }
+                vendor_concurrency: { type: integer, minimum: 0, maximum: 128, description: Parallel requests to one job board API. }
+                vendor_interval_ms: { type: integer, minimum: 0, maximum: 10000, description: "Gap between requests to one job board API (at least 10)." }
+      responses:
+        "200":
+          description: The new effective pace.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/CrawlPace" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
   /api/v1/admin/settings:
     get:
       tags: [admin]
@@ -1161,6 +1212,87 @@ paths:
                         name: { type: string }
                         value: { type: string }
         "403": { $ref: "#/components/responses/Forbidden" }
+  /api/v1/workspaces/{workspaceID}/context:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+    get:
+      tags: [research]
+      summary: What the AI knows about the person (note and CV)
+      operationId: getWorkspaceContext
+      responses:
+        "200":
+          description: The note and the CV, if one was uploaded.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/WorkspaceContext" }
+    put:
+      tags: [research]
+      summary: Save the note about the work the person looks for
+      operationId: putWorkspaceContext
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [about]
+              properties:
+                about: { type: string, maxLength: 4000 }
+      responses:
+        "200":
+          description: The saved context.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/WorkspaceContext" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
+  /api/v1/workspaces/{workspaceID}/context/cv:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+    post:
+      tags: [research]
+      summary: Upload a CV
+      description: >
+        Reads the text of a PDF, Word (.docx) or text file (at most 5 MB) and
+        keeps it with what was read from it: the technologies the rules find
+        and, when AI is on, titles, seniority, experience and a summary. It
+        replaces the previous CV and drops the stored match explanations, which
+        are written again from the new CV. Shares the on-demand AI rate limit.
+      operationId: uploadCV
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "200":
+          description: The context with the CV.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/WorkspaceContext" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
+    delete:
+      tags: [research]
+      summary: Delete the CV
+      operationId: deleteCV
+      responses:
+        "204": { description: Deleted. }
   /api/v1/workspaces/{workspaceID}/research-profiles/suggest:
     parameters:
       - $ref: "#/components/parameters/WorkspaceID"
@@ -1172,7 +1304,10 @@ paths:
         (titles, keywords, technologies, countries, remote preference,
         seniority). Nothing is saved; create the profile with the normal call
         after reviewing it. Uses the AI connection from Settings and shares the
-        on-demand AI rate limit.
+        on-demand AI rate limit. The AI also draws on what it knows about the
+        person (their note, their CV, their other searches), so a short
+        description grows into a full profile; with such a background the
+        description may be left empty.
       operationId: suggestResearchProfile
       requestBody:
         required: true
@@ -1183,7 +1318,7 @@ paths:
               additionalProperties: false
               required: [description]
               properties:
-                description: { type: string, minLength: 10, maxLength: 2000 }
+                description: { type: string, maxLength: 2000, description: At least 10 characters unless the AI already knows the person. }
       responses:
         "200":
           description: The draft.
@@ -1856,6 +1991,7 @@ components:
                 type: array
                 items: { type: string, enum: [intern, junior, mid, senior, lead] }
               schedule_hours: { type: integer, minimum: 1, maximum: 336 }
+              schedule_enabled: { type: boolean, description: "false pauses automatic runs; manual runs still work." }
 
   responses:
     Forbidden:
@@ -2079,7 +2215,7 @@ components:
     ResearchProfile:
       type: object
       required: [id, name, title_keywords, keywords, technologies, countries, locations,
-        excluded_keywords, remote, seniority, schedule_hours, last_run_at, created_at, updated_at]
+        excluded_keywords, remote, seniority, schedule_hours, schedule_enabled, last_run_at, created_at, updated_at]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
@@ -2092,6 +2228,7 @@ components:
         remote: { $ref: "#/components/schemas/RemotePreference" }
         seniority: { type: array, items: { type: string } }
         schedule_hours: { type: integer }
+        schedule_enabled: { type: boolean }
         last_run_at: { type: [string, "null"], format: date-time }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
@@ -2168,13 +2305,44 @@ components:
         enabled: { type: boolean }
         reviewed_at: { type: [string, "null"], format: date-time }
         note: { type: [string, "null"] }
+    WorkspaceContext:
+      type: object
+      required: [about, cv, ai_read]
+      properties:
+        about: { type: string }
+        ai_read: { type: boolean, description: Whether the AI read the CV; without it only technologies are known. }
+        cv:
+          type: [object, "null"]
+          required: [filename, uploaded_at, chars, skills, titles, seniority, years, summary]
+          properties:
+            filename: { type: string }
+            uploaded_at: { type: string, format: date-time }
+            chars: { type: integer }
+            skills: { type: array, items: { type: string } }
+            titles: { type: array, items: { type: string } }
+            seniority: { type: string }
+            years: { type: [integer, "null"] }
+            summary: { type: string }
+    TechFit:
+      type: object
+      description: The job's technologies compared with the person's (profile and CV).
+      required: [matched, missing, excluded, from_cv]
+      properties:
+        matched: { type: array, items: { type: string } }
+        missing: { type: array, items: { type: string }, description: Technologies the person does not have. }
+        excluded: { type: array, items: { type: string }, description: Missing ones the person ruled out. }
+        from_cv: { type: boolean }
     WorkspaceJob:
       allOf:
         - $ref: "#/components/schemas/Job"
         - type: object
-          required: [saved, match, ai]
+          required: [saved, match, ai, tech_fit]
           properties:
             saved: { type: boolean }
+            tech_fit:
+              oneOf:
+                - $ref: "#/components/schemas/TechFit"
+                - type: "null"
             ai: { $ref: "#/components/schemas/JobAI" }
             match:
               type: [object, "null"]
@@ -2191,6 +2359,24 @@ components:
                     properties:
                       code: { type: string, enum: [title, keyword, role, tech, remote, remote_abroad, country, location, region, hybrid, seniority, fresh] }
                       params: { type: object, additionalProperties: { type: string } }
+    CrawlPaceValues:
+      type: object
+      required: [concurrency, host_interval_ms, vendor_concurrency, vendor_interval_ms]
+      properties:
+        concurrency: { type: integer }
+        host_interval_ms: { type: integer }
+        vendor_concurrency: { type: integer }
+        vendor_interval_ms: { type: integer }
+    CrawlPace:
+      allOf:
+        - $ref: "#/components/schemas/CrawlPaceValues"
+        - type: object
+          required: [defaults, stored]
+          properties:
+            defaults: { $ref: "#/components/schemas/CrawlPaceValues" }
+            stored:
+              type: object
+              additionalProperties: { type: boolean }
     LlmConfig:
       type: object
       required: [enabled, base_url, model, has_api_key, background, background_auto, local, stored]

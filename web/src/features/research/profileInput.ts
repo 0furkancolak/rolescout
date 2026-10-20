@@ -4,7 +4,7 @@ import type { ProfileInput } from "./api";
 export function emptyProfile(): ProfileInput {
   return {
     name: "", title_keywords: [], keywords: [], technologies: [], countries: [], locations: [],
-    excluded_keywords: [], remote: "any", seniority: [], schedule_hours: 12,
+    excluded_keywords: [], remote: "any", seniority: [], schedule_hours: 12, schedule_enabled: true,
   };
 }
 

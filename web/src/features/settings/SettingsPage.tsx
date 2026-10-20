@@ -18,6 +18,7 @@ import { useI18n } from "../../lib/i18n";
 import { useCurrentUser } from "../auth/api";
 import { LocalAiCard } from "./LocalAiCard";
 import { SystemCard } from "./SystemCard";
+import { CrawlPaceCard } from "./CrawlPaceCard";
 import { UsersCard } from "./UsersCard";
 
 const adaptersKey = ["admin", "adapters"] as const;
@@ -93,6 +94,7 @@ export function SettingsPage() {
         {tab === "system" && <SystemCard />}
         {tab === "crawl" && (
           <>
+            {isAdmin && <CrawlPaceCard />}
             <Card>
               <h2 className="text-lg font-semibold text-ink">
                 {t("settings.crawl")}
@@ -101,16 +103,16 @@ export function SettingsPage() {
                 {t("settings.crawlHint")}
               </p>
               {settings.data && (
-                <dl className="mt-4 grid gap-x-6 gap-y-2 sm:grid-cols-2">
+                <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
                   {settings.data.map((s) => (
                     <div
                       key={s.name}
-                      className="flex justify-between gap-3 border-b border-line py-1.5 text-sm"
+                      className="flex min-w-0 justify-between gap-3 border-b border-line py-1.5 text-sm"
                     >
-                      <dt className="font-mono text-xs text-ink-muted">
+                      <dt className="shrink-0 font-mono text-xs text-ink-muted">
                         {s.name}
                       </dt>
-                      <dd className="truncate font-medium text-ink">
+                      <dd className="min-w-0 truncate font-medium text-ink">
                         {s.value}
                       </dd>
                     </div>

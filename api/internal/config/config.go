@@ -70,13 +70,17 @@ type Crawl struct {
 	// VendorConcurrency is the parallel request limit for a job board API
 	// host that serves many companies.
 	VendorConcurrency int
+	// VendorInterval spaces those requests.
+	VendorInterval time.Duration
 	// UserAgentURL is linked from the User-Agent so site owners can find us.
 	UserAgentURL        string
 	DiscoveryInterval   time.Duration
 	CompanySyncInterval time.Duration
 	ResearchInterval    time.Duration
 	JSONLDMaxPages      int
-	MatchMinScore       int
+	// ResearchParallel is how many research runs execute at the same time.
+	ResearchParallel int
+	MatchMinScore    int
 	// ClosedJobRetention is how long closed jobs nobody saved or applied to
 	// are kept; 0 keeps them forever.
 	ClosedJobRetention time.Duration
@@ -221,13 +225,16 @@ func boolEnv(name string, fallback bool) (bool, error) {
 func loadCrawl() (Crawl, error) {
 	c := Crawl{UserAgentURL: "https://github.com/0furkancolak/rolescout"}
 	var err error
-	if c.Concurrency, err = rangeEnv("CRAWL_CONCURRENCY", 32, 1, 256); err != nil {
+	if c.Concurrency, err = rangeEnv("CRAWL_CONCURRENCY", 128, 1, 1024); err != nil {
 		return c, err
 	}
-	if c.VendorConcurrency, err = rangeEnv("CRAWL_VENDOR_CONCURRENCY", 8, 1, 32); err != nil {
+	if c.VendorConcurrency, err = rangeEnv("CRAWL_VENDOR_CONCURRENCY", 16, 1, 128); err != nil {
 		return c, err
 	}
 	if c.JSONLDMaxPages, err = rangeEnv("JSONLD_MAX_PAGES", 0, 0, 1000000); err != nil {
+		return c, err
+	}
+	if c.ResearchParallel, err = rangeEnv("RESEARCH_PARALLEL", 3, 1, 16); err != nil {
 		return c, err
 	}
 	if c.MatchMinScore, err = rangeEnv("MATCH_MIN_SCORE", 40, 0, 100); err != nil {
@@ -240,7 +247,8 @@ func loadCrawl() (Crawl, error) {
 		min      time.Duration
 		example  string
 	}{
-		{"CRAWL_HOST_INTERVAL", &c.HostInterval, time.Second, 100 * time.Millisecond, "1s"},
+		{"CRAWL_HOST_INTERVAL", &c.HostInterval, 500 * time.Millisecond, 100 * time.Millisecond, "500ms"},
+		{"CRAWL_VENDOR_INTERVAL", &c.VendorInterval, 100 * time.Millisecond, 10 * time.Millisecond, "100ms"},
 		{"DISCOVERY_INTERVAL", &c.DiscoveryInterval, 168 * time.Hour, time.Hour, "168h"},
 		{"COMPANY_SYNC_INTERVAL", &c.CompanySyncInterval, 12 * time.Hour, time.Hour, "12h"},
 		{"RESEARCH_INTERVAL", &c.ResearchInterval, 12 * time.Hour, time.Hour, "12h"},
