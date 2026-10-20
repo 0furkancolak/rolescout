@@ -145,7 +145,47 @@ func TestDetectFollowsCareersLinkFromHomepage(t *testing.T) {
 		t.Fatalf("detection = %+v, err = %v", got, err)
 	}
 	got, err = d.Detect(ingesttest.Ctx(t), "http://beta.example/")
-	if err != nil || got.Board.ATS != "unknown" || got.FinalURL != "http://beta.example/jobs" {
+	if err != nil || got.Board.ATS != "unknown" {
 		t.Fatalf("unknown after following: %+v, err = %v", got, err)
+	}
+}
+
+func TestDetectTriesUsualCareerPathsOnAHomepage(t *testing.T) {
+	d := sites(t, map[string]string{
+		"acme.example/":            `<html><title>Acme</title><a href="/hakkimizda">Hakkımızda</a></html>`,
+		"acme.example/kariyer":     `<html><iframe src="https://jobs.lever.co/acme"></iframe></html>`,
+		"deep.example/about":       `<html>About</html>`,
+		"deep.example/kariyer":     `<html><iframe src="https://jobs.lever.co/deep"></iframe></html>`,
+		"map.example/":             `<html>Home</html>`,
+		"map.example/sitemap.xml":  `<urlset><url><loc>http://map.example/bize-katilin</loc></url><url><loc>http://map.example/urunler</loc></url></urlset>`,
+		"map.example/bize-katilin": `<html><iframe src="https://jobs.lever.co/map"></iframe></html>`,
+	})
+	got, err := d.Detect(ingesttest.Ctx(t), "http://acme.example/")
+	if err != nil || got.Board.ATS != "lever" || got.Board.ID != "acme" {
+		t.Fatalf("usual path: %+v, err = %v", got, err)
+	}
+	got, err = d.Detect(ingesttest.Ctx(t), "http://map.example/")
+	if err != nil || got.Board.ATS != "lever" || got.Board.ID != "map" {
+		t.Fatalf("sitemap hint: %+v, err = %v", got, err)
+	}
+	// A deep page is not guessed around.
+	got, err = d.Detect(ingesttest.Ctx(t), "http://deep.example/about")
+	if err != nil || got.Board.ATS != "unknown" {
+		t.Fatalf("deep page: %+v, err = %v", got, err)
+	}
+}
+
+func TestDetectPlainHTMLJobCards(t *testing.T) {
+	cards := `<html><title>Kariyer | Acme</title><body><h1>Bize katıl</h1>
+		<div><h2>Backend Developer</h2><p>Tam Zamanlı</p><a href="mailto:ik@acme.example">Hemen Başvur</a></div>
+		<div><h2>Tasarımcı</h2><p>Ofis</p><a href="mailto:ik@acme.example">Hemen Başvur</a></div></body></html>`
+	d := sites(t, map[string]string{"acme.example/kariyer": cards, "bank.example/kredi": `<html><div><h2>Kredi</h2><a href="/b">Hemen Başvur</a></div></html>`})
+	got, err := d.Detect(ingesttest.Ctx(t), "http://acme.example/kariyer")
+	if err != nil || got.Board.ATS != "htmlpage" || got.Board.Config["url"] != "http://acme.example/kariyer" {
+		t.Fatalf("detection = %+v, err = %v", got, err)
+	}
+	got, err = d.Detect(ingesttest.Ctx(t), "http://bank.example/kredi")
+	if err != nil || got.Board.ATS != "unknown" {
+		t.Fatalf("a marketing page must stay unknown: %+v, err = %v", got, err)
 	}
 }

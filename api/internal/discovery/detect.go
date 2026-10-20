@@ -11,6 +11,7 @@ import (
 	"golang.org/x/net/html"
 
 	"example.com/rolescout/api/internal/crawl"
+	"example.com/rolescout/api/internal/ingest/htmlpage"
 	"example.com/rolescout/api/internal/ingest/jsonld"
 )
 
@@ -92,10 +93,19 @@ func (d *Detector) detect(ctx context.Context, careersURL string, followCareersL
 		det.Board = Board{ATS: "jsonld", ID: res.FinalURL, Config: map[string]any{"url": res.FinalURL}}
 		return det, nil
 	}
-	// A company homepage usually links to its career page.
-	if followCareersLink && len(page.careerLinks) > 0 {
-		next, err := d.detect(ctx, page.careerLinks[0], false)
-		if err == nil {
+	// The page itself may be the list: job cards printed in plain HTML.
+	if htmlpage.LooksLikeJobList(res.Body, res.FinalURL) {
+		det.Board = Board{ATS: "htmlpage", ID: res.FinalURL, Config: map[string]any{"url": res.FinalURL}}
+		return det, nil
+	}
+	// A company homepage usually links to its career page; failing that, the
+	// addresses career pages usually have are tried.
+	if followCareersLink {
+		for _, target := range d.careerTargets(ctx, res.FinalURL, page.careerLinks) {
+			next, err := d.detect(ctx, target, false)
+			if err != nil || next.Board.ATS == "unknown" {
+				continue
+			}
 			if next.Name == "" {
 				next.Name = det.Name
 			}
@@ -116,6 +126,65 @@ func (d *Detector) detect(ctx context.Context, careersURL string, followCareersL
 		}
 	}
 	return det, nil
+}
+
+// careerPaths are the addresses company sites commonly put their job list at.
+var careerPaths = []string{
+	"/kariyer", "/careers", "/career", "/jobs", "/is-ilanlari", "/insan-kaynaklari", "/ik", "/bize-katilin",
+	"/kariyer-firsatlari", "/en/career", "/en/careers", "/tr/kariyer", "/is-firsatlari", "/acik-pozisyonlar",
+}
+
+// maxCareerTargets bounds how many addresses one company page may cost.
+const maxCareerTargets = 12
+
+var (
+	sitemapLoc = regexp.MustCompile(`(?i)<loc>\s*([^<\s]+)\s*</loc>`)
+	localeOnly = regexp.MustCompile(`^[a-z]{2}(-[A-Za-z]{2})?$`)
+)
+
+// careerTargets lists the pages to try for a site whose given page held no
+// board: the career links the page showed, the career pages named in its
+// sitemap, then the usual paths. It only guesses on a site's front page.
+func (d *Detector) careerTargets(ctx context.Context, pageURL string, links []string) []string {
+	base, err := url.Parse(pageURL)
+	if err != nil {
+		return nil
+	}
+	seen := map[string]bool{pageURL: true}
+	var out []string
+	add := func(raw string) {
+		if raw == "" || seen[raw] || len(out) >= maxCareerTargets {
+			return
+		}
+		seen[raw] = true
+		out = append(out, raw)
+	}
+	for i, l := range links {
+		if i < 3 {
+			add(l)
+		}
+	}
+	if p := strings.Trim(base.Path, "/"); p != "" && !localeOnly.MatchString(p) {
+		return out // a deep page: only what it links to
+	}
+	origin := base.Scheme + "://" + base.Host
+	if res, err := d.Client.Get(ctx, origin+"/sitemap.xml", "application/xml,text/xml", nil); err == nil {
+		n := 0
+		for _, m := range sitemapLoc.FindAllStringSubmatch(string(res.Body), 2000) {
+			u, err := url.Parse(m[1])
+			if err != nil || !strings.EqualFold(u.Host, base.Host) || !careersText.MatchString(u.Path) || strings.Count(strings.Trim(u.Path, "/"), "/") > 1 {
+				continue
+			}
+			add(u.String())
+			if n++; n == 3 {
+				break
+			}
+		}
+	}
+	for _, p := range careerPaths {
+		add(origin + p)
+	}
+	return out
 }
 
 var careersText = regexp.MustCompile(`(?i)\b(careers?|jobs|kariyer|karriere|join[- ]us|work[- ]with[- ]us|open[- ](positions|roles)|we.?re[- ]hiring|stellenangebote|emplois?)\b`)

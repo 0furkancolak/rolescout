@@ -19,6 +19,12 @@ type Pender interface {
 	Pending(state string) bool
 }
 
+// CtxPender is a Pender whose work depends on the run, such as the countries
+// it focuses on (the context carries them, see package focus).
+type CtxPender interface {
+	PendingCtx(ctx context.Context, state string) bool
+}
+
 // Source finds candidates. state is what the source returned last time (""
 // at first); Discover returns the state to keep for the next run.
 type Source interface {
