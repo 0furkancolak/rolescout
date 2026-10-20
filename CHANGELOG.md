@@ -6,6 +6,11 @@ include breaking changes, which are called out.
 
 ## [Unreleased]
 ### Added
+- Settings is split into tabs (Job boards, People, AI, Crawl); the tab is kept
+  in the address (`/settings?tab=ai`).
+- "Draft with AI" on a new research profile: describe the job in your own words
+  and the AI fills the profile form to review and save
+  (`POST /workspaces/{id}/research-profiles/suggest`, nothing is saved by it).
 - Single-install accounts, like Grafana: only the first account can sign up;
   after that the "create account" page and link disappear and the administrator
   adds people in Settings → People (`GET`/`POST /admin/users`,
@@ -46,6 +51,7 @@ include breaking changes, which are called out.
   employers).
 - `make dev` streams the API and worker logs into the terminal.
 ### Changed
+- No favicon.
 - The header shows the app name only, without a logo icon.
 - PostgreSQL runs with a bounded cache, 40 connections and no parallel workers
   (about 20 MB idle) instead of the image defaults; the API write timeout is
