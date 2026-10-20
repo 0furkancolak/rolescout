@@ -4,7 +4,8 @@ import { Link, useParams } from "react-router-dom";
 import { BackLink } from "../../components/BackLink";
 import { Button, ErrorState, PageTitle, Spinner } from "../../components/ui";
 import { buttonClass } from "../../components/styles";
-import { stages, type ResearchRun } from "../../lib/api";
+import { stages, type ResearchRun, type Stage } from "../../lib/api";
+import { inputClass } from "../../components/styles";
 import { useI18n } from "../../lib/i18n";
 import { useWorkspace } from "../workspaces/context";
 import { isActive, useCancelRun, useProfile, useRun, useRunEvents } from "./api";
@@ -15,12 +16,13 @@ import { RunStateBadge } from "./RunStateBadge";
 const summaryKeys = ["companies_known", "companies_checked", "companies_failed", "jobs_collected", "jobs_open", "matches", "new_matches"] as const;
 
 export function RunPage() {
-  const { t } = useI18n();
+  const { t, formatDate } = useI18n();
   const { runId = "" } = useParams();
   const { workspace } = useWorkspace();
   const run = useRun(workspace.id, runId);
   const profile = useProfile(workspace.id, run.data?.profile_id ?? "");
   const [errorsOnly, setErrorsOnly] = useState(false);
+  const [stageFilter, setStageFilter] = useState<Stage | "">("");
   const active = isActive(run.data);
   const events = useRunEvents(workspace.id, runId, errorsOnly, active);
   const cancel = useCancelRun(workspace.id, runId);
@@ -40,6 +42,24 @@ export function RunPage() {
             <span>{t(`run.trigger.${r.trigger}`)}</span>
             <Elapsed run={r} />
           </div>
+          <dl className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-ink-muted">
+            <div className="flex gap-1">
+              <dt>{t("run.queuedAt")}</dt>
+              <dd className="tabular-nums text-ink">{formatDate(r.queued_at, true)}</dd>
+            </div>
+            {r.started_at && (
+              <div className="flex gap-1">
+                <dt>{t("run.startedAt")}</dt>
+                <dd className="tabular-nums text-ink">{formatDate(r.started_at, true)}</dd>
+              </div>
+            )}
+            {r.finished_at && (
+              <div className="flex gap-1">
+                <dt>{t("run.finishedAt")}</dt>
+                <dd className="tabular-nums text-ink">{formatDate(r.finished_at, true)}</dd>
+              </div>
+            )}
+          </dl>
         </div>
         {active && (
           <Button variant="danger" busy={cancel.isPending || r.cancel_requested} onClick={() => cancel.mutate()}>
@@ -63,14 +83,29 @@ export function RunPage() {
           ))}
         </div>
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-ink">{t("run.log")}</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-semibold text-ink">
+              {t("run.log")} <span className="text-sm font-normal text-ink-muted">({events.length})</span>
+            </h2>
+            <select
+              aria-label={t("run.logStage")}
+              value={stageFilter}
+              onChange={(e) => setStageFilter(e.target.value as Stage | "")}
+              className={`${inputClass} !w-auto !py-1 text-sm`}
+            >
+              <option value="">{t("run.logAllStages")}</option>
+              {stages.filter((s) => s !== "result").map((s) => (
+                <option key={s} value={s}>
+                  {t(`run.stage.${s}`)}
+                </option>
+              ))}
+            </select>
             <label className="inline-flex items-center gap-2 text-sm text-ink-muted">
               <input type="checkbox" checked={errorsOnly} onChange={(e) => setErrorsOnly(e.target.checked)} className="accent-[var(--color-ink)]" />
               {t("run.errorsOnly")}
             </label>
           </div>
-          <RunLog events={events} />
+          <RunLog events={events} stageFilter={stageFilter} />
         </div>
       </div>
     </div>

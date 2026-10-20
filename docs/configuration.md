@@ -98,3 +98,20 @@ Uses `DATABASE_URL` only.
 
 Invalid values stop the API and worker at startup with a message naming the
 variable.
+
+## Memory limits
+Each container has a hard memory limit so the installation cannot take the whole
+machine. Settings → System shows what each service uses now and the most it may
+use. Change a limit in `.env` and restart (`docker compose up -d`):
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `API_MEM_LIMIT` / `API_GOMEMLIMIT` | `512m` / `400MiB` | Go collects harder near `GOMEMLIMIT`; keep it about 80% of the limit. |
+| `WORKER_MEM_LIMIT` / `WORKER_GOMEMLIMIT` | `1g` / `800MiB` | Crawling and AI reading. Lower `CRAWL_CONCURRENCY` before lowering this. |
+| `POSTGRES_MEM_LIMIT` | `1g` | Also set `POSTGRES_MEM_LIMIT_MB` (the same number in MB) so the page shows it. |
+| `WEB_MEM_LIMIT` | `128m` | Also set `WEB_MEM_LIMIT_MB`. |
+
+The API and worker measure their own container (page cache the kernel can drop
+is not counted) and report every 15 seconds. PostgreSQL and nginx cannot report
+themselves, so the page shows their limit; without a limit it shows the ceiling
+PostgreSQL's settings allow (shared buffers + connections × work memory).

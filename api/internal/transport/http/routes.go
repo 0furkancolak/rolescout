@@ -69,6 +69,7 @@ type Deps struct {
 	LLM            LLMStatusProvider
 	AI             MatchAnalyzer // writes AI text for one job on request
 	Suggester      ProfileSuggester
+	System         SystemReporter
 	LLMSettings    LLMSettingsStore
 	Enrichments    EnrichmentReader
 	// CrawlSettings are shown read-only to administrators.
@@ -104,6 +105,7 @@ func RegisterAPIRoutes(app *fiber.App, d Deps) {
 	private.Post("/companies", h.addCompany)
 
 	admin := private.Group("/admin", h.requireAdmin)
+	admin.Get("/system", h.systemStatus)
 	admin.Get("/users", h.adminListUsers)
 	admin.Post("/users", h.adminCreateUser)
 	admin.Get("/adapters", h.listAdapterReviews)

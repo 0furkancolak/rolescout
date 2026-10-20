@@ -2,6 +2,9 @@ services:
   postgres:
     image: postgres:17
     restart: unless-stopped
+    # Hard memory ceiling (shown in Settings → System). shared_buffers 128 MB
+    # plus per-connection memory stays well below it.
+    mem_limit: ${POSTGRES_MEM_LIMIT:-1g}
     # Small footprint for a shared laptop VM: a bounded cache, few connections
     # (the API pool is 10, the worker a few more) and no parallel workers.
     command:
@@ -45,7 +48,14 @@ services:
         APP: api
         VERSION: ${ROLESCOUT_VERSION:-dev}
     restart: unless-stopped
+    mem_limit: ${API_MEM_LIMIT:-512m}
     environment:
+      # Go garbage-collects harder as it nears the container limit instead of
+      # being killed by it.
+      GOMEMLIMIT: ${API_GOMEMLIMIT:-400MiB}
+      # Limits of the other containers, for Settings → System (display only).
+      LIMIT_POSTGRES_MB: ${POSTGRES_MEM_LIMIT_MB:-1024}
+      LIMIT_WEB_MB: ${WEB_MEM_LIMIT_MB:-128}
       API_HOST: 0.0.0.0
       API_PORT: 8080
       DATABASE_URL: "postgres://${POSTGRES_USER:-rolescout}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-rolescout}?sslmode=disable"
@@ -102,7 +112,9 @@ services:
         APP: worker
         VERSION: ${ROLESCOUT_VERSION:-dev}
     restart: unless-stopped
+    mem_limit: ${WORKER_MEM_LIMIT:-1g}
     environment:
+      GOMEMLIMIT: ${WORKER_GOMEMLIMIT:-800MiB}
       DATABASE_URL: "postgres://${POSTGRES_USER:-rolescout}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-rolescout}?sslmode=disable"
       WORKER_TICK: ${WORKER_TICK:-1m}
       LOG_LEVEL: ${LOG_LEVEL:-info}
@@ -155,6 +167,7 @@ services:
     build:
       context: ./web
     restart: unless-stopped
+    mem_limit: ${WEB_MEM_LIMIT:-128m}
     ports:
       - "127.0.0.1:${WEB_PORT:-4173}:8080"
     read_only: true

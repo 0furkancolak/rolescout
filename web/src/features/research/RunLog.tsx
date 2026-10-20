@@ -1,19 +1,20 @@
 import { useEffect, useRef } from "react";
-import type { RunEvent } from "../../lib/api";
+import type { RunEvent, Stage } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 
 const levelClass = { info: "text-well-sage", warn: "text-well-amber", error: "text-well-danger" };
 
 // RunLog is the live log beside the stage cards. It follows new lines unless
 // the reader has scrolled up.
-export function RunLog({ events }: { events: RunEvent[] }) {
+export function RunLog({ events, stageFilter }: { events: RunEvent[]; stageFilter?: Stage | "" }) {
   const { t } = useI18n();
+  const shown = stageFilter ? events.filter((e) => e.stage === stageFilter) : events;
   const ref = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
   useEffect(() => {
     const el = ref.current;
     if (el && stick.current) el.scrollTop = el.scrollHeight;
-  }, [events.length]);
+  }, [shown.length]);
 
   return (
     <div
@@ -27,12 +28,13 @@ export function RunLog({ events }: { events: RunEvent[] }) {
       }}
       className="h-[28rem] overflow-y-auto rounded-card bg-well p-3 font-mono text-xs leading-relaxed text-well-ink lg:h-[36rem]"
     >
-      {events.length === 0 ? (
+      {shown.length === 0 ? (
         <p className="text-well-muted">{t("run.logEmpty")}</p>
       ) : (
-        events.map((e) => (
+        shown.map((e) => (
           <div key={e.id} className="whitespace-pre-wrap break-words">
             <span className="text-well-muted">{new Date(e.at).toLocaleTimeString()} </span>
+            <span className="text-well-muted">[{t(`run.stage.${e.stage}`)}] </span>
             {e.company && <span className="font-semibold text-well-ink">{e.company} · </span>}
             <span className={levelClass[e.level]}>{e.message}</span>
           </div>

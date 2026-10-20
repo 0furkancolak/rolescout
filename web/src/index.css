@@ -26,6 +26,8 @@
   --color-danger: #b4412f;
   --color-danger-soft: #f6ddd7;
   --color-focus: #4e4390;
+  /* Dims the page behind a dialog; black in both themes (ink turns light in dark mode). */
+  --color-scrim: rgb(0 0 0 / 0.6);
   --color-well: #1c1b18;
   --color-well-ink: #e8e2d6;
   --color-well-muted: #a39b8d;
@@ -96,6 +98,28 @@ input,
 textarea,
 select {
   font: inherit;
+}
+
+/* Everything that can be clicked looks clickable; disabled things say so. */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+[role="tab"],
+[role="radio"],
+[role="checkbox"],
+summary,
+select:not(:disabled),
+input[type="checkbox"]:not(:disabled),
+input[type="radio"]:not(:disabled),
+input[type="file"]:not(:disabled),
+label:has(> input[type="checkbox"]:not(:disabled)),
+label:has(> input[type="radio"]:not(:disabled)),
+a[href] {
+  cursor: pointer;
+}
+button:disabled,
+[aria-disabled="true"],
+select:disabled {
+  cursor: not-allowed;
 }
 
 :root {

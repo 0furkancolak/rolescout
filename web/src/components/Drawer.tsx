@@ -23,7 +23,7 @@ export function Drawer({ open, title, onClose, children }: { open: boolean; titl
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50">
-      <div aria-hidden className="absolute inset-0 bg-ink/40" onClick={onClose} />
+      <div aria-hidden className="absolute inset-0 bg-scrim" onClick={onClose} />
       <div
         ref={panel}
         role="dialog"

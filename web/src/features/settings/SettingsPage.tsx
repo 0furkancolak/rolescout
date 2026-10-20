@@ -17,10 +17,11 @@ import { data, type AdapterReview, type Setting } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { useCurrentUser } from "../auth/api";
 import { LocalAiCard } from "./LocalAiCard";
+import { SystemCard } from "./SystemCard";
 import { UsersCard } from "./UsersCard";
 
 const adaptersKey = ["admin", "adapters"] as const;
-const tabs = ["sources", "people", "ai", "crawl"] as const;
+const tabs = ["sources", "people", "ai", "crawl", "system"] as const;
 type SettingsTab = (typeof tabs)[number];
 
 // SettingsPage is for the installation administrator: adapter-type reviews
@@ -89,6 +90,7 @@ export function SettingsPage() {
         )}
         {tab === "people" && <UsersCard />}
         {tab === "ai" && <LocalAiCard />}
+        {tab === "system" && <SystemCard />}
         {tab === "crawl" && (
           <>
             <Card>

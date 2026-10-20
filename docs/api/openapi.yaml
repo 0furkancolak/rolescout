@@ -982,6 +982,55 @@ paths:
                   data: { $ref: "#/components/schemas/LlmStatus" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "429": { $ref: "#/components/responses/RateLimited" }
+  /api/v1/admin/system:
+    get:
+      tags: [admin]
+      summary: Memory used and allowed per service (administrator)
+      description: >
+        The API and worker report their own container memory (page cache that the
+        kernel can drop is not counted) every 15 seconds; `stale` is true when a
+        service has not reported for 90 seconds. Postgres cannot report itself,
+        so `limit_bytes` is its Compose memory limit (`note: container`) or the
+        ceiling its configuration allows (`note: ceiling`); `used_bytes` is null.
+      operationId: getSystem
+      responses:
+        "200":
+          description: The report.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [host_total_bytes, services, postgres]
+                    properties:
+                      host_total_bytes: { type: integer, format: int64 }
+                      services:
+                        type: array
+                        items:
+                          type: object
+                          required: [name, used_bytes, limit_bytes, estimated, stale]
+                          properties:
+                            name: { type: string, enum: [api, worker, postgres, web] }
+                            used_bytes: { type: [integer, "null"], format: int64 }
+                            limit_bytes: { type: [integer, "null"], format: int64 }
+                            heap_bytes: { type: integer, format: int64 }
+                            estimated: { type: boolean }
+                            stale: { type: boolean }
+                            updated_at: { type: string, format: date-time }
+                            note: { type: string, enum: [ceiling, container] }
+                      postgres:
+                        type: object
+                        required: [shared_buffers_bytes, work_mem_bytes, max_connections, connections, database_bytes]
+                        properties:
+                          shared_buffers_bytes: { type: integer, format: int64 }
+                          work_mem_bytes: { type: integer, format: int64 }
+                          max_connections: { type: integer }
+                          connections: { type: integer }
+                          database_bytes: { type: integer, format: int64 }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /api/v1/admin/users:
     get:
       tags: [admin]

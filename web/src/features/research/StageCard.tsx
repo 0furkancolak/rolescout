@@ -1,6 +1,7 @@
 import { CheckCircle2, Clock, Loader2, SkipForward, XCircle } from "lucide-react";
 import type { Stage, StageProgress } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
+import { secondsBetween } from "./duration";
 
 const icons = {
   pending: { icon: Clock, className: "text-ink-muted" },
@@ -20,8 +21,9 @@ const borders = {
 
 // StageCard shows one research stage: its state, progress and counts.
 export function StageCard({ stage, index, progress }: { stage: Stage; index: number; progress: StageProgress }) {
-  const { t } = useI18n();
+  const { t, formatDate } = useI18n();
   const title = t(`run.stage.${stage}`);
+  const secs = secondsBetween(progress.started_at, progress.finished_at);
   const { icon: Icon, className } = icons[progress.state] ?? icons.pending;
   const pct = progress.total > 0 ? Math.min(100, Math.round((progress.done / progress.total) * 100)) : progress.state === "done" ? 100 : 0;
   const detail = Object.entries(progress.detail ?? {}).filter(([, n]) => n > 0);
@@ -41,6 +43,12 @@ export function StageCard({ stage, index, progress }: { stage: Stage; index: num
             <span className="text-sm text-ink-muted">{t(`run.stageState.${progress.state}`)}</span>
           </div>
           <p className="text-xs text-ink-muted">{progress.note || t(`run.stageHint.${stage}`)}</p>
+          {progress.started_at && stage !== "result" && (
+            <p className="mt-0.5 text-xs tabular-nums text-ink-muted">
+              {t("run.stageStarted", { time: formatDate(progress.started_at, true) })}
+              {secs !== null && ` · ${t("run.elapsed", { minutes: Math.floor(secs / 60), seconds: secs % 60 })}`}
+            </p>
+          )}
           {showProgress && (
             <div className="mt-3">
               <div

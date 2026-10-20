@@ -6,6 +6,7 @@ import { isApiError, type ResearchProfile, type ResearchRun } from "../../lib/ap
 import { useI18n } from "../../lib/i18n";
 import { useWorkspace } from "../workspaces/context";
 import { isActive, useProfiles, useRuns, useStartRun } from "./api";
+import { secondsBetween } from "./duration";
 import { RunStateBadge } from "./RunStateBadge";
 
 export function ResearchPage() {
@@ -101,19 +102,36 @@ function ProfileCard({ profile, runs }: { profile: ResearchProfile; runs: Resear
         <p className="mt-2 text-sm text-ink-muted">{t("research.noRuns")}</p>
       ) : (
         <ul className="mt-2 divide-y divide-line">
-          {runs.slice(0, 6).map((r) => (
-            <li key={r.id}>
-              <Link to={`/research/runs/${r.id}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm hover:text-lavender-deep">
-                <RunStateBadge state={r.state} />
-                <span className="text-ink-muted">{formatDate(r.queued_at, true)}</span>
-                {r.summary.matches !== undefined && (
-                  <span className="ml-auto text-ink">
-                    {t("run.sum.matches")}: <span className="font-semibold tabular-nums">{r.summary.matches}</span>
+          {runs.slice(0, 10).map((r) => {
+            const secs = secondsBetween(r.started_at, r.finished_at);
+            const counts = (["companies_checked", "jobs_collected", "matches", "new_matches"] as const).filter((k) => r.summary[k] !== undefined);
+            return (
+              <li key={r.id}>
+                <Link to={`/research/runs/${r.id}`} className="block py-2.5 text-sm hover:text-lavender-deep">
+                  <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <RunStateBadge state={r.state} />
+                    <span className="text-ink">{formatDate(r.queued_at, true)}</span>
+                    <span className="text-ink-muted">{t(`run.trigger.${r.trigger}`)}</span>
+                    {secs !== null && (
+                      <span className="ml-auto tabular-nums text-ink-muted">
+                        {t("run.elapsed", { minutes: Math.floor(secs / 60), seconds: secs % 60 })}
+                      </span>
+                    )}
                   </span>
-                )}
-              </Link>
-            </li>
-          ))}
+                  {counts.length > 0 && (
+                    <span className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-ink-muted">
+                      {counts.map((k) => (
+                        <span key={k}>
+                          {t(`run.sum.${k}`)} <span className="font-semibold tabular-nums text-ink">{r.summary[k].toLocaleString()}</span>
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                  {r.error && <span className="mt-1 block truncate text-xs text-danger">{r.error}</span>}
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       )}
     </Card>

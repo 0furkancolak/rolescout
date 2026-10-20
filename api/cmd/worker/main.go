@@ -18,6 +18,7 @@ import (
 	"example.com/rolescout/api/internal/ingest/adapters"
 	"example.com/rolescout/api/internal/llmconfig"
 	"example.com/rolescout/api/internal/research"
+	"example.com/rolescout/api/internal/sysstat"
 )
 
 // version is set at build time with -ldflags "-X main.version=...".
@@ -79,6 +80,7 @@ func run() error {
 
 	// Scheduled source syncs keep data fresh between research runs; research
 	// runs execute the full pipeline. Both stop when ctx is cancelled.
+	go sysstat.Publish(ctx, database.NewStatsRepository(pool), "worker", 15*time.Second, logger)
 	var wg sync.WaitGroup
 	wg.Add(2)
 	// The enricher always runs and asks the live settings each tick, so turning

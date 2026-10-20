@@ -214,7 +214,7 @@ function AddCompanyDialog({ onClose, onAdded }: { onClose: () => void; onAdded: 
       open
       aria-labelledby="add-company-title"
       onCancel={onClose}
-      className="fixed inset-0 z-50 m-auto w-[min(32rem,calc(100%-2rem))] rounded-hero bg-surface p-0 text-ink shadow-raised backdrop:bg-ink/40"
+      className="fixed inset-0 z-50 m-auto w-[min(32rem,calc(100%-2rem))] rounded-hero bg-surface p-0 text-ink shadow-raised backdrop:bg-scrim"
     >
       <form onSubmit={submit} noValidate className="space-y-4 p-5">
         <div className="flex items-start justify-between gap-3">

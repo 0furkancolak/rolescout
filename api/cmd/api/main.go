@@ -18,6 +18,7 @@ import (
 	"example.com/rolescout/api/internal/infrastructure/database"
 	"example.com/rolescout/api/internal/ingest"
 	"example.com/rolescout/api/internal/llmconfig"
+	"example.com/rolescout/api/internal/sysstat"
 	httptransport "example.com/rolescout/api/internal/transport/http"
 )
 
@@ -73,6 +74,8 @@ func run() error {
 	httptransport.RegisterMetricsRoute(app, metrics, pool)
 	workspaces := database.NewWorkspaceRepository(pool)
 	enrichments := database.NewEnrichmentRepository(pool)
+	stats := database.NewStatsRepository(pool)
+	go sysstat.Publish(ctx, stats, "api", 15*time.Second, logger)
 	// AI settings saved in the web app override the environment, so a model,
 	// URL or API key can change without a restart.
 	resolver := &llmconfig.Resolver{Env: cfg.LLM, Store: database.NewSettingsRepository(pool)}
@@ -100,6 +103,7 @@ func run() error {
 		LLMSettings:    resolver,
 		AI: &enrich.Analyzer{Repo: enrichments, LLM: llmconfig.Dynamic{R: resolver},
 			Resolve: resolver.Current, ResolveCountry: ingest.InferCountry},
+		System:    &sysstat.Builder{Reader: stats, Self: "api", Limits: sysstat.LimitsFromEnv()},
 		Suggester: &enrich.ProfileSuggester{LLM: llmconfig.Dynamic{R: resolver}, Resolve: resolver.Current},
 		Summaries: &enrich.Summarizer{Client: llmconfig.Dynamic{R: resolver}, ModelFn: func(ctx context.Context) string { return resolver.Current(ctx).Model },
 			Store: database.NewSummaryRepository(pool)},

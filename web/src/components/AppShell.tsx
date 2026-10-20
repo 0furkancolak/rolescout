@@ -106,7 +106,7 @@ export function AppShell() {
         <Brand />
       </header>
 
-      {menuOpen && <div aria-hidden className="fixed inset-0 z-30 bg-ink/40 lg:hidden" onClick={closeMenu} />}
+      {menuOpen && <div aria-hidden className="fixed inset-0 z-30 bg-scrim lg:hidden" onClick={closeMenu} />}
 
       <aside
         ref={sheetRef}

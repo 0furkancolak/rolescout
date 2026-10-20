@@ -6,6 +6,13 @@ include breaking changes, which are called out.
 
 ## [Unreleased]
 ### Added
+- Settings → System: RAM each service uses now and may use (API and worker
+  measured, PostgreSQL and web by limit), with container memory limits in
+  Compose (`API_MEM_LIMIT`, `WORKER_MEM_LIMIT`, `POSTGRES_MEM_LIMIT`,
+  `WEB_MEM_LIMIT`) and `GET /admin/system`.
+- Research run history shows duration, counts and errors per run; a run page
+  shows when it was queued, started and finished, each stage's start and
+  duration, and a log you can filter by stage.
 - Settings is split into tabs (Job boards, People, AI, Crawl); the tab is kept
   in the address (`/settings?tab=ai`).
 - "Draft with AI" on a new research profile: describe the job in your own words
@@ -51,6 +58,8 @@ include breaking changes, which are called out.
   employers).
 - `make dev` streams the API and worker logs into the terminal.
 ### Changed
+- Every clickable control shows a pointer cursor; dialogs dim the page with a dark
+  scrim in both themes (it looked like a white wash in dark mode).
 - No favicon.
 - The header shows the app name only, without a logo icon.
 - PostgreSQL runs with a bounded cache, 40 connections and no parallel workers

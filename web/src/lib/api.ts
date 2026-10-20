@@ -404,3 +404,20 @@ export const applicationStatuses = Object.keys(statusTransitions) as Application
 export const workArrangements = ["onsite", "hybrid", "remote", "unknown"];
 export const employmentTypes = ["full_time", "part_time", "contract", "internship", "temporary", "unknown"];
 export const seniorityLevels = ["intern", "junior", "mid", "senior", "lead", "unknown"];
+
+export interface SystemService {
+  name: "api" | "worker" | "postgres" | "web";
+  used_bytes: number | null;
+  limit_bytes: number | null;
+  heap_bytes?: number;
+  estimated: boolean;
+  stale: boolean;
+  updated_at?: string;
+  note?: "ceiling" | "container";
+}
+
+export interface SystemReport {
+  host_total_bytes: number;
+  services: SystemService[];
+  postgres: { shared_buffers_bytes: number; work_mem_bytes: number; max_connections: number; connections: number; database_bytes: number };
+}
