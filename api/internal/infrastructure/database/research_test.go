@@ -250,6 +250,36 @@ func TestDueProfiles(t *testing.T) {
 	}
 }
 
+func TestPausedProfileIsNeverDueAndRunsComeBack(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	repo := NewResearchRepository(requireDB(t))
+	params := profileParams(uniq("pause"))
+	params.SchedulePaused = true
+	p, err := repo.CreateProfile(ctx, f.workspace.ID, params)
+	if err != nil || !p.SchedulePaused {
+		t.Fatalf("paused = %v, err = %v", p.SchedulePaused, err)
+	}
+	ps, _ := repo.DueProfiles(ctx, time.Now())
+	for _, d := range ps {
+		if d.ID == p.ID {
+			t.Fatal("a paused profile is due")
+		}
+	}
+	// A run interrupted by a stopping worker goes back to the queue.
+	run, _ := repo.EnqueueRun(ctx, f.workspace.ID, p.ID, "manual")
+	if _, ok, err := repo.ClaimRun(ctx); err != nil || !ok {
+		t.Fatalf("claim: %v %v", ok, err)
+	}
+	if err := repo.RequeueRun(ctx, run.ID); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := repo.GetRun(ctx, f.workspace.ID, run.ID)
+	if got.State != domain.RunQueued || got.StartedAt != nil {
+		t.Fatalf("run after requeue = %s, started %v", got.State, got.StartedAt)
+	}
+}
+
 func TestEventsCappedAndFiltered(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()

@@ -24,6 +24,7 @@ const schema = z.object({
   remote: z.enum(["any", "remote_only", "remote_or_hybrid", "onsite_ok"]),
   seniority: z.array(z.string()),
   schedule_hours: z.number().int().min(1).max(336),
+  schedule_enabled: z.boolean(),
 });
 
 export function ProfileForm({
@@ -38,7 +39,7 @@ export function ProfileForm({
   error: unknown;
 }) {
   const { t } = useI18n();
-  const { register, control, handleSubmit, formState } = useForm<ProfileInput>({
+  const { register, control, handleSubmit, formState, watch } = useForm<ProfileInput>({
     resolver: zodResolver(schema),
     defaultValues: initial,
   });
@@ -102,16 +103,25 @@ export function ProfileForm({
           ))}
         </div>
       </fieldset>
-      <Field id="profile-schedule" label={t("research.schedule")}>
-        <input
-          id="profile-schedule"
-          type="number"
-          min={1}
-          max={336}
-          {...register("schedule_hours", { valueAsNumber: true })}
-          className={`${inputClass} max-w-32`}
-        />
-      </Field>
+      <fieldset className="space-y-3 rounded-card border border-line p-4">
+        <legend className="px-1 text-sm font-medium text-ink">{t("research.autoRun")}</legend>
+        <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-ink">
+          <input type="checkbox" {...register("schedule_enabled")} className="size-4 cursor-pointer accent-[var(--color-ink)]" />
+          {t("research.autoRun")}
+        </label>
+        <p className="text-xs text-ink-muted">{t("research.autoRunHint")}</p>
+        <Field id="profile-schedule" label={t("research.schedule")} error={formState.errors.schedule_hours ? t("common.error") : undefined}>
+          <input
+            id="profile-schedule"
+            type="number"
+            min={1}
+            max={336}
+            readOnly={!watch("schedule_enabled")}
+            {...register("schedule_hours", { valueAsNumber: true })}
+            className={`${inputClass} max-w-32 read-only:opacity-50`}
+          />
+        </Field>
+      </fieldset>
       <InlineError error={error} />
       <Button type="submit" busy={busy}>
         {t("common.save")}

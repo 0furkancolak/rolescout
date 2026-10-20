@@ -2,6 +2,7 @@
 # Deploys the committed HEAD to a Docker host over SSH, private by default.
 #
 #   scripts/deploy-server.sh nafru-lan
+#   ROLESCOUT_SERVICES="api web" scripts/deploy-server.sh nafru-lan   # leave the worker (and its research run) alone
 #
 # No manual .env: on first run the server generates its own secrets. The web
 # container listens on 127.0.0.1 of the server only; reach it over Tailscale
@@ -11,6 +12,7 @@ set -euo pipefail
 HOST="${1:?usage: deploy-server.sh <ssh-host>}"
 DIR="${ROLESCOUT_REMOTE_DIR:-rolescout}"
 PORT="${ROLESCOUT_WEB_PORT:-4173}"
+SERVICES="${ROLESCOUT_SERVICES:-}"
 
 cd "$(git rev-parse --show-toplevel)"
 # Extract into a fresh directory so files deleted in the repository do not
@@ -19,7 +21,7 @@ git archive --format=tar HEAD | ssh "$HOST" "rm -rf '$DIR.new' && mkdir -p '$DIR
   && { [ ! -f '$DIR/.env' ] || cp -p '$DIR/.env' '$DIR.new/.env'; } \
   && mkdir -p '$DIR' && rm -rf '$DIR.old' && mv '$DIR' '$DIR.old' && mv '$DIR.new' '$DIR'"
 
-ssh "$HOST" bash -s -- "$DIR" "$PORT" <<'REMOTE'
+ssh "$HOST" bash -s -- "$DIR" "$PORT" $SERVICES <<'REMOTE'
 set -euo pipefail
 cd "$1"
 if [ ! -f .env ]; then
@@ -34,6 +36,6 @@ if [ ! -f .env ]; then
     echo "COMPOSE_PROJECT_NAME=rolescout"
   } > .env
 fi
-docker compose up -d --build --wait
+docker compose up -d --build --wait "${@:3}"
 docker compose ps --format 'table {{.Service}}\t{{.Status}}'
 REMOTE

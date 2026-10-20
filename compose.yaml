@@ -70,9 +70,10 @@ services:
       REGISTER_RATE_LIMIT: ${REGISTER_RATE_LIMIT:-5}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       # Shown read-only to administrators; the worker uses them.
-      CRAWL_CONCURRENCY: ${CRAWL_CONCURRENCY:-32}
-      CRAWL_HOST_INTERVAL: ${CRAWL_HOST_INTERVAL:-1s}
-      CRAWL_VENDOR_CONCURRENCY: ${CRAWL_VENDOR_CONCURRENCY:-8}
+      CRAWL_CONCURRENCY: ${CRAWL_CONCURRENCY:-128}
+      CRAWL_HOST_INTERVAL: ${CRAWL_HOST_INTERVAL:-500ms}
+      CRAWL_VENDOR_CONCURRENCY: ${CRAWL_VENDOR_CONCURRENCY:-16}
+      CRAWL_VENDOR_INTERVAL: ${CRAWL_VENDOR_INTERVAL:-100ms}
       CRAWL_USER_AGENT_URL: ${CRAWL_USER_AGENT_URL:-https://github.com/0furkancolak/rolescout}
       CRAWL_ALLOW_PRIVATE: ${CRAWL_ALLOW_PRIVATE:-false}
       DISCOVERY_INTERVAL: ${DISCOVERY_INTERVAL:-168h}
@@ -112,15 +113,19 @@ services:
         APP: worker
         VERSION: ${ROLESCOUT_VERSION:-dev}
     restart: unless-stopped
+    # An update stops the worker with SIGTERM; a research run in progress is put
+    # back in the queue and starts again, so give it time to do that.
+    stop_grace_period: 60s
     mem_limit: ${WORKER_MEM_LIMIT:-1536m}
     environment:
       GOMEMLIMIT: ${WORKER_GOMEMLIMIT:-1200MiB}
       DATABASE_URL: "postgres://${POSTGRES_USER:-rolescout}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-rolescout}?sslmode=disable"
       WORKER_TICK: ${WORKER_TICK:-1m}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      CRAWL_CONCURRENCY: ${CRAWL_CONCURRENCY:-32}
-      CRAWL_HOST_INTERVAL: ${CRAWL_HOST_INTERVAL:-1s}
-      CRAWL_VENDOR_CONCURRENCY: ${CRAWL_VENDOR_CONCURRENCY:-8}
+      CRAWL_CONCURRENCY: ${CRAWL_CONCURRENCY:-128}
+      CRAWL_HOST_INTERVAL: ${CRAWL_HOST_INTERVAL:-500ms}
+      CRAWL_VENDOR_CONCURRENCY: ${CRAWL_VENDOR_CONCURRENCY:-16}
+      CRAWL_VENDOR_INTERVAL: ${CRAWL_VENDOR_INTERVAL:-100ms}
       CRAWL_USER_AGENT_URL: ${CRAWL_USER_AGENT_URL:-https://github.com/0furkancolak/rolescout}
       CRAWL_ALLOW_PRIVATE: ${CRAWL_ALLOW_PRIVATE:-false}
       DISCOVERY_INTERVAL: ${DISCOVERY_INTERVAL:-168h}

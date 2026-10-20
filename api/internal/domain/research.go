@@ -31,6 +31,8 @@ type ResearchProfile struct {
 	Remote           RemotePreference
 	Seniority        []string
 	ScheduleInterval time.Duration
+	// SchedulePaused turns automatic runs off.
+	SchedulePaused bool
 	// LastRunAt is when the last successful run finished.
 	LastRunAt *time.Time
 	CreatedAt time.Time

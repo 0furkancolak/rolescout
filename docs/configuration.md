@@ -45,11 +45,17 @@ RoleScout fetches career pages and job board APIs itself. It identifies as
 `RoleScout/<version> (+CRAWL_USER_AGENT_URL)`, follows `robots.txt` and
 limits how fast it calls each host.
 
+The first four settings below are only the starting values: an administrator can
+change them in **Settings → Crawl** and the worker follows within seconds, with no
+restart. Higher numbers finish a research run sooner but send more requests at
+once and use more memory and bandwidth.
+
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `CRAWL_CONCURRENCY` | `32` | Hosts crawled in parallel (1–256). |
-| `CRAWL_HOST_INTERVAL` | `1s` | Minimum gap between requests to one company site, at least `100ms`. |
-| `CRAWL_VENDOR_CONCURRENCY` | `8` | Parallel requests to one job board API host (Greenhouse, Lever…), which serves many companies; requests are at least 150 ms apart per connection. |
+| `CRAWL_CONCURRENCY` | `128` | Companies detected and synced in parallel (1–1024). |
+| `CRAWL_HOST_INTERVAL` | `500ms` | Minimum gap between requests to one company site, at least `100ms`. |
+| `CRAWL_VENDOR_CONCURRENCY` | `16` | Parallel requests to one job board API host (Greenhouse, Lever…), which serves many companies (1–128). |
+| `CRAWL_VENDOR_INTERVAL` | `100ms` | Minimum gap between those requests, at least `10ms`. |
 | `CRAWL_USER_AGENT_URL` | project URL | Link in the User-Agent so site owners can find out who is crawling. |
 | `CRAWL_ALLOW_PRIVATE` | `false` | Allow crawling private, loopback and link-local addresses. Leave off in production: it is the SSRF guard. Only for tests and local fixtures. |
 | `DISCOVERY_INTERVAL` | `168h` | How often the company catalog is grown from Common Crawl and seeds, at least `1h`. |

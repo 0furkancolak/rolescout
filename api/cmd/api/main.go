@@ -14,6 +14,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/recover"
 
 	"example.com/rolescout/api/internal/config"
+	"example.com/rolescout/api/internal/crawlconfig"
 	"example.com/rolescout/api/internal/enrich"
 	"example.com/rolescout/api/internal/infrastructure/database"
 	"example.com/rolescout/api/internal/ingest"
@@ -101,6 +102,7 @@ func run() error {
 		Enrichments:    enrichments,
 		LLM:            &enrich.Checker{Repo: enrichments, Resolve: resolver.Client},
 		LLMSettings:    resolver,
+		CrawlPace:      &crawlconfig.Resolver{Env: cfg.Crawl, Store: database.NewSettingsRepository(pool)},
 		AI: &enrich.Analyzer{Repo: enrichments, LLM: llmconfig.Dynamic{R: resolver},
 			Resolve: resolver.Current, ResolveCountry: ingest.InferCountry},
 		System:    &sysstat.Builder{Reader: stats, Self: "api", Limits: sysstat.LimitsFromEnv()},
@@ -139,6 +141,7 @@ func crawlSettings(c config.Crawl) []httptransport.Setting {
 		{Name: "CRAWL_CONCURRENCY", Value: strconv.Itoa(c.Concurrency)},
 		{Name: "CRAWL_HOST_INTERVAL", Value: c.HostInterval.String()},
 		{Name: "CRAWL_VENDOR_CONCURRENCY", Value: strconv.Itoa(c.VendorConcurrency)},
+		{Name: "CRAWL_VENDOR_INTERVAL", Value: c.VendorInterval.String()},
 		{Name: "CRAWL_USER_AGENT_URL", Value: c.UserAgentURL},
 		{Name: "DISCOVERY_INTERVAL", Value: c.DiscoveryInterval.String()},
 		{Name: "COMPANY_SYNC_INTERVAL", Value: c.CompanySyncInterval.String()},

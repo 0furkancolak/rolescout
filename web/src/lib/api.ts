@@ -98,6 +98,20 @@ export interface LlmConfig {
   stored: Record<string, boolean>;
 }
 
+export interface CrawlPaceValues {
+  concurrency: number;
+  host_interval_ms: number;
+  vendor_concurrency: number;
+  vendor_interval_ms: number;
+}
+
+export interface CrawlPace extends CrawlPaceValues {
+  defaults: CrawlPaceValues;
+  stored: Record<string, boolean>;
+}
+
+export type CrawlPaceUpdate = Partial<CrawlPaceValues>;
+
 export interface LlmConfigUpdate {
   enabled?: boolean;
   base_url?: string;
@@ -167,6 +181,7 @@ export interface ResearchProfile {
   remote: RemotePreference;
   seniority: string[];
   schedule_hours: number;
+  schedule_enabled: boolean;
   last_run_at: string | null;
   created_at: string;
   updated_at: string;
