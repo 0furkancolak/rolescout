@@ -485,3 +485,23 @@ func TestStageLockIsExclusive(t *testing.T) {
 	}
 	release2()
 }
+
+func TestStarterProfileDoesNotRunByItself(t *testing.T) {
+	f := newFixture(t)
+	ps, err := NewResearchRepository(requireDB(t)).ListProfiles(context.Background(), f.workspace.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, p := range ps {
+		if p.Name == "Full Stack Developer" {
+			found = true
+			if !p.SchedulePaused {
+				t.Error("the starter profile must start with auto-run off")
+			}
+		}
+	}
+	if !found {
+		t.Fatal("a new workspace has no starter profile")
+	}
+}

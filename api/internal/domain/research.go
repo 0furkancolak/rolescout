@@ -127,3 +127,23 @@ type Activity struct {
 	ApplicationsCreated []int
 	UpcomingInterviews  int
 }
+
+// WorkspaceContext is what the AI knows about the person behind a workspace.
+type WorkspaceContext struct {
+	WorkspaceID string
+	// About is the person's own note on the work they look for.
+	About string
+	// The CV: the file's name, its text, and what was read from it.
+	CVFilename   string
+	CVText       string
+	CVSkills     []string
+	CVTitles     []string
+	CVSeniority  string
+	CVYears      *int
+	CVSummary    string
+	CVUploadedAt *time.Time
+	UpdatedAt    time.Time
+}
+
+// HasCV reports whether a CV is stored.
+func (c WorkspaceContext) HasCV() bool { return c.CVText != "" }

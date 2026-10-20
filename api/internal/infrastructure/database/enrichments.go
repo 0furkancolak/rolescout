@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -226,12 +225,13 @@ func (r *EnrichmentRepository) ExplanationQueue(ctx context.Context, model strin
 SELECT p.workspace_id, m.profile_id, m.job_id, j.description_hash, j.title, j.company_name, m.score, m.reasons,
        ARRAY(SELECT DISTINCT t FROM unnest((j.technologies || COALESCE(ai.technologies, '{}'::text[]))) AS t ORDER BY t), p.technologies, COALESCE(NULLIF(j.seniority, 'unknown'), ai.seniority, 'unknown'), COALESCE(NULLIF(j.work_arrangement, 'unknown'), ai.work_arrangement, 'unknown'), COALESCE(COALESCE(j.country_code, ai.country_code), ''),
        COALESCE((SELECT u.locale FROM workspace_memberships wm JOIN users u ON u.id = wm.user_id
-                 WHERE wm.workspace_id = p.workspace_id AND wm.role = 'owner' ORDER BY wm.created_at LIMIT 1), 'en')
+                 WHERE wm.workspace_id = p.workspace_id AND wm.role = 'owner' ORDER BY wm.created_at LIMIT 1), 'en'),
+       p.excluded_keywords, COALESCE(wc.cv_skills, '{}'::text[]), COALESCE(wc.about, '')
 FROM research_matches m
 JOIN research_profiles p ON p.id = m.profile_id
 JOIN jobs j ON j.id = m.job_id AND j.closed_at IS NULL
 JOIN job_ai ai ON ai.job_id = j.id
-
+LEFT JOIN workspace_context wc ON wc.workspace_id = p.workspace_id
 WHERE m.score >= $1
   AND NOT EXISTS (SELECT 1 FROM match_explanations x WHERE x.workspace_id = p.workspace_id AND x.profile_id = p.id
       AND x.job_id = j.id AND x.description_hash = j.description_hash AND x.model = $2 AND x.prompt_version = $3)
@@ -249,19 +249,17 @@ func scanExplanationTasks(rows pgx.Rows) ([]domain.ExplanationTask, error) {
 	for rows.Next() {
 		var t domain.ExplanationTask
 		var reasons []byte
-		var profileTech []string
+		var profileTech, excluded []string
 		if err := rows.Scan(&t.WorkspaceID, &t.ProfileID, &t.JobID, &t.DescriptionHash, &t.Title, &t.CompanyName, &t.Score, &reasons,
-			&t.Technologies, &profileTech, &t.Seniority, &t.Arrangement, &t.Country, &t.Locale); err != nil {
+			&t.Technologies, &profileTech, &t.Seniority, &t.Arrangement, &t.Country, &t.Locale,
+			&excluded, &t.CVSkills, &t.About); err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal(reasons, &t.Reasons); err != nil {
 			return nil, err
 		}
-		for _, tech := range profileTech {
-			if slices.Contains(t.Technologies, strings.ToLower(tech)) {
-				t.MatchedTechnologies = append(t.MatchedTechnologies, strings.ToLower(tech))
-			}
-		}
+		fit := domain.FitTechnologies(t.Technologies, append(append([]string{}, profileTech...), t.CVSkills...), excluded)
+		t.MatchedTechnologies, t.MissingTechnologies = fit.Matched, fit.Missing
 		out = append(out, t)
 	}
 	return out, rows.Err()
@@ -358,12 +356,13 @@ func (r *EnrichmentRepository) ExplanationTaskFor(ctx context.Context, workspace
 SELECT p.workspace_id, m.profile_id, m.job_id, j.description_hash, j.title, j.company_name, m.score, m.reasons,
        ARRAY(SELECT DISTINCT t FROM unnest((j.technologies || COALESCE(ai.technologies, '{}'::text[]))) AS t ORDER BY t), p.technologies, COALESCE(NULLIF(j.seniority, 'unknown'), ai.seniority, 'unknown'), COALESCE(NULLIF(j.work_arrangement, 'unknown'), ai.work_arrangement, 'unknown'), COALESCE(COALESCE(j.country_code, ai.country_code), ''),
        COALESCE((SELECT u.locale FROM workspace_memberships wm JOIN users u ON u.id = wm.user_id
-                 WHERE wm.workspace_id = p.workspace_id AND wm.role = 'owner' ORDER BY wm.created_at LIMIT 1), 'en')
+                 WHERE wm.workspace_id = p.workspace_id AND wm.role = 'owner' ORDER BY wm.created_at LIMIT 1), 'en'),
+       p.excluded_keywords, COALESCE(wc.cv_skills, '{}'::text[]), COALESCE(wc.about, '')
 FROM research_matches m
 JOIN research_profiles p ON p.id = m.profile_id
 JOIN jobs j ON j.id = m.job_id AND j.closed_at IS NULL
 JOIN job_ai ai ON ai.job_id = j.id
-
+LEFT JOIN workspace_context wc ON wc.workspace_id = p.workspace_id
 WHERE p.workspace_id = $1 AND m.profile_id = $2 AND m.job_id = $3
 LIMIT 1`, workspaceID, profileID, jobID)
 	if err != nil {

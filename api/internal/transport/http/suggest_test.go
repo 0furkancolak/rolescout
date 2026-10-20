@@ -13,7 +13,7 @@ type stubSuggester struct {
 	last string
 }
 
-func (s *stubSuggester) SuggestProfile(_ context.Context, d string) (llm.ProfileSuggestion, error) {
+func (s *stubSuggester) SuggestProfile(_ context.Context, _, d string) (llm.ProfileSuggestion, error) {
 	s.last = d
 	if s.err != nil {
 		return llm.ProfileSuggestion{}, s.err

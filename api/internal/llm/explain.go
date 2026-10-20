@@ -10,7 +10,7 @@ import (
 )
 
 // ExplainPromptVersion is part of the cache key of stored explanations.
-const ExplainPromptVersion = 1
+const ExplainPromptVersion = 2
 
 // JobFacts are everything an explanation may be built from. Nothing else is
 // given to the model and nothing outside it may appear in the answer.
@@ -20,14 +20,19 @@ type JobFacts struct {
 	Score               int
 	Reasons             []string // the match reasons, already worded
 	Technologies        []string // the job's technologies
-	MatchedTechnologies []string // those that are also in the profile
+	MatchedTechnologies []string // those that are also in the profile or the CV
+	// MissingTechnologies are the job's technologies that neither the profile
+	// nor the CV has.
+	MissingTechnologies []string
+	CVSkills            []string // what the CV says the person works with
+	About               string   // the person's own note
 	Seniority           string
 	Arrangement         string
 	Country             string
 	Language            string // "en" or "tr"
 }
 
-const explainSystem = `You explain in at most two short sentences why a job fits a job seeker's search. Use only the facts you are given; do not add any technology, number, salary, company detail or claim that is not in them. Reply with JSON: {"explanation": "..."}.`
+const explainSystem = `You explain in at most three short sentences why a job fits a job seeker's search and how its technologies compare with theirs. Say which of the job's technologies the person already has, and name the ones they lack as a gap to close or a reason for doubt. Use only the facts you are given; do not add any technology, number, salary, company detail or claim that is not in them. Reply with JSON: {"explanation": "..."}.`
 
 var explainSchema = json.RawMessage(`{"type":"object","properties":{"explanation":{"type":"string"}},"required":["explanation"],"additionalProperties":false}`)
 
@@ -38,10 +43,16 @@ func Explain(ctx context.Context, c Completer, f JobFacts) (string, error) {
 	if f.Language == "tr" {
 		lang = "Turkish"
 	}
-	user := fmt.Sprintf("Write the explanation in %s.\nJob: %s at %s\nScore: %d of 100\nMatch reasons: %s\nJob technologies: %s\nTechnologies that match the search: %s\nSeniority: %s\nWork arrangement: %s\nCountry: %s",
+	user := fmt.Sprintf("Write the explanation in %s.\nJob: %s at %s\nScore: %d of 100\nMatch reasons: %s\nJob technologies: %s\nTechnologies the person has (search or CV): %s\nTechnologies the person lacks: %s\nSeniority: %s\nWork arrangement: %s\nCountry: %s",
 		lang, cleanText(f.Title), cleanText(f.Company), f.Score, strings.Join(f.Reasons, "; "), strings.Join(f.Technologies, ", "),
-		strings.Join(f.MatchedTechnologies, ", "), orNone(f.Seniority), orNone(f.Arrangement), orNone(f.Country))
-	resp, err := c.Complete(ctx, Request{System: explainSystem, User: user, Schema: explainSchema, MaxTokens: 160})
+		listOrNone(f.MatchedTechnologies), listOrNone(f.MissingTechnologies), orNone(f.Seniority), orNone(f.Arrangement), orNone(f.Country))
+	if len(f.CVSkills) > 0 {
+		user += "\nCV skills: " + strings.Join(f.CVSkills, ", ")
+	}
+	if a := cleanText(f.About); a != "" {
+		user += "\nThe person's own note: " + clip(a, 600)
+	}
+	resp, err := c.Complete(ctx, Request{System: explainSystem, User: user, Schema: explainSchema, MaxTokens: 260})
 	if err != nil {
 		return "", err
 	}
@@ -55,10 +66,17 @@ func Explain(ctx context.Context, c Completer, f JobFacts) (string, error) {
 	if urlPattern.MatchString(text) {
 		return "", ErrInvalidOutput
 	}
-	if text == "" || utf8.RuneCountInString(text) > 300 || sentences(text) > 2 || !explainGrounded(text, f, user) {
+	if text == "" || utf8.RuneCountInString(text) > 420 || sentences(text) > 3 || !explainGrounded(text, f, user) {
 		return "", ErrInvalidOutput
 	}
 	return text, nil
+}
+
+func listOrNone(l []string) string {
+	if len(l) == 0 {
+		return "none"
+	}
+	return strings.Join(l, ", ")
 }
 
 func orNone(s string) string {
@@ -89,7 +107,7 @@ func explainGrounded(text string, f JobFacts, prompt string) bool {
 		}
 	}
 	listed := map[string]bool{}
-	for _, t := range append(append([]string{}, f.Technologies...), f.MatchedTechnologies...) {
+	for _, t := range append(append(append([]string{}, f.Technologies...), f.MatchedTechnologies...), f.CVSkills...) {
 		listed[strings.ToLower(t)] = true
 	}
 	for tech := range knownTechnologies {

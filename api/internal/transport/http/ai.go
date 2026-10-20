@@ -21,7 +21,13 @@ type MatchAnalyzer interface {
 
 // ProfileSuggester drafts a research profile from a description.
 type ProfileSuggester interface {
-	SuggestProfile(ctx context.Context, description string) (llm.ProfileSuggestion, error)
+	SuggestProfile(ctx context.Context, workspaceID, description string) (llm.ProfileSuggestion, error)
+}
+
+// backgroundAware is a suggester that can say whether it knows anything about
+// the person (a note, a CV, other searches), so a draft needs no description.
+type backgroundAware interface {
+	HasBackground(ctx context.Context, workspaceID string) bool
 }
 
 // LLMSettingsStore reads and edits the AI connection saved in the web app.
@@ -191,7 +197,11 @@ func (h *handlers) suggestProfile(c fiber.Ctx) error {
 	}
 	var v domain.ValidationError
 	desc := strings.TrimSpace(req.Description)
-	if len([]rune(desc)) < 10 {
+	known := false
+	if b, ok := h.Suggester.(backgroundAware); ok {
+		known = b.HasBackground(c.Context(), workspaceID(c))
+	}
+	if len([]rune(desc)) < 10 && !(desc == "" && known) {
 		v.Add("description", "describe the job you want in a sentence or two")
 	} else if len([]rune(desc)) > llm.MaxProfileDescription {
 		v.Add("description", "must be at most %d characters", llm.MaxProfileDescription)
@@ -202,7 +212,7 @@ func (h *handlers) suggestProfile(c fiber.Ctx) error {
 	if h.Suggester == nil {
 		return fiber.NewError(fiber.StatusPreconditionFailed, "AI is switched off. An administrator can turn it on in Settings.")
 	}
-	s, err := h.Suggester.SuggestProfile(c.Context(), desc)
+	s, err := h.Suggester.SuggestProfile(c.Context(), workspaceID(c), desc)
 	switch {
 	case err == nil:
 	case errors.Is(err, enrich.ErrDisabled):

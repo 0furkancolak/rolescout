@@ -609,3 +609,53 @@ func TestExplanationTaskForServesAnyScoreAndOnlyTheWorkspacesOwnMatch(t *testing
 		t.Fatal("unread job reported as read")
 	}
 }
+
+func TestExplanationTaskComparesTechnologiesWithTheCV(t *testing.T) {
+	ef := newEnrichFixture(t)
+	pool := requireDB(t)
+	ctx := context.Background()
+	profile, err := NewResearchRepository(pool).CreateProfile(ctx, ef.workspace.ID, ProfileParams{
+		Name: uniq("fit"), TitleKeywords: []string{"engineer"}, Technologies: []string{"go"}, ExcludedKeywords: []string{"php"}, Remote: domain.RemoteAny,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	job := ef.effectiveJob(t, "Backend", "unknown", "unknown", []string{"go", "docker", "php", "rust"}, nil)
+	ef.enrich(t, job, `{"seniority":"senior","work_arrangement":"remote","country_code":"DE","technologies":["go"],"summary":"x"}`)
+	if _, err := pool.Exec(ctx, `INSERT INTO research_matches (profile_id, job_id, score, reasons) VALUES ($1, $2, 80, '[]'::jsonb)`, profile.ID, job.ID); err != nil {
+		t.Fatal(err)
+	}
+	memory := NewContextRepository(pool)
+	if err := memory.SaveAbout(ctx, ef.workspace.ID, "Backend işleri"); err != nil {
+		t.Fatal(err)
+	}
+	years := 6
+	if err := memory.SaveCV(ctx, ef.workspace.ID, CVParams{Filename: "cv.pdf", Text: "Go ve Docker", Skills: []string{"docker"}, Years: &years, Seniority: "senior"}, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	task, err := ef.repo.ExplanationTaskFor(ctx, ef.workspace.ID, profile.ID, job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(task.MatchedTechnologies, []string{"docker", "go"}) || !slices.Equal(task.MissingTechnologies, []string{"php", "rust"}) {
+		t.Fatalf("matched %v missing %v", task.MatchedTechnologies, task.MissingTechnologies)
+	}
+	if task.About != "Backend işleri" || !slices.Equal(task.CVSkills, []string{"docker"}) {
+		t.Fatalf("about %q cv %v", task.About, task.CVSkills)
+	}
+
+	// A new CV drops the stored explanations, so they are written again from it.
+	if err := ef.repo.SaveExplanation(ctx, ef.workspace.ID, profile.ID, job.ID, task.DescriptionHash, testModel, testPrompt, "old text"); err != nil {
+		t.Fatal(err)
+	}
+	if err := memory.DeleteCV(ctx, ef.workspace.ID); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := ef.repo.Explanations(ctx, ef.workspace.ID, profile.ID, []string{job.ID}); got[job.ID] != "" {
+		t.Fatalf("explanation survived the CV change: %v", got)
+	}
+	m, err := memory.Get(ctx, ef.workspace.ID)
+	if err != nil || m.HasCV() || m.About != "Backend işleri" {
+		t.Fatalf("context after delete = %+v %v", m, err)
+	}
+}

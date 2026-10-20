@@ -369,6 +369,8 @@ type workspaceJobDTO struct {
 	Saved bool      `json:"saved"`
 	Match *matchDTO `json:"match"`
 	AI    *aiDTO    `json:"ai"`
+	// TechFit compares the job's technologies with the profile's and the CV's.
+	TechFit *techFitDTO `json:"tech_fit"`
 }
 
 func toWorkspaceJob(w domain.WorkspaceJob) workspaceJobDTO {

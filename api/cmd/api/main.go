@@ -60,7 +60,7 @@ func run() error {
 		// Long enough for a summary streamed from the local model.
 		WriteTimeout: 3 * time.Minute,
 		IdleTimeout:  60 * time.Second,
-		BodyLimit:    1 << 20,
+		BodyLimit:    6 << 20,
 		ErrorHandler: httptransport.ErrorHandler,
 		// The client address comes from X-Real-IP only when the request was
 		// forwarded by a trusted proxy (nginx in the Compose setup).
@@ -75,6 +75,8 @@ func run() error {
 	httptransport.RegisterMetricsRoute(app, metrics, pool)
 	workspaces := database.NewWorkspaceRepository(pool)
 	enrichments := database.NewEnrichmentRepository(pool)
+	memory := database.NewContextRepository(pool)
+	researchRepo := database.NewResearchRepository(pool)
 	stats := database.NewStatsRepository(pool)
 	go sysstat.Publish(ctx, stats, "api", 15*time.Second, logger)
 	// AI settings saved in the web app override the environment, so a model,
@@ -95,7 +97,7 @@ func run() error {
 		Jobs:           database.NewJobRepository(pool),
 		Applications:   database.NewApplicationRepository(pool),
 		Annotations:    database.NewAnnotationRepository(pool),
-		Research:       database.NewResearchRepository(pool),
+		Research:       researchRepo,
 		Companies:      database.NewCompanyRepository(pool),
 		Activity:       database.NewActivityRepository(pool),
 		UserState:      database.NewUserStateRepository(pool),
@@ -105,8 +107,11 @@ func run() error {
 		CrawlPace:      &crawlconfig.Resolver{Env: cfg.Crawl, Store: database.NewSettingsRepository(pool)},
 		AI: &enrich.Analyzer{Repo: enrichments, LLM: llmconfig.Dynamic{R: resolver},
 			Resolve: resolver.Current, ResolveCountry: ingest.InferCountry},
-		System:    &sysstat.Builder{Reader: stats, Self: "api", Limits: sysstat.LimitsFromEnv()},
-		Suggester: &enrich.ProfileSuggester{LLM: llmconfig.Dynamic{R: resolver}, Resolve: resolver.Current},
+		System: &sysstat.Builder{Reader: stats, Self: "api", Limits: sysstat.LimitsFromEnv()},
+		Suggester: &enrich.ProfileSuggester{LLM: llmconfig.Dynamic{R: resolver}, Resolve: resolver.Current,
+			Memory: memory, Profiles: researchRepo},
+		Memory:   memory,
+		CVReader: &enrich.CVReader{LLM: llmconfig.Dynamic{R: resolver}, Resolve: resolver.Current},
 		Summaries: &enrich.Summarizer{Client: llmconfig.Dynamic{R: resolver}, ModelFn: func(ctx context.Context) string { return resolver.Current(ctx).Model },
 			Store: database.NewSummaryRepository(pool)},
 		CrawlSettings: crawlSettings(cfg.Crawl),

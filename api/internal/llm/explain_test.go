@@ -81,10 +81,10 @@ func TestExplainRejectsInventedNumbers(t *testing.T) {
 
 func TestExplainRejectsTooLongOrEmpty(t *testing.T) {
 	for name, reply := range map[string]string{
-		"three sentences": `{"explanation":"One. Two. Three."}`,
-		"empty":           `{"explanation":"  "}`,
-		"not json":        `Sure!`,
-		"too long":        `{"explanation":"` + strings.Repeat("word ", 90) + `."}`,
+		"four sentences": `{"explanation":"One. Two. Three. Four."}`,
+		"empty":          `{"explanation":"  "}`,
+		"not json":       `Sure!`,
+		"too long":       `{"explanation":"` + strings.Repeat("word ", 90) + `."}`,
 	} {
 		c, _ := explainer(t, reply)
 		if _, err := Explain(context.Background(), c, facts()); !errors.Is(err, ErrInvalidOutput) {
@@ -99,5 +99,22 @@ func TestExplainPassesTransportErrorsThrough(t *testing.T) {
 	c := NewClient(Options{BaseURL: srv.BaseURL(), Model: "m", Timeout: time.Second})
 	if _, err := Explain(context.Background(), c, facts()); !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestExplainTellsTheModelWhatTheCVLacks(t *testing.T) {
+	c, srv := explainer(t, `{"explanation":"Fits your Go work, but it also asks for PHP, which you lack."}`)
+	f := facts()
+	f.Technologies = []string{"go", "php"}
+	f.MatchedTechnologies = []string{"go"}
+	f.MissingTechnologies = []string{"php"}
+	f.CVSkills = []string{"go", "docker"}
+	if _, err := Explain(context.Background(), c, f); err != nil {
+		t.Fatal(err)
+	}
+	reqs := srv.Requests()
+	body := string(reqs[len(reqs)-1].Body)
+	if !strings.Contains(body, "the person lacks: php") || !strings.Contains(body, "CV skills: go, docker") {
+		t.Errorf("prompt does not carry the gap: %s", body)
 	}
 }

@@ -324,3 +324,9 @@ func technologies(title, text string) []string {
 	}
 	return out
 }
+
+// ExtractTechnologies lists the technologies a free text names, in the same
+// canonical spelling the job normalizer uses (a CV is read the way a posting is).
+func ExtractTechnologies(text string) []string {
+	return technologies("", strings.ToLower(text))
+}

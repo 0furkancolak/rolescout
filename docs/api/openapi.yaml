@@ -1212,6 +1212,87 @@ paths:
                         name: { type: string }
                         value: { type: string }
         "403": { $ref: "#/components/responses/Forbidden" }
+  /api/v1/workspaces/{workspaceID}/context:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+    get:
+      tags: [research]
+      summary: What the AI knows about the person (note and CV)
+      operationId: getWorkspaceContext
+      responses:
+        "200":
+          description: The note and the CV, if one was uploaded.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/WorkspaceContext" }
+    put:
+      tags: [research]
+      summary: Save the note about the work the person looks for
+      operationId: putWorkspaceContext
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [about]
+              properties:
+                about: { type: string, maxLength: 4000 }
+      responses:
+        "200":
+          description: The saved context.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/WorkspaceContext" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
+  /api/v1/workspaces/{workspaceID}/context/cv:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+    post:
+      tags: [research]
+      summary: Upload a CV
+      description: >
+        Reads the text of a PDF, Word (.docx) or text file (at most 5 MB) and
+        keeps it with what was read from it: the technologies the rules find
+        and, when AI is on, titles, seniority, experience and a summary. It
+        replaces the previous CV and drops the stored match explanations, which
+        are written again from the new CV. Shares the on-demand AI rate limit.
+      operationId: uploadCV
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "200":
+          description: The context with the CV.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/WorkspaceContext" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
+    delete:
+      tags: [research]
+      summary: Delete the CV
+      operationId: deleteCV
+      responses:
+        "204": { description: Deleted. }
   /api/v1/workspaces/{workspaceID}/research-profiles/suggest:
     parameters:
       - $ref: "#/components/parameters/WorkspaceID"
@@ -1223,7 +1304,10 @@ paths:
         (titles, keywords, technologies, countries, remote preference,
         seniority). Nothing is saved; create the profile with the normal call
         after reviewing it. Uses the AI connection from Settings and shares the
-        on-demand AI rate limit.
+        on-demand AI rate limit. The AI also draws on what it knows about the
+        person (their note, their CV, their other searches), so a short
+        description grows into a full profile; with such a background the
+        description may be left empty.
       operationId: suggestResearchProfile
       requestBody:
         required: true
@@ -1234,7 +1318,7 @@ paths:
               additionalProperties: false
               required: [description]
               properties:
-                description: { type: string, minLength: 10, maxLength: 2000 }
+                description: { type: string, maxLength: 2000, description: At least 10 characters unless the AI already knows the person. }
       responses:
         "200":
           description: The draft.
@@ -2221,13 +2305,44 @@ components:
         enabled: { type: boolean }
         reviewed_at: { type: [string, "null"], format: date-time }
         note: { type: [string, "null"] }
+    WorkspaceContext:
+      type: object
+      required: [about, cv, ai_read]
+      properties:
+        about: { type: string }
+        ai_read: { type: boolean, description: Whether the AI read the CV; without it only technologies are known. }
+        cv:
+          type: [object, "null"]
+          required: [filename, uploaded_at, chars, skills, titles, seniority, years, summary]
+          properties:
+            filename: { type: string }
+            uploaded_at: { type: string, format: date-time }
+            chars: { type: integer }
+            skills: { type: array, items: { type: string } }
+            titles: { type: array, items: { type: string } }
+            seniority: { type: string }
+            years: { type: [integer, "null"] }
+            summary: { type: string }
+    TechFit:
+      type: object
+      description: The job's technologies compared with the person's (profile and CV).
+      required: [matched, missing, excluded, from_cv]
+      properties:
+        matched: { type: array, items: { type: string } }
+        missing: { type: array, items: { type: string }, description: Technologies the person does not have. }
+        excluded: { type: array, items: { type: string }, description: Missing ones the person ruled out. }
+        from_cv: { type: boolean }
     WorkspaceJob:
       allOf:
         - $ref: "#/components/schemas/Job"
         - type: object
-          required: [saved, match, ai]
+          required: [saved, match, ai, tech_fit]
           properties:
             saved: { type: boolean }
+            tech_fit:
+              oneOf:
+                - $ref: "#/components/schemas/TechFit"
+                - type: "null"
             ai: { $ref: "#/components/schemas/JobAI" }
             match:
               type: [object, "null"]
