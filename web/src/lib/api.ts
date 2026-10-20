@@ -98,6 +98,20 @@ export interface LlmConfig {
   stored: Record<string, boolean>;
 }
 
+export interface CrawlPaceValues {
+  concurrency: number;
+  host_interval_ms: number;
+  vendor_concurrency: number;
+  vendor_interval_ms: number;
+}
+
+export interface CrawlPace extends CrawlPaceValues {
+  defaults: CrawlPaceValues;
+  stored: Record<string, boolean>;
+}
+
+export type CrawlPaceUpdate = Partial<CrawlPaceValues>;
+
 export interface LlmConfigUpdate {
   enabled?: boolean;
   base_url?: string;

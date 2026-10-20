@@ -533,7 +533,19 @@ const en = {
   "users.added": "Added.",
   "users.exists": "An account with this email already exists.",
   "settings.crawl": "Crawl settings",
-  "settings.crawlHint": "Set these with environment variables; see docs/configuration.md.",
+  "settings.crawlHint": "Values the server started with (environment variables, see docs/configuration.md). The research speed above overrides the first four.",
+  "pace.title": "Research speed",
+  "pace.hint": "How much the worker does at once. Higher numbers finish a research run sooner but send more requests together and use more memory and bandwidth. Changes apply within seconds, no restart.",
+  "pace.concurrency": "Companies at once",
+  "pace.concurrencyHint": "Companies checked and read in parallel (1–1024). Default {value}.",
+  "pace.hostInterval": "Gap per company site (ms)",
+  "pace.hostIntervalHint": "Minimum wait between requests to one site (100–60000). Default {value}.",
+  "pace.vendorConcurrency": "Requests per job board",
+  "pace.vendorConcurrencyHint": "Parallel requests to one job board such as Greenhouse or Lever (1–128). Default {value}.",
+  "pace.vendorInterval": "Gap per job board (ms)",
+  "pace.vendorIntervalHint": "Minimum wait between requests to one job board (10–10000). Default {value}.",
+  "pace.reset": "Back to defaults",
+  "pace.saved": "Saved. The worker follows within a few seconds.",
 };
 
 export type MessageKey = keyof typeof en;
@@ -1071,7 +1083,19 @@ const tr: Messages = {
   "users.added": "Eklendi.",
   "users.exists": "Bu e-postayla bir hesap zaten var.",
   "settings.crawl": "Tarama ayarları",
-  "settings.crawlHint": "Bunlar ortam değişkenleriyle ayarlanır; bkz. docs/configuration.md.",
+  "settings.crawlHint": "Sunucunun başladığı değerler (ortam değişkenleri, bkz. docs/configuration.md). Yukarıdaki araştırma hızı ilk dördünü geçersiz kılar.",
+  "pace.title": "Araştırma hızı",
+  "pace.hint": "Worker'ın aynı anda ne kadar iş yaptığı. Yüksek değerler araştırmayı daha çabuk bitirir ama aynı anda daha çok istek gönderir, daha çok bellek ve bant genişliği kullanır. Değişiklik birkaç saniyede uygulanır, yeniden başlatma gerekmez.",
+  "pace.concurrency": "Aynı anda şirket",
+  "pace.concurrencyHint": "Paralel kontrol edilen ve okunan şirket sayısı (1–1024). Varsayılan {value}.",
+  "pace.hostInterval": "Şirket sitesi başına aralık (ms)",
+  "pace.hostIntervalHint": "Aynı siteye iki istek arasındaki en kısa bekleme (100–60000). Varsayılan {value}.",
+  "pace.vendorConcurrency": "İş panosu başına istek",
+  "pace.vendorConcurrencyHint": "Greenhouse ya da Lever gibi tek bir iş panosuna paralel istek (1–128). Varsayılan {value}.",
+  "pace.vendorInterval": "İş panosu başına aralık (ms)",
+  "pace.vendorIntervalHint": "Aynı iş panosuna iki istek arasındaki en kısa bekleme (10–10000). Varsayılan {value}.",
+  "pace.reset": "Varsayılanlara dön",
+  "pace.saved": "Kaydedildi. Worker birkaç saniye içinde uygular.",
 };
 
 export const messages: Record<"tr" | "en", Messages> = { en, tr };

@@ -67,6 +67,9 @@ type Runner struct {
 type RunDueOptions struct {
 	// Concurrency is how many sources sync at once (default 1).
 	Concurrency int
+	// ConcurrencyFn, when set, is asked at the start of each pass and takes
+	// the place of Concurrency.
+	ConcurrencyFn func() int
 	// OnStart is told how many sources are due before syncing starts.
 	OnStart func(total int)
 	// OnResult is called after each sync, possibly from several goroutines.
@@ -136,6 +139,9 @@ func (r *Runner) RunDue(ctx context.Context, o RunDueOptions) error {
 		o.OnStart(len(sources))
 	}
 	concurrency := max(o.Concurrency, 1)
+	if o.ConcurrencyFn != nil {
+		concurrency = max(o.ConcurrencyFn(), 1)
+	}
 	work := make(chan domain.JobSource)
 	var wg sync.WaitGroup
 	for range min(concurrency, max(len(sources), 1)) {

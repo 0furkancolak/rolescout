@@ -1138,6 +1138,57 @@ paths:
                   data: { $ref: "#/components/schemas/LlmConfig" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "422": { $ref: "#/components/responses/InvalidInput" }
+  /api/v1/admin/crawl/config:
+    get:
+      tags: [admin]
+      summary: Crawl pace in effect (administrator)
+      description: >
+        How many companies are worked on at once and how closely requests are
+        spaced, with the environment defaults and which values were saved in the app.
+      operationId: getCrawlPace
+      responses:
+        "200":
+          description: The effective pace.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/CrawlPace" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    put:
+      tags: [admin]
+      summary: Change the crawl pace (administrator)
+      description: >
+        Saves the pace in the database; the worker follows within seconds, with no
+        restart. A field left out stays as it is; `0` removes the saved value so
+        the environment default applies again.
+      operationId: putCrawlPace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                concurrency: { type: integer, minimum: 0, maximum: 1024, description: Companies detected and synced at once. }
+                host_interval_ms: { type: integer, minimum: 0, maximum: 60000, description: "Gap between requests to one ordinary host (at least 100)." }
+                vendor_concurrency: { type: integer, minimum: 0, maximum: 128, description: Parallel requests to one job board API. }
+                vendor_interval_ms: { type: integer, minimum: 0, maximum: 10000, description: "Gap between requests to one job board API (at least 10)." }
+      responses:
+        "200":
+          description: The new effective pace.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/CrawlPace" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
   /api/v1/admin/settings:
     get:
       tags: [admin]
@@ -2191,6 +2242,24 @@ components:
                     properties:
                       code: { type: string, enum: [title, keyword, role, tech, remote, remote_abroad, country, location, region, hybrid, seniority, fresh] }
                       params: { type: object, additionalProperties: { type: string } }
+    CrawlPaceValues:
+      type: object
+      required: [concurrency, host_interval_ms, vendor_concurrency, vendor_interval_ms]
+      properties:
+        concurrency: { type: integer }
+        host_interval_ms: { type: integer }
+        vendor_concurrency: { type: integer }
+        vendor_interval_ms: { type: integer }
+    CrawlPace:
+      allOf:
+        - $ref: "#/components/schemas/CrawlPaceValues"
+        - type: object
+          required: [defaults, stored]
+          properties:
+            defaults: { $ref: "#/components/schemas/CrawlPaceValues" }
+            stored:
+              type: object
+              additionalProperties: { type: boolean }
     LlmConfig:
       type: object
       required: [enabled, base_url, model, has_api_key, background, background_auto, local, stored]

@@ -18,6 +18,7 @@ import { useI18n } from "../../lib/i18n";
 import { useCurrentUser } from "../auth/api";
 import { LocalAiCard } from "./LocalAiCard";
 import { SystemCard } from "./SystemCard";
+import { CrawlPaceCard } from "./CrawlPaceCard";
 import { UsersCard } from "./UsersCard";
 
 const adaptersKey = ["admin", "adapters"] as const;
@@ -93,6 +94,7 @@ export function SettingsPage() {
         {tab === "system" && <SystemCard />}
         {tab === "crawl" && (
           <>
+            {isAdmin && <CrawlPaceCard />}
             <Card>
               <h2 className="text-lg font-semibold text-ink">
                 {t("settings.crawl")}

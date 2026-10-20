@@ -26,11 +26,18 @@ type Options struct {
 // NewCrawler returns the HTTP client for discovery and ingestion, identified
 // as RoleScout/<version>.
 func NewCrawler(version string, cfg config.Crawl) *crawl.Client {
+	return NewCrawlerLive(version, cfg, nil)
+}
+
+// NewCrawlerLive is NewCrawler with a pace that can change while it runs.
+func NewCrawlerLive(version string, cfg config.Crawl, live *crawl.Live) *crawl.Client {
 	return crawl.New(crawl.Options{
 		UserAgent:         "RoleScout/" + version + " (self-hosted job search; +" + cfg.UserAgentURL + ")",
 		HostInterval:      cfg.HostInterval,
 		VendorHosts:       crawl.DefaultVendorHosts,
 		VendorConcurrency: cfg.VendorConcurrency,
+		VendorInterval:    cfg.VendorInterval,
+		Live:              live,
 		AllowPrivate:      cfg.AllowPrivateAddresses,
 	})
 }

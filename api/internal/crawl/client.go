@@ -61,9 +61,12 @@ type Options struct {
 	VendorHosts       []string
 	VendorConcurrency int
 	VendorInterval    time.Duration
-	Timeout           time.Duration // per request, default 60s
-	MaxBodyBytes      int64         // default 32 MiB
-	RobotsTTL         time.Duration // default 24h
+	// Live, when set, replaces the four pace values above and can change them
+	// while the client is in use.
+	Live         *Live
+	Timeout      time.Duration // per request, default 60s
+	MaxBodyBytes int64         // default 32 MiB
+	RobotsTTL    time.Duration // default 24h
 	// AllowPrivate permits non-public addresses (tests, intranet setups).
 	AllowPrivate bool
 	// Transport replaces the default transport (tests). The public address
@@ -118,6 +121,8 @@ type Client struct {
 
 	mu         sync.Mutex
 	limiters   map[string]*hostLimiter
+	delays     map[string]time.Duration // robots.txt crawl-delay per limiter key
+	liveVer    uint64
 	robots     map[string]robotsEntry
 	robotsMu   map[string]*sync.Mutex
 	validators map[string]*list.Element
@@ -167,6 +172,7 @@ func New(o Options) *Client {
 			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 		},
 		limiters:   map[string]*hostLimiter{},
+		delays:     map[string]time.Duration{},
 		robots:     map[string]robotsEntry{},
 		robotsMu:   map[string]*sync.Mutex{},
 		validators: map[string]*list.Element{},
@@ -189,20 +195,40 @@ func (c *Client) vendorKey(host string) string {
 	return ""
 }
 
-func (c *Client) limiterKey(host string) (key string, concurrency int, interval time.Duration) {
-	if v := c.vendorKey(host); v != "" {
-		return v, c.o.VendorConcurrency, c.o.VendorInterval
+// pace returns the pace values in effect.
+func (c *Client) pace() (hostInterval time.Duration, vendorConcurrency int, vendorInterval time.Duration) {
+	if c.o.Live != nil {
+		t := c.o.Live.Get()
+		return max(t.HostInterval, 0), max(t.VendorConcurrency, 1), max(t.VendorInterval, 0)
 	}
-	return host, 1, c.o.HostInterval
+	return c.o.HostInterval, c.o.VendorConcurrency, c.o.VendorInterval
+}
+
+func (c *Client) limiterKey(host string) (key string, concurrency int, interval time.Duration) {
+	hostInterval, vendorConcurrency, vendorInterval := c.pace()
+	if v := c.vendorKey(host); v != "" {
+		return v, vendorConcurrency, vendorInterval
+	}
+	return host, 1, hostInterval
 }
 
 func (c *Client) limiter(host string) *hostLimiter {
 	key, concurrency, interval := c.limiterKey(host)
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if c.o.Live != nil && c.liveVer != c.o.Live.Version() {
+		// The pace changed: later requests use new limiters. Requests already
+		// waiting finish on the old ones.
+		c.liveVer = c.o.Live.Version()
+		c.limiters = map[string]*hostLimiter{}
+	}
 	l, ok := c.limiters[key]
 	if !ok {
-		l = newHostLimiter(concurrency, interval)
+		if d := c.delays[key]; d > 0 {
+			l = newHostLimiter(1, max(interval, d))
+		} else {
+			l = newHostLimiter(concurrency, interval)
+		}
 		c.limiters[key] = l
 	}
 	return l
@@ -217,6 +243,7 @@ func (c *Client) applyCrawlDelay(host string, delay time.Duration) {
 	if l, ok := c.limiters[key]; ok && cap(l.slots) == 1 && l.interval >= delay {
 		return
 	}
+	c.delays[key] = max(c.delays[key], delay)
 	c.limiters[key] = newHostLimiter(1, max(interval, delay))
 }
 
