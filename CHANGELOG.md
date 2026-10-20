@@ -6,6 +6,8 @@ include breaking changes, which are called out.
 
 ## [Unreleased]
 ### Added
+- Newer OpenAI models (`gpt-5`+, o-series) work: `max_completion_tokens` with
+  reasoning headroom, no custom temperature, learned on the fly for other names.
 - AI with an API key: Settings → AI edits the connection (on/off, base URL,
   model, API key) in the database; changes apply within seconds without a
   restart and override `LLM_*` (`GET`/`PUT /admin/llm/config`). The key is never

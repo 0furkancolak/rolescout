@@ -82,9 +82,11 @@ edit:
 The key is stored in the database (table `app_settings`), is never returned by
 the API (only its last four characters) and applies within seconds. Values
 saved here override `LLM_*` from `.env`; clearing a field brings the `.env`
-value back. The service must accept `response_format: json_schema` and
-`max_tokens` (OpenAI `gpt-4o-mini` does; the newest reasoning models want
-`max_completion_tokens` and are not supported).
+value back. The service must accept `response_format: json_schema`. Newer
+OpenAI models (`gpt-5` and later, the o-series) are supported: they get
+`max_completion_tokens` (with room for hidden reasoning) and no custom
+temperature. For any other model name the client adapts after the server's
+first complaint about either parameter.
 
 **Cost control.** For a hosted service the worker does *not* read the whole
 catalog on its own (that could be tens of thousands of paid requests). AI text

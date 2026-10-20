@@ -14,6 +14,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -79,6 +80,11 @@ type Client struct {
 	key    string
 	http   *http.Client
 	budget time.Duration
+
+	// Newer OpenAI models reject max_tokens and a custom temperature. The
+	// flags start from the model name and flip once if the server says so.
+	newTokens atomic.Bool
+	noTemp    atomic.Bool
 }
 
 // NewClient builds a client. The timeout applies to each request.
@@ -86,13 +92,89 @@ func NewClient(o Options) *Client {
 	if o.Timeout <= 0 {
 		o.Timeout = 60 * time.Second
 	}
-	return &Client{
+	c := &Client{
 		base:   strings.TrimRight(o.BaseURL, "/"),
 		model:  o.Model,
 		key:    o.APIKey,
 		budget: o.Timeout,
 		http:   &http.Client{Timeout: o.Timeout},
 	}
+	if strictParams(o.Model) {
+		c.newTokens.Store(true)
+		c.noTemp.Store(true)
+	}
+	return c
+}
+
+// strictParams reports models of the OpenAI generation that takes
+// max_completion_tokens and only the default temperature: gpt-5 and later, and
+// the o-series. Anything else is learned from the server's first complaint.
+func strictParams(model string) bool {
+	m := strings.ToLower(strings.TrimSpace(model))
+	if rest, ok := strings.CutPrefix(m, "gpt-"); ok && rest != "" {
+		return rest[0] >= '5' && rest[0] <= '9'
+	}
+	return len(m) >= 2 && m[0] == 'o' && m[1] >= '1' && m[1] <= '9'
+}
+
+// reasoningHeadroom is added to a completion cap for strict models, whose
+// hidden reasoning counts against it.
+const reasoningHeadroom = 2048
+
+// adapt flips the parameter style when a 400 names the one it refused. It
+// returns false when nothing changed, so a retry would fail the same way.
+func (c *Client) adapt(err error) bool {
+	var he *httpError
+	if !errors.As(err, &he) || he.status != http.StatusBadRequest {
+		return false
+	}
+	msg := strings.ToLower(he.body)
+	changed := false
+	switch {
+	case strings.Contains(msg, "max_completion_tokens") && !c.newTokens.Load():
+		c.newTokens.Store(true)
+		changed = true
+	case strings.Contains(msg, "max_tokens") && c.newTokens.Load() && !strings.Contains(msg, "max_completion_tokens"):
+		c.newTokens.Store(false)
+		changed = true
+	}
+	if strings.Contains(msg, "temperature") && !c.noTemp.Load() {
+		c.noTemp.Store(true)
+		changed = true
+	}
+	return changed
+}
+
+// httpError is a 4xx the server explained. Error() omits the body.
+type httpError struct {
+	status int
+	body   string
+}
+
+func (e *httpError) Error() string { return fmt.Sprintf("%v: HTTP %d", ErrBadResponse, e.status) }
+func (e *httpError) Unwrap() error { return ErrBadResponse }
+
+func (c *Client) chatBody(req Request, model string, stream bool) chatBody {
+	b := chatBody{
+		Model:    model,
+		Stream:   stream,
+		Messages: []chatMessage{{Role: "system", Content: req.System}, {Role: "user", Content: req.User}},
+	}
+	if !c.noTemp.Load() {
+		t := req.Temperature
+		b.Temperature = &t
+	}
+	switch {
+	case req.MaxTokens <= 0:
+	case c.newTokens.Load():
+		b.MaxCompletion = req.MaxTokens
+		if req.MaxTokens > 1 {
+			b.MaxCompletion += reasoningHeadroom
+		}
+	default:
+		b.MaxTokens = req.MaxTokens
+	}
+	return b
 }
 
 // Model returns the configured model name.
@@ -102,8 +184,9 @@ type chatBody struct {
 	Model          string        `json:"model"`
 	Messages       []chatMessage `json:"messages"`
 	ResponseFormat *respFormat   `json:"response_format,omitempty"`
-	Temperature    float64       `json:"temperature"`
+	Temperature    *float64      `json:"temperature,omitempty"`
 	MaxTokens      int           `json:"max_tokens,omitempty"`
+	MaxCompletion  int           `json:"max_completion_tokens,omitempty"`
 	Stream         bool          `json:"stream"`
 }
 
@@ -130,21 +213,22 @@ func (c *Client) Complete(ctx context.Context, req Request) (Response, error) {
 	if model == "" {
 		model = c.model
 	}
-	body := chatBody{
-		Model:       model,
-		Temperature: req.Temperature,
-		MaxTokens:   req.MaxTokens,
-		Messages:    []chatMessage{{Role: "system", Content: req.System}, {Role: "user", Content: req.User}},
-	}
-	if len(req.Schema) > 0 {
-		body.ResponseFormat = &respFormat{Type: "json_schema", JSONSchema: jsonSchema{Name: "job_enrichment", Strict: true, Schema: req.Schema}}
-	}
-	raw, err := json.Marshal(body)
-	if err != nil {
-		return Response{}, fmt.Errorf("%w: encode request", ErrBadResponse)
+	send := func() ([]byte, error) {
+		body := c.chatBody(req, model, false)
+		if len(req.Schema) > 0 {
+			body.ResponseFormat = &respFormat{Type: "json_schema", JSONSchema: jsonSchema{Name: "job_enrichment", Strict: true, Schema: req.Schema}}
+		}
+		raw, err := json.Marshal(body)
+		if err != nil {
+			return nil, fmt.Errorf("%w: encode request", ErrBadResponse)
+		}
+		return c.do(ctx, http.MethodPost, "/chat/completions", raw)
 	}
 	start := time.Now()
-	data, err := c.do(ctx, http.MethodPost, "/chat/completions", raw)
+	data, err := send()
+	for i := 0; i < 2 && err != nil && c.adapt(err); i++ {
+		data, err = send()
+	}
 	if err != nil {
 		return Response{}, err
 	}
@@ -177,35 +261,39 @@ func (c *Client) Stream(ctx context.Context, req Request, onDelta func(string)) 
 	if model == "" {
 		model = c.model
 	}
-	raw, err := json.Marshal(chatBody{
-		Model: model, Temperature: req.Temperature, MaxTokens: req.MaxTokens, Stream: true,
-		Messages: []chatMessage{{Role: "system", Content: req.System}, {Role: "user", Content: req.User}},
-	})
-	if err != nil {
-		return Response{}, fmt.Errorf("%w: encode request", ErrBadResponse)
+	open := func() (*http.Response, error) {
+		raw, err := json.Marshal(c.chatBody(req, model, true))
+		if err != nil {
+			return nil, fmt.Errorf("%w: encode request", ErrBadResponse)
+		}
+		hreq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.base+"/chat/completions", bytes.NewReader(raw))
+		if err != nil {
+			return nil, fmt.Errorf("%w: invalid base URL", ErrBadResponse)
+		}
+		hreq.Header.Set("Content-Type", "application/json")
+		hreq.Header.Set("Accept", "text/event-stream")
+		if c.key != "" {
+			hreq.Header.Set("Authorization", "Bearer "+c.key)
+		}
+		resp, err := c.http.Do(hreq)
+		if err != nil {
+			return nil, classify(ctx, err)
+		}
+		if err := statusError(resp); err != nil {
+			resp.Body.Close()
+			return nil, err
+		}
+		return resp, nil
 	}
 	start := time.Now()
-	hreq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.base+"/chat/completions", bytes.NewReader(raw))
-	if err != nil {
-		return Response{}, fmt.Errorf("%w: invalid base URL", ErrBadResponse)
+	resp, err := open()
+	for i := 0; i < 2 && err != nil && c.adapt(err); i++ {
+		resp, err = open()
 	}
-	hreq.Header.Set("Content-Type", "application/json")
-	hreq.Header.Set("Accept", "text/event-stream")
-	if c.key != "" {
-		hreq.Header.Set("Authorization", "Bearer "+c.key)
-	}
-	resp, err := c.http.Do(hreq)
 	if err != nil {
-		return Response{}, classify(ctx, err)
+		return Response{}, err
 	}
 	defer resp.Body.Close()
-	switch {
-	case resp.StatusCode >= 500, resp.StatusCode == http.StatusTooManyRequests, resp.StatusCode == http.StatusUnauthorized,
-		resp.StatusCode == http.StatusForbidden, resp.StatusCode == http.StatusNotFound, resp.StatusCode == http.StatusRequestTimeout:
-		return Response{}, fmt.Errorf("%w: HTTP %d", ErrUnavailable, resp.StatusCode)
-	case resp.StatusCode >= 400:
-		return Response{}, fmt.Errorf("%w: HTTP %d", ErrBadResponse, resp.StatusCode)
-	}
 	var all strings.Builder
 	sc := bufio.NewScanner(resp.Body)
 	sc.Buffer(make([]byte, 64<<10), 1<<20)
@@ -311,17 +399,27 @@ func (c *Client) do(ctx context.Context, method, path string, payload []byte) ([
 	if err != nil {
 		return nil, classify(ctx, err)
 	}
+	if err := statusError(&http.Response{StatusCode: resp.StatusCode, Body: io.NopCloser(bytes.NewReader(data))}); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+// statusError maps a non-2xx reply to the package's errors. A 400 keeps the
+// server's explanation (not shown in Error()) so the client can adapt.
+func statusError(resp *http.Response) error {
 	switch {
 	case resp.StatusCode >= 500:
-		return nil, fmt.Errorf("%w: HTTP %d", ErrUnavailable, resp.StatusCode)
+		return fmt.Errorf("%w: HTTP %d", ErrUnavailable, resp.StatusCode)
 	case resp.StatusCode == http.StatusTooManyRequests, resp.StatusCode == http.StatusUnauthorized,
 		resp.StatusCode == http.StatusForbidden, resp.StatusCode == http.StatusNotFound, resp.StatusCode == http.StatusRequestTimeout:
 		// A missing model or bad key is a server-side problem, not this job's.
-		return nil, fmt.Errorf("%w: HTTP %d", ErrUnavailable, resp.StatusCode)
+		return fmt.Errorf("%w: HTTP %d", ErrUnavailable, resp.StatusCode)
 	case resp.StatusCode >= 400:
-		return nil, fmt.Errorf("%w: HTTP %d", ErrBadResponse, resp.StatusCode)
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		return &httpError{status: resp.StatusCode, body: string(b)}
 	}
-	return data, nil
+	return nil
 }
 
 func classify(ctx context.Context, err error) error {
