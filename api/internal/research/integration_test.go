@@ -76,8 +76,10 @@ func newPipelineFixture(t *testing.T) pipelineFixture {
 		t.Fatal(err)
 	}
 
-	// The shipped kariyer.net sources would read a site this fake internet does not have.
-	if _, err := pool.Exec(ctx, `UPDATE job_sources SET enabled = FALSE WHERE adapter = 'kariyernet'`); err != nil {
+	// The shipped job-site sources (kariyer.net, feeds and APIs of many employers)
+	// would read sites this fake internet does not have.
+	if _, err := pool.Exec(ctx, `UPDATE job_sources SET enabled = FALSE WHERE adapter IN
+		('kariyernet', 'remoteok', 'arbeitnow', 'himalayas', 'jobicy', 'themuse', 'weworkremotely', 'workingnomads', 'hnhiring')`); err != nil {
 		t.Fatal(err)
 	}
 

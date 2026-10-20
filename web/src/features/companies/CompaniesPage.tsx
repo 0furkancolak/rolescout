@@ -11,7 +11,7 @@ import { useWorkspace } from "../workspaces/context";
 import { useAddCompany, useBlockCompany, useCompanies, useDisableCompany, type CompanyFilters } from "./api";
 
 const statuses: CompanyStatus[] = ["pending", "active", "empty", "unreachable", "blocked_by_robots", "disabled"];
-const atsList = ["greenhouse", "lever", "ashby", "workable", "recruitee", "personio", "bamboohr", "workday", "jsonld", "unknown"];
+const atsList = ["greenhouse", "lever", "ashby", "workable", "recruitee", "personio", "bamboohr", "workday", "teamtailor", "breezy", "rippling", "gem", "htmlpage", "jsonld", "unknown"];
 
 const statusColor: Record<CompanyStatus, string> = {
   pending: "bg-canvas text-ink",

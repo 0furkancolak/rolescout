@@ -6,6 +6,23 @@ include breaking changes, which are called out.
 
 ## [Unreleased]
 ### Added
+- More company job-board systems: Teamtailor, Breezy HR, Rippling and Gem
+  (read, detected on career pages, probed by company name).
+- Job sites that list many employers, through public APIs and feeds: Remote OK,
+  Arbeitnow, Himalayas, Jobicy, The Muse, We Work Remotely, Working Nomads and
+  Hacker News "Who is hiring?" (29 default sources). Sites whose robots.txt or
+  terms forbid it are listed with reasons in docs/sources/README.md.
+- Discovery: about 420 more employer sites (Turkish corporates, staffing and
+  recruitment agencies, software houses, consultancies), Y Combinator companies
+  that are hiring, DBpedia read by country category and for recruitment/IT
+  agencies (Turkey from about 200 to about 980 companies), more company lists,
+  and one company per site however its address is spelled.
+
+### Fixed
+- DBpedia companies were not stored because the `dbpedia` origin was missing
+  from the database constraint.
+
+### Added
 - Career pages that are plain HTML with no job board or JSON-LD (such as
   e-adam.com/kariyer) are read by the new `htmlpage` adapter; detection also
   tries the usual career paths (`/kariyer`, `/careers`, `/is-ilanlari`, ...)

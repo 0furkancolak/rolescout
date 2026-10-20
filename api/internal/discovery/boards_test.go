@@ -29,6 +29,10 @@ func TestParseBoardURL(t *testing.T) {
 		{"https://acme.workable.com/", "workable", "acme", map[string]any{"account": "acme"}},
 		{"https://acme.recruitee.com/", "recruitee", "acme", map[string]any{"subdomain": "acme"}},
 		{"https://acme.recruitee.com/o/backend-dev", "recruitee", "acme", map[string]any{"subdomain": "acme"}},
+		{"https://acme.teamtailor.com/jobs/123-dev", "teamtailor", "acme", map[string]any{"subdomain": "acme"}},
+		{"https://acme.breezy.hr/p/abc-dev", "breezy", "acme", map[string]any{"subdomain": "acme"}},
+		{"https://ats.rippling.com/acme/jobs/uuid", "rippling", "acme", map[string]any{"board": "acme"}},
+		{"https://jobs.gem.com/acme/123", "gem", "acme", map[string]any{"board": "acme"}},
 		{"https://acme.jobs.personio.de/", "personio", "acme", map[string]any{"subdomain": "acme", "tld": "de"}},
 		{"https://acme.jobs.personio.com/job/1", "personio", "acme", map[string]any{"subdomain": "acme", "tld": "com"}},
 		{"https://acme.bamboohr.com/careers", "bamboohr", "acme", map[string]any{"subdomain": "acme"}},
@@ -54,6 +58,7 @@ func TestParseBoardURLRejects(t *testing.T) {
 		"https://apply.workable.com/j/ABC123", "https://apply.workable.com/", "https://www.workable.com/",
 		"https://www.recruitee.com/", "https://app.recruitee.com/x", "https://www.bamboohr.com/careers",
 		"https://acme.bamboohr.com/login", "https://nvidia.wd5.myworkdayjobs.com/", "https://nvidia.wd5.myworkdayjobs.com/wday/cxs/x",
+		"https://www.teamtailor.com/", "https://app.breezy.hr/x", "https://ats.rippling.com/", "https://jobs.gem.com/",
 		"https://example.com/careers", "https://jobs.smartrecruiters.com/Acme",
 		"https://evil.com/boards.greenhouse.io/acme",
 	} {

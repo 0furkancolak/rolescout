@@ -36,8 +36,41 @@ type Probe struct {
 
 func (p *Probe) Name() string { return "probe" }
 
-// ProbeNames returns the embedded company names.
-func ProbeNames() []string { return parseNames(probeNamesFile) }
+// ProbeNames returns the embedded company names and the names of the embedded
+// seeds that are not job boards themselves (their career pages are found by
+// detection; the probe also looks for their boards by name).
+func ProbeNames() []string {
+	names := parseNames(probeNamesFile)
+	seen := map[string]bool{}
+	for _, n := range names {
+		seen[strings.ToLower(n)] = true
+	}
+	for _, file := range []string{turkeyEmployersFile, agenciesFile} {
+		seeds, _ := ParseSeeds(file)
+		for _, s := range seeds {
+			n := probeNameOf(s.Name)
+			if n != "" && !seen[strings.ToLower(n)] {
+				seen[strings.ToLower(n)] = true
+				names = append(names, n)
+			}
+		}
+	}
+	return names
+}
+
+// probeNameOf is the company name behind a seed's label: "Adecco Türkiye" is
+// probed as "Adecco", and labels of career sites ("Turkcell Kariyer") are not
+// names of companies.
+func probeNameOf(label string) string {
+	label = strings.TrimSpace(label)
+	if strings.HasSuffix(label, " Kariyer") {
+		return ""
+	}
+	for _, suffix := range []string{" Türkiye", " Turkey"} {
+		label = strings.TrimSuffix(label, suffix)
+	}
+	return label
+}
 
 func parseNames(text string) []string {
 	var out []string
@@ -183,6 +216,8 @@ func probeTargets(slug string) []probeTarget {
 		{"https://boards.greenhouse.io/" + esc, "https://boards-api.greenhouse.io/v1/boards/" + esc + "/jobs", "jobs"},
 		{"https://jobs.ashbyhq.com/" + esc, "https://api.ashbyhq.com/posting-api/job-board/" + esc, "jobs"},
 		{"https://apply.workable.com/" + esc, "https://apply.workable.com/api/v1/widget/accounts/" + esc, "jobs"},
+		{"https://ats.rippling.com/" + esc, "https://api.rippling.com/platform/api/ats/v1/board/" + esc + "/jobs", "array"},
+		{"https://jobs.gem.com/" + esc, "https://api.gem.com/job_board/v0/" + esc + "/job_posts/", "array"},
 	}
 	if labelPattern.MatchString(slug) {
 		t = append(t, probeTarget{"https://" + slug + ".recruitee.com", "https://" + slug + ".recruitee.com/api/offers/", "offers"})

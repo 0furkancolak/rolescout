@@ -1,0 +1,173 @@
+# Agencies, consultancies, software houses and large employers worldwide: "URL | Company".
+# Each answered over HTTPS on 2026-10-20. They are not job boards: the detector finds the career page
+# of each, or the company is probed on the supported job board systems by name.
+https://about.gitlab.com | GitLab
+https://huggingface.co | Hugging Face
+https://monzo.com | Monzo
+https://openai.com | OpenAI
+https://remote.com | Remote
+https://www.adecco.com | Adecco Group
+https://www.adeccogroup.com | Adecco Group Corporate
+https://www.adesso.de | adesso
+https://www.adobe.com | Adobe
+https://www.adyen.com | Adyen
+https://www.airbnb.com | Airbnb
+https://www.airbus.com | Airbus
+https://www.allegro.pl | Allegro
+https://www.altran.com | Altran
+https://www.amd.com | AMD
+https://www.andela.com | Andela
+https://www.anthropic.com | Anthropic
+https://www.apexsystems.com | Apex Systems
+https://www.apple.com | Apple
+https://www.arc.dev | Arc
+https://www.arm.com | Arm
+https://www.asml.com | ASML
+https://www.atlassian.com | Atlassian
+https://www.atos.net | Atos
+https://www.automattic.com | Automattic
+https://www.avanade.com | Avanade
+https://www.barclays.com | Barclays
+https://www.bearingpoint.com | BearingPoint
+https://www.bnpparibas.com | BNP Paribas
+https://www.booking.com | Booking.com
+https://www.canonical.com | Canonical
+https://www.canva.com | Canva
+https://www.cgi.com | CGI
+https://www.checkout.com | Checkout.com
+https://www.cloudflare.com | Cloudflare
+https://www.codecentric.de | codecentric
+https://www.cognizant.com | Cognizant
+https://www.cohere.com | Cohere
+https://www.collabera.com | Collabera
+https://www.computerfutures.com | Computer Futures
+https://www.credit-suisse.com | Credit Suisse
+https://www.criticaltechworks.com | Critical TechWorks
+https://www.crossover.com | Crossover
+https://www.cybercoders.com | CyberCoders
+https://www.datadoghq.com | Datadog
+https://www.db.com | Deutsche Bank
+https://www.deel.com | Deel
+https://www.deepmind.com | DeepMind
+https://www.dell.com | Dell
+https://www.devoteam.com | Devoteam
+https://www.dice.com | Dice
+https://www.digitalocean.com | DigitalOcean
+https://www.docker.com | Docker
+https://www.elastic.co | Elastic
+https://www.endava.com | Endava
+https://www.epam.com | EPAM
+https://www.experis.com | Experis
+https://www.gigroup.com | Gi Group
+https://www.gitlab.com | GitLab
+https://www.globant.com | Globant
+https://www.goldmansachs.com | Goldman Sachs
+https://www.griddynamics.com | Grid Dynamics
+https://www.gun.io | Gun.io
+https://www.harveynash.com | Harvey Nash
+https://www.hashicorp.com | HashiCorp
+https://www.hays.com | Hays
+https://www.hcltech.com | HCLTech
+https://www.hirewell.com | Hirewell
+https://www.hp.com | HP
+https://www.hsbc.com | HSBC
+https://www.hubspot.com | HubSpot
+https://www.hudsonrpo.com | Hudson RPO
+https://www.ikea.com | IKEA
+https://www.infosys.com | Infosys
+https://www.ing.com | ING
+https://www.ing.jobs | ING Jobs
+https://www.innoq.com | INNOQ
+https://www.insightglobal.com | Insight Global
+https://www.intellias.com | Intellias
+https://www.jetbrains.com | JetBrains
+https://www.joblift.com | Joblift
+https://www.jpmorgan.com | JPMorgan Chase
+https://www.kellyservices.com | Kelly Services
+https://www.kforce.com | Kforce
+https://www.klarna.com | Klarna
+https://www.lemon.io | Lemon.io
+https://www.lenovo.com | Lenovo
+https://www.leonardo.com | Leonardo
+https://www.ltimindtree.com | LTIMindtree
+https://www.luxoft.com | Luxoft
+https://www.maersk.com | Maersk
+https://www.manpowergroup.com | ManpowerGroup
+https://www.mastercard.com | Mastercard
+https://www.mercedes-benz.com | Mercedes-Benz
+https://www.michaelpage.com | Michael Page
+https://www.mindera.com | Mindera
+https://www.mistral.ai | Mistral AI
+https://www.modis.com | Modis
+https://www.mongodb.com | MongoDB
+https://www.morganstanley.com | Morgan Stanley
+https://www.mozilla.org | Mozilla
+https://www.mphasis.com | Mphasis
+https://www.msg.group | msg
+https://www.n-ix.com | N-iX
+https://www.n26.com | N26
+https://www.nagarro.com | Nagarro
+https://www.ness.com | Ness
+https://www.nestle.com | Nestlé
+https://www.netcompany.com | Netcompany
+https://www.netflix.com | Netflix
+https://www.nigelfrank.com | Nigel Frank
+https://www.nvidia.com | NVIDIA
+https://www.orange.com | Orange
+https://www.oysterhr.com | Oyster
+https://www.paypal.com | PayPal
+https://www.persistent.com | Persistent Systems
+https://www.philips.com | Philips
+https://www.qualcomm.com | Qualcomm
+https://www.randstad.com | Randstad
+https://www.randstadsourceright.com | Randstad Sourceright
+https://www.redhat.com | Red Hat
+https://www.remotemore.com | Remote More
+https://www.reply.com | Reply
+https://www.revolut.com | Revolut
+https://www.robertwalters.com | Robert Walters
+https://www.rolls-royce.com | Rolls-Royce
+https://www.salesforce.com | Salesforce
+https://www.santander.com | Santander
+https://www.sap.com | SAP
+https://www.sapient.com | Publicis Sapient
+https://www.shell.com | Shell
+https://www.shopify.com | Shopify
+https://www.siemens.com | Siemens
+https://www.slalom.com | Slalom
+https://www.softserveinc.com | SoftServe
+https://www.softwareag.com | Software AG
+https://www.spacex.com | SpaceX
+https://www.spotify.com | Spotify
+https://www.sthree.com | SThree
+https://www.stripe.com | Stripe
+https://www.suse.com | SUSE
+https://www.synergie.com | Synergie
+https://www.tcs.com | TCS
+https://www.techmahindra.com | Tech Mahindra
+https://www.teksystems.com | TEKsystems
+https://www.telefonica.com | Telefónica
+https://www.telekom.com | Deutsche Telekom
+https://www.tesla.com | Tesla
+https://www.thalesgroup.com | Thales
+https://www.thoughtworks.com | Thoughtworks
+https://www.tietoevry.com | TietoEVRY
+https://www.tomtom.com | TomTom
+https://www.toptal.com | Toptal
+https://www.totalenergies.com | TotalEnergies
+https://www.turing.com | Turing
+https://www.twilio.com | Twilio
+https://www.ubs.com | UBS
+https://www.unilever.com | Unilever
+https://www.valtech.com | Valtech
+https://www.velvetjobs.com | Velvet Jobs
+https://www.visa.com | Visa
+https://www.vmware.com | VMware
+https://www.vodafone.com | Vodafone Group
+https://www.volkswagen.com | Volkswagen
+https://www.wipro.com | Wipro
+https://www.wise.com | Wise
+https://www.x-team.com | X-Team
+https://www.xebia.com | Xebia
+https://www.zalando.com | Zalando
+https://www.zendesk.com | Zendesk

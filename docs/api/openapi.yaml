@@ -2290,9 +2290,9 @@ components:
         id: { type: string, format: uuid }
         name: { type: string }
         careers_url: { type: string, format: uri }
-        ats: { type: string, description: "Job board system: greenhouse, lever, ashby, workable, recruitee, personio, bamboohr, workday, jsonld or unknown." }
+        ats: { type: string, description: "Job board system: greenhouse, lever, ashby, workable, recruitee, personio, bamboohr, workday, teamtailor, breezy, rippling, gem, jsonld or unknown." }
         status: { $ref: "#/components/schemas/CompanyStatus" }
-        origin: { type: string, enum: [seed, hackernews, list, link, manual, probe] }
+        origin: { type: string, enum: [seed, hackernews, list, link, manual, probe, dbpedia, ycombinator] }
         open_jobs: { type: integer }
         last_checked_at: { type: [string, "null"], format: date-time }
         last_error: { type: [string, "null"] }

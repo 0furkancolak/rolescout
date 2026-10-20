@@ -51,6 +51,41 @@ func TestUpsertDiscoveredDedupesByBoard(t *testing.T) {
 	}
 }
 
+func TestUpsertDiscoveredAcceptsEveryDiscoveryOrigin(t *testing.T) {
+	pool := requireDB(t)
+	repo := NewCompanyRepository(pool)
+	for _, origin := range []string{"seed", "hackernews", "list", "link", "manual", "probe", "dbpedia", "ycombinator"} {
+		_, created, err := repo.UpsertDiscovered(context.Background(), CompanyParams{
+			Name: origin, CareersURL: "https://" + uniq(origin) + ".example.com", ATS: "unknown", Origin: origin})
+		if err != nil || !created {
+			t.Errorf("origin %q: created=%v err=%v", origin, created, err)
+		}
+	}
+}
+
+func TestUpsertDiscoveredTreatsSpellingsOfAHomePageAsOneCompany(t *testing.T) {
+	pool := requireDB(t)
+	ctx := context.Background()
+	repo := NewCompanyRepository(pool)
+	host := uniq("home") + ".example.com"
+
+	first, created, err := repo.UpsertDiscovered(ctx, CompanyParams{Name: "Home", CareersURL: "https://www." + host + "/", ATS: "unknown", Origin: "seed",
+		SameSite: []string{"https://" + host, "http://" + host + "/"}})
+	if err != nil || !created {
+		t.Fatalf("first: %v created=%v", err, created)
+	}
+	again, created, err := repo.UpsertDiscovered(ctx, CompanyParams{Name: "Home", CareersURL: "https://" + host, ATS: "unknown", Origin: "dbpedia",
+		SameSite: []string{"https://www." + host + "/", "http://" + host + "/"}})
+	if err != nil || created || again.ID != first.ID {
+		t.Fatalf("another spelling of the same site made a new company: %v created=%v", err, created)
+	}
+	// A career page of the same host is a different address, not a spelling.
+	page, created, err := repo.UpsertDiscovered(ctx, CompanyParams{Name: "Home", CareersURL: "https://" + host + "/careers", ATS: "unknown", Origin: "list"})
+	if err != nil || !created || page.ID == first.ID {
+		t.Fatalf("career page: %v created=%v", err, created)
+	}
+}
+
 func newCompany(t *testing.T, repo *CompanyRepository, ats string) domain.Company {
 	t.Helper()
 	id := uniq("co")

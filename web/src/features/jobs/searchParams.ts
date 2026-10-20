@@ -29,7 +29,7 @@ const sorts: Sort[] = ["score", "recent", "relevance"];
 const posteds: Posted[] = ["24h", "7d", "30d"];
 const arrangements = ["onsite", "hybrid", "remote"];
 export const regions = ["europe", "eu", "emea", "mena", "dach", "nordics", "benelux", "north america", "latam", "apac"] as const;
-export const atsList = ["lever", "greenhouse", "ashby", "workable", "recruitee", "personio", "bamboohr", "workday", "jsonld"] as const;
+export const atsList = ["lever", "greenhouse", "ashby", "workable", "recruitee", "personio", "bamboohr", "workday", "teamtailor", "breezy", "rippling", "gem", "htmlpage", "jsonld"] as const;
 const seniorities = ["intern", "junior", "mid", "senior", "lead"];
 
 const pick = <T extends string>(v: string | null, allowed: readonly T[]): T | "" =>

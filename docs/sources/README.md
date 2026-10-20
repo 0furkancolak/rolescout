@@ -79,15 +79,47 @@ docker compose run --rm admin companies list -status pending
 | `ashby` | Ashby Job Postings API | [ashby.md](ashby.md) |
 | `workable` | Workable jobs widget API | [workable.md](workable.md) |
 | `recruitee` | Recruitee careers site API | [recruitee.md](recruitee.md) |
+| `teamtailor` | Teamtailor career site RSS feed (`/jobs.rss`) | [teamtailor.md](teamtailor.md) |
+| `breezy` | Breezy HR career site JSON list (`/json`) | [breezy.md](breezy.md) |
+| `rippling` | Rippling ATS board API (list only) | [rippling.md](rippling.md) |
+| `gem` | Gem job board API (Greenhouse-compatible) | [gem.md](gem.md) |
 | `personio` | Personio XML job feed | [personio.md](personio.md) |
 | `bamboohr` | BambooHR careers list | [bamboohr.md](bamboohr.md) |
 | `jsonld` | schema.org JobPosting data on company career sites | [jsonld.md](jsonld.md) |
 | `htmlpage` | job cards printed in the HTML of a company's own career page | [htmlpage.md](htmlpage.md) |
 | `kariyernet` | kariyer.net public category lists (cards only), paced and capped | [kariyernet.md](kariyernet.md) |
 | `workday` | Workday career site endpoint, **off until reviewed** | [workday.md](workday.md) |
+| `remoteok` | Remote OK public JSON API (many employers) | [remoteok.md](remoteok.md) |
+| `arbeitnow` | Arbeitnow free job board API (Germany and neighbours) | [arbeitnow.md](arbeitnow.md) |
+| `himalayas` | Himalayas public remote-jobs API | [himalayas.md](himalayas.md) |
+| `jobicy` | Jobicy public remote-jobs API, one source per industry | [jobicy.md](jobicy.md) |
+| `themuse` | The Muse public jobs API, one source per category | [themuse.md](themuse.md) |
+| `weworkremotely` | We Work Remotely RSS feeds, one source per category | [weworkremotely.md](weworkremotely.md) |
+| `workingnomads` | Working Nomads public job feed | [workingnomads.md](workingnomads.md) |
+| `hnhiring` | Posts of the monthly "Ask HN: Who is hiring?" thread | [hnhiring.md](hnhiring.md) |
+
+Job sites such as these list postings of many employers and belong to no company;
+each listing names its own employer. They are windows onto the newest postings, so
+their snapshots are always marked incomplete and never close jobs.
+
+### Not added
+| Site | Reason |
+| --- | --- |
+| Remotive | The API is documented, but `robots.txt` disallows `/api/*` for every client, and its terms allow only a few requests a day. |
+| kariyer.net (more categories) | Pages are behind a PerimeterX captcha (403 to automated clients from the server and from a laptop alike). The `kariyernet` adapter stays, but more categories were not added: they could not be verified and bypassing bot detection is out of bounds. |
+| eleman.net | `robots.txt` disallows the listing queries (`?t=`, `?tip=`, `?ilan_id=` ...). |
+| secretcv.com | `robots.txt` disallows the paged lists and search. |
+| yenibiris.com | Cloudflare challenge, also for `robots.txt`. |
+| LinkedIn, Indeed, Glassdoor, Monster, ZipRecruiter, StepStone, Totaljobs | Terms or `robots.txt` forbid automated reading, or the site answers 403/Access Denied. |
+| JustJoin.it, NoFluffJobs, Landing.jobs | Their `robots.txt` disallows `/api/`, the only structured access. |
+| Jobspresso | `robots.txt` disallows every URL with a query string, which includes its feed. |
+| Arbeitsagentur Jobbörse, USAJobs, Adzuna, Jooble, Careerjet, Reed | An API key or registration is needed. |
+| Dice, Wellfound, Otta, jobs.ch, İŞKUR e-Şube, kamuilan | No public feed or API; the lists are rendered in the browser, behind a login, or behind form postbacks. |
 
 SmartRecruiters is not supported: the robots.txt of its API host disallows all
-crawlers except LinkedIn's.
+crawlers except LinkedIn's. The other systems that were looked at and left out
+(Pinpoint, Comeet, Join, Jobvite, Freshteam, HiBob, Homerun) are explained in
+[more-ats.md](more-ats.md).
 
 ## Where companies are discovered
 Discovery runs before detection and collection and adds companies to the
