@@ -20,6 +20,17 @@ export function useCurrentUser() {
   });
 }
 
+// useRegistrationOpen is true while the installation has no account yet (or
+// the operator allowed open sign-ups); false hides every "create account" door.
+export function useRegistrationOpen() {
+  return useQuery({
+    queryKey: ["auth", "setup"],
+    queryFn: ({ signal }) => data<{ registration_open: boolean }>("/auth/setup", { signal }),
+    staleTime: 60_000,
+    retry: false,
+  });
+}
+
 export interface LoginInput {
   email: string;
   password: string;

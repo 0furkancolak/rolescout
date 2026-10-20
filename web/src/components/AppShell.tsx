@@ -159,10 +159,7 @@ export function AppShell() {
 function Brand() {
   const { t } = useI18n();
   return (
-    <NavLink to="/" className="flex items-center gap-2 text-lg font-semibold tracking-tight text-ink">
-      <span aria-hidden className="grid size-8 place-items-center rounded-control bg-ink text-ink-inverse">
-        <Radar className="size-4.5" />
-      </span>
+    <NavLink to="/" className="text-lg font-semibold tracking-tight text-ink">
       {t("app.name")}
     </NavLink>
   );

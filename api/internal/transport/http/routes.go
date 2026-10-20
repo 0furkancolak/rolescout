@@ -90,6 +90,7 @@ func RegisterAPIRoutes(app *fiber.App, d Deps) {
 	// Only failed sign-ins count, so a user who signs in often is not locked out.
 	v1.Post("/auth/login", rateLimit(d.RateLimits.Login, true), renderErrors, h.login)
 	v1.Post("/auth/logout", h.logout)
+	v1.Get("/auth/setup", h.setupStatus)
 
 	private := v1.Group("", h.requireUser)
 	private.Get("/auth/me", h.me)
@@ -102,6 +103,8 @@ func RegisterAPIRoutes(app *fiber.App, d Deps) {
 	private.Post("/companies", h.addCompany)
 
 	admin := private.Group("/admin", h.requireAdmin)
+	admin.Get("/users", h.adminListUsers)
+	admin.Post("/users", h.adminCreateUser)
 	admin.Get("/adapters", h.listAdapterReviews)
 	admin.Patch("/adapters/:adapter", h.reviewAdapter)
 	admin.Patch("/companies/:companyID", h.setCompanyDisabled)

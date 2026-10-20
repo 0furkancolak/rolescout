@@ -38,6 +38,21 @@ describe("LoginPage", () => {
   });
 });
 
+describe("first-run setup", () => {
+  it("offers sign-up only before the first account exists", async () => {
+    mockApi({ ...signedOut, "GET /auth/setup": { body: { data: { registration_open: true } } } });
+    renderApp("/login");
+    expect(await screen.findByRole("link", { name: "Create account" })).toBeInTheDocument();
+  });
+
+  it("hides sign-up once an account exists and sends /register to sign-in", async () => {
+    mockApi({ ...signedOut, "GET /auth/setup": { body: { data: { registration_open: false } } } });
+    renderApp("/register");
+    expect(await screen.findByRole("button", { name: "Sign in" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Create account" })).toBeNull();
+  });
+});
+
 describe("RegisterPage", () => {
   it("checks the password length like the server", async () => {
     const api = mockApi(signedOut);

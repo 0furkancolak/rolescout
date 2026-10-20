@@ -183,6 +183,10 @@ func statusPtr(s *domain.ApplicationStatus) *string {
 	return &v
 }
 
+type setupDTO struct {
+	RegistrationOpen bool `json:"registration_open"`
+}
+
 type userDTO struct {
 	ID          string    `json:"id"`
 	Email       string    `json:"email"`

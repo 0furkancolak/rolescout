@@ -86,6 +86,31 @@ func (r *AuthRepository) Register(ctx context.Context, p RegisterParams) (domain
 	return u, w, err
 }
 
+// HasUsers reports whether any account exists.
+func (r *AuthRepository) HasUsers(ctx context.Context) (bool, error) {
+	var has bool
+	err := r.pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM users)`).Scan(&has)
+	return has, translate(err, "check users")
+}
+
+// ListUsers returns all accounts, oldest first.
+func (r *AuthRepository) ListUsers(ctx context.Context) ([]domain.User, error) {
+	rows, err := r.pool.Query(ctx, `SELECT `+userColumns+` FROM users ORDER BY created_at, id`)
+	if err != nil {
+		return nil, translate(err, "list users")
+	}
+	defer rows.Close()
+	var out []domain.User
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, translate(err, "scan user")
+		}
+		out = append(out, u)
+	}
+	return out, translate(rows.Err(), "list users")
+}
+
 // Credentials returns the user and password hash for an email, or ErrNotFound.
 func (r *AuthRepository) Credentials(ctx context.Context, email string) (domain.User, string, error) {
 	var u domain.User

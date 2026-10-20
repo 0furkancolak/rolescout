@@ -7,7 +7,7 @@ import { inputClass } from "../../components/styles";
 import { isApiError } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import type { MessageKey } from "../../lib/messages";
-import { useCurrentUser, useLogin } from "./api";
+import { useCurrentUser, useLogin, useRegistrationOpen } from "./api";
 import { AuthLayout } from "./AuthLayout";
 import { redirectTarget } from "./redirect";
 
@@ -21,6 +21,7 @@ type FormValues = z.infer<typeof schema>;
 export function LoginPage() {
   const { t } = useI18n();
   const me = useCurrentUser();
+  const setup = useRegistrationOpen();
   const login = useLogin();
   const navigate = useNavigate();
   const location = useLocation();
@@ -74,12 +75,14 @@ export function LoginPage() {
           {t("auth.signIn")}
         </Button>
       </form>
-      <p className="mt-4 text-center text-sm text-ink-muted">
-        {t("auth.noAccount")}{" "}
-        <Link to="/register" className="font-medium text-lavender-deep hover:underline">
-          {t("auth.register")}
-        </Link>
-      </p>
+      {setup.data?.registration_open && (
+        <p className="mt-4 text-center text-sm text-ink-muted">
+          {t("auth.noAccount")}{" "}
+          <Link to="/register" className="font-medium text-lavender-deep hover:underline">
+            {t("auth.register")}
+          </Link>
+        </p>
+      )}
     </AuthLayout>
   );
 }

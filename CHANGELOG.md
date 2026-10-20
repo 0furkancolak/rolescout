@@ -6,6 +6,10 @@ include breaking changes, which are called out.
 
 ## [Unreleased]
 ### Added
+- Single-install accounts, like Grafana: only the first account can sign up;
+  after that the "create account" page and link disappear and the administrator
+  adds people in Settings → People (`GET`/`POST /admin/users`,
+  `GET /auth/setup`). `ALLOW_REGISTRATION=true` still opens sign-up for everyone.
 - Newer OpenAI models (`gpt-5`+, o-series) work: `max_completion_tokens` with
   reasoning headroom, no custom temperature, learned on the fly for other names.
 - AI with an API key: Settings → AI edits the connection (on/off, base URL,
@@ -42,6 +46,7 @@ include breaking changes, which are called out.
   employers).
 - `make dev` streams the API and worker logs into the terminal.
 ### Changed
+- The header shows the app name only, without a logo icon.
 - PostgreSQL runs with a bounded cache, 40 connections and no parallel workers
   (about 20 MB idle) instead of the image defaults; the API write timeout is
   3 minutes so a summary can stream.

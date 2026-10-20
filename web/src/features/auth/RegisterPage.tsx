@@ -7,7 +7,7 @@ import { inputClass } from "../../components/styles";
 import { isApiError } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import type { MessageKey } from "../../lib/messages";
-import { useCurrentUser, useRegister } from "./api";
+import { useCurrentUser, useRegister, useRegistrationOpen } from "./api";
 import { AuthLayout } from "./AuthLayout";
 
 // Mirrors the server rules (auth.ValidatePassword counts characters, not bytes).
@@ -27,6 +27,7 @@ export function RegisterPage() {
   const { t, locale, setLocale } = useI18n();
   const me = useCurrentUser();
   const registerUser = useRegister();
+  const setup = useRegistrationOpen();
   const navigate = useNavigate();
   const {
     register,
@@ -35,6 +36,8 @@ export function RegisterPage() {
   } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { locale } });
 
   if (me.data) return <Navigate to="/" replace />;
+  // Sign-up is only for the very first account; everyone else is added by an administrator.
+  if (setup.data && !setup.data.registration_open) return <Navigate to="/login" replace />;
 
   const onSubmit = handleSubmit((values) =>
     registerUser.mutate(values, {

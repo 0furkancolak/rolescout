@@ -145,6 +145,8 @@ type fakeAuthAs domain.User
 func (f fakeAuthAs) Register(context.Context, database.RegisterParams) (domain.User, domain.Workspace, error) {
 	panic("unexpected")
 }
+func (f fakeAuthAs) HasUsers(context.Context) (bool, error)           { panic("unexpected") }
+func (f fakeAuthAs) ListUsers(context.Context) ([]domain.User, error) { panic("unexpected") }
 func (f fakeAuthAs) Credentials(context.Context, string) (domain.User, string, error) {
 	panic("unexpected")
 }

@@ -36,9 +36,10 @@ All ports are bound to 127.0.0.1. To reach RoleScout from other machines, put
 it behind HTTPS as described in [deployment](deployment.md).
 
 ## First steps
-1. Open the web app and create your account. The first account can always
-   register; later sign-ups need `ALLOW_REGISTRATION=true` in `.env` followed
-   by `docker compose up -d`.
+1. Open the web app and create your account. Only the first account can sign
+   up (it becomes the administrator); after that sign-up is closed and you add
+   people under **Settings → People**. `ALLOW_REGISTRATION=true` in `.env`
+   opens sign-up to everyone instead.
 2. Your workspace starts with a "Full Stack Developer" research profile. The
    worker starts its first research within a minute: it discovers companies,
    identifies their career pages, collects their jobs and scores them. Follow

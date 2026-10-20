@@ -24,6 +24,8 @@ const (
 
 type AuthStore interface {
 	Register(ctx context.Context, p database.RegisterParams) (domain.User, domain.Workspace, error)
+	HasUsers(ctx context.Context) (bool, error)
+	ListUsers(ctx context.Context) ([]domain.User, error)
 	Credentials(ctx context.Context, email string) (domain.User, string, error)
 	CreateSession(ctx context.Context, tokenHash []byte, userID string, expiresAt time.Time) error
 	UserBySession(ctx context.Context, tokenHash []byte) (domain.User, error)
@@ -113,10 +115,11 @@ func validateEmail(v *domain.ValidationError, raw string) string {
 	return email
 }
 
-func (h *handlers) register(c fiber.Ctx) error {
+// newAccount decodes and validates a sign-up body and hashes the password.
+func (h *handlers) newAccount(c fiber.Ctx) (database.RegisterParams, error) {
 	var req registerRequest
 	if err := decodeJSON(c, &req); err != nil {
-		return err
+		return database.RegisterParams{}, err
 	}
 	var v domain.ValidationError
 	email := validateEmail(&v, req.Email)
@@ -132,25 +135,69 @@ func (h *handlers) register(c fiber.Ctx) error {
 		v.Add("locale", "must be tr or en")
 	}
 	if err := v.Err(); err != nil {
-		return err
+		return database.RegisterParams{}, err
 	}
-
 	hash, err := auth.HashPassword(req.Password)
 	if err != nil {
-		return err
+		return database.RegisterParams{}, err
 	}
 	workspaceName := "Kişisel"
 	if locale == "en" {
 		workspaceName = "Personal"
 	}
-	user, _, err := h.Auth.Register(c.Context(), database.RegisterParams{
-		Email: email, DisplayName: name, Locale: locale, PasswordHash: hash,
-		WorkspaceName: workspaceName, AllowWhenUsersExist: h.AuthConfig.AllowRegistration,
-	})
+	return database.RegisterParams{Email: email, DisplayName: name, Locale: locale, PasswordHash: hash, WorkspaceName: workspaceName}, nil
+}
+
+// register is the public sign-up: open for the first account only (like
+// Grafana's first-run setup), or for everyone with ALLOW_REGISTRATION=true.
+func (h *handlers) register(c fiber.Ctx) error {
+	p, err := h.newAccount(c)
+	if err != nil {
+		return err
+	}
+	p.AllowWhenUsersExist = h.AuthConfig.AllowRegistration
+	user, _, err := h.Auth.Register(c.Context(), p)
 	if err != nil {
 		return err
 	}
 	if err := h.startSession(c, user.ID); err != nil {
+		return err
+	}
+	return c.Status(fiber.StatusCreated).JSON(dataResponse[userDTO]{Data: toUser(user)})
+}
+
+// setupStatus tells the sign-in page whether to offer "create account".
+func (h *handlers) setupStatus(c fiber.Ctx) error {
+	has, err := h.Auth.HasUsers(c.Context())
+	if err != nil {
+		return err
+	}
+	return c.JSON(dataResponse[setupDTO]{Data: setupDTO{RegistrationOpen: !has || h.AuthConfig.AllowRegistration}})
+}
+
+// adminListUsers lists every account on this installation.
+func (h *handlers) adminListUsers(c fiber.Ctx) error {
+	users, err := h.Auth.ListUsers(c.Context())
+	if err != nil {
+		return err
+	}
+	out := make([]userDTO, len(users))
+	for i, u := range users {
+		out[i] = toUser(u)
+	}
+	return c.JSON(dataResponse[[]userDTO]{Data: out})
+}
+
+// adminCreateUser lets an administrator add an account. It does not sign the
+// new user in, and the account is a regular (non-admin) one.
+func (h *handlers) adminCreateUser(c fiber.Ctx) error {
+	p, err := h.newAccount(c)
+	if err != nil {
+		return err
+	}
+	p.AllowWhenUsersExist = true
+	user, _, err := h.Auth.Register(c.Context(), p)
+	if err != nil {
 		return err
 	}
 	return c.Status(fiber.StatusCreated).JSON(dataResponse[userDTO]{Data: toUser(user)})
