@@ -6,6 +6,17 @@ include breaking changes, which are called out.
 
 ## [Unreleased]
 ### Added
+- AI memory: a note about the work you look for and an uploaded CV (PDF, Word
+  or text, 5 MB) per workspace. Profile drafts, match explanations and the
+  technology comparison use them; a draft can be made from the memory alone.
+  Profile drafts are fuller (up to 25 titles, 30 keywords and technologies, more
+  locations and exclusions, local-language titles).
+- Jobs compare their technologies with the profile and the CV: technologies
+  you have are green, those you lack are red, those you excluded are struck
+  through; match explanations mention the gaps.
+- `RESEARCH_PARALLEL` (default 3): that many research runs execute at the same
+  time. The shared stages (discovery, detection, collection) still go one run
+  at a time so no site is read twice.
 - Updates no longer lose a research run: when the worker is stopped (an update,
   a restart) the run in progress goes back in the queue and starts again, and
   the worker gets 60 s to do so. `ROLESCOUT_SERVICES="api web"` lets
@@ -78,6 +89,8 @@ include breaking changes, which are called out.
   employers).
 - `make dev` streams the API and worker logs into the terminal.
 ### Changed
+- The starter profile of a new account no longer runs automatically; switch
+  auto-run on when you want it.
 - Application board: cards move with step buttons instead of drag and drop (which
   did not work on touch screens and some browsers); research run history shows
   its counts as tiles; hover and focus states on cards, rows and buttons.
