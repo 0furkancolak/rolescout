@@ -57,7 +57,7 @@ type Options struct {
 	// HostInterval spaces requests to the same ordinary host (default 1s).
 	HostInterval time.Duration
 	// VendorHosts get VendorConcurrency parallel requests spaced by
-	// VendorInterval (defaults 4 and 250ms).
+	// VendorInterval (defaults 8 and 150ms).
 	VendorHosts       []string
 	VendorConcurrency int
 	VendorInterval    time.Duration
@@ -141,7 +141,7 @@ func New(o Options) *Client {
 		o.VendorConcurrency = 4
 	}
 	if o.VendorInterval <= 0 {
-		o.VendorInterval = 250 * time.Millisecond
+		o.VendorInterval = 150 * time.Millisecond
 	}
 	if o.Timeout <= 0 {
 		o.Timeout = 60 * time.Second

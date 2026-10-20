@@ -109,39 +109,66 @@ func (p *Probe) Discover(ctx context.Context, state string, fn func(Candidate) e
 	return probeState(names, end), nil
 }
 
-// probeNames tries each name and reports the boards found. On an error it
-// returns how many names were finished.
+// probeConcurrency is how many names are tried at the same time. The vendors'
+// own limits (the crawler's per-host pacing) still apply to every request.
+const probeConcurrency = 8
+
+// probeNames tries each name and reports the boards found. Names are tried
+// several at a time; on an error it returns how many names, counted from the
+// start, were finished before it.
 func (p *Probe) probeNames(ctx context.Context, names []string, fn func(Candidate) error) (int, error) {
-	for i, name := range names {
-		// The boards of one name live on different hosts, which the crawler
-		// paces separately, so they are asked at the same time.
-		var targets []probeTarget
-		for _, slug := range Slugs(name) {
-			targets = append(targets, probeTargets(slug)...)
-		}
-		found := make([]bool, len(targets))
+	for start := 0; start < len(names); start += probeConcurrency {
+		chunk := names[start:min(start+probeConcurrency, len(names))]
+		found := make([][]Candidate, len(chunk))
 		var wg sync.WaitGroup
-		for j, tg := range targets {
+		for i, name := range chunk {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				// An unreachable vendor must not stop the others: errors count as "no board".
-				found[j], _ = p.exists(ctx, tg)
+				found[i] = p.probeName(ctx, name)
 			}()
 		}
 		wg.Wait()
 		if ctx.Err() != nil {
-			return i, ctx.Err()
+			return start, ctx.Err()
 		}
-		for j, tg := range targets {
-			if found[j] {
-				if err := fn(Candidate{URL: tg.url, Name: name, Origin: "probe"}); err != nil {
-					return i, err
+		for _, cands := range found {
+			for _, c := range cands {
+				if err := fn(c); err != nil {
+					return start, err
 				}
 			}
 		}
 	}
 	return len(names), nil
+}
+
+// probeName asks every board address a name could have, at the same time (they
+// live on different hosts, which the crawler paces separately), and returns
+// the boards that exist. An unreachable vendor counts as "no board" so it
+// cannot stop the others.
+func (p *Probe) probeName(ctx context.Context, name string) []Candidate {
+	var targets []probeTarget
+	for _, slug := range Slugs(name) {
+		targets = append(targets, probeTargets(slug)...)
+	}
+	found := make([]bool, len(targets))
+	var wg sync.WaitGroup
+	for j, tg := range targets {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			found[j], _ = p.exists(ctx, tg)
+		}()
+	}
+	wg.Wait()
+	var out []Candidate
+	for j, tg := range targets {
+		if found[j] {
+			out = append(out, Candidate{URL: tg.url, Name: name, Origin: "probe"})
+		}
+	}
+	return out
 }
 
 type probeTarget struct{ url, api, kind string }

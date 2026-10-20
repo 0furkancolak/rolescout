@@ -221,13 +221,13 @@ func boolEnv(name string, fallback bool) (bool, error) {
 func loadCrawl() (Crawl, error) {
 	c := Crawl{UserAgentURL: "https://github.com/0furkancolak/rolescout"}
 	var err error
-	if c.Concurrency, err = rangeEnv("CRAWL_CONCURRENCY", 16, 1, 256); err != nil {
+	if c.Concurrency, err = rangeEnv("CRAWL_CONCURRENCY", 32, 1, 256); err != nil {
 		return c, err
 	}
-	if c.VendorConcurrency, err = rangeEnv("CRAWL_VENDOR_CONCURRENCY", 4, 1, 32); err != nil {
+	if c.VendorConcurrency, err = rangeEnv("CRAWL_VENDOR_CONCURRENCY", 8, 1, 32); err != nil {
 		return c, err
 	}
-	if c.JSONLDMaxPages, err = rangeEnv("JSONLD_MAX_PAGES", 200, 1, 10000); err != nil {
+	if c.JSONLDMaxPages, err = rangeEnv("JSONLD_MAX_PAGES", 500, 1, 10000); err != nil {
 		return c, err
 	}
 	if c.MatchMinScore, err = rangeEnv("MATCH_MIN_SCORE", 40, 0, 100); err != nil {

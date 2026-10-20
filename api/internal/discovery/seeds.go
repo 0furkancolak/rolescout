@@ -19,11 +19,25 @@ var turkeySeedsFile string
 // Seed is a career page shipped with RoleScout.
 type Seed struct {
 	URL, Name string
+	Country   string // ISO 3166-1 code of the list the seed came from, if it is a country's list
 }
 
 // Seeds returns the embedded seed lists (worldwide and Türkiye): one "URL [| Name]" per line, with
 // "#" comments and blank lines.
-func Seeds() ([]Seed, error) { return ParseSeeds(seedsFile + "\n" + turkeySeedsFile) }
+func Seeds() ([]Seed, error) {
+	world, err := ParseSeeds(seedsFile)
+	if err != nil {
+		return nil, err
+	}
+	turkey, err := ParseSeeds(turkeySeedsFile)
+	if err != nil {
+		return nil, err
+	}
+	for i := range turkey {
+		turkey[i].Country = "TR"
+	}
+	return append(world, turkey...), nil
+}
 
 // ParseSeeds parses a seed list in the embedded format.
 func ParseSeeds(text string) ([]Seed, error) {
@@ -64,7 +78,7 @@ func (SeedSource) Discover(_ context.Context, state string, fn func(Candidate) e
 		return state, err
 	}
 	for _, s := range seeds {
-		if err := fn(Candidate{URL: s.URL, Name: s.Name, Origin: "seed"}); err != nil {
+		if err := fn(Candidate{URL: s.URL, Name: s.Name, Origin: "seed", Country: s.Country}); err != nil {
 			return state, err
 		}
 	}

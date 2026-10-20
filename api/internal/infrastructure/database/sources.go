@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"errors"
+	"example.com/rolescout/api/internal/focus"
 	"fmt"
 	"time"
 
@@ -126,7 +127,9 @@ func (r *SourceRepository) Due(ctx context.Context, now time.Time) ([]domain.Job
 		       CASE WHEN last.status = 'failed'
 		            THEN GREATEST(s.sync_interval / 4, INTERVAL '5 minutes')
 		            ELSE s.sync_interval END <= $1))
-		ORDER BY last.started_at NULLS FIRST, s.key`, now)
+		-- Sources of the research profile's countries are read first.
+		ORDER BY COALESCE((SELECT c.country = ANY($2::text[]) FROM companies c WHERE c.id = s.company_id), FALSE) DESC,
+		         last.started_at NULLS FIRST, s.key`, now, focus.Countries(ctx))
 	if err != nil {
 		return nil, translate(err, "list due job sources")
 	}

@@ -116,10 +116,10 @@ func TestLoadCrawlDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := Crawl{
-		Concurrency: 16, HostInterval: time.Second, VendorConcurrency: 4,
+		Concurrency: 32, HostInterval: time.Second, VendorConcurrency: 8,
 		UserAgentURL:      "https://github.com/0furkancolak/rolescout",
 		DiscoveryInterval: 168 * time.Hour, CompanySyncInterval: 12 * time.Hour,
-		ResearchInterval: 12 * time.Hour, JSONLDMaxPages: 200, MatchMinScore: 40,
+		ResearchInterval: 12 * time.Hour, JSONLDMaxPages: 500, MatchMinScore: 40,
 		ClosedJobRetention: 2160 * time.Hour,
 	}
 	if cfg.Crawl != want {

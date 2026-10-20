@@ -8,6 +8,9 @@ type Candidate struct {
 	URL    string
 	Name   string
 	Origin string // seed, hackernews, list, link, manual or probe
+	// Country is the ISO 3166-1 code the company hires in, when the source knows
+	// it (a list of Turkish employers); otherwise it comes from the URL's domain.
+	Country string
 }
 
 // Pender is implemented by sources that know they have new work whatever the

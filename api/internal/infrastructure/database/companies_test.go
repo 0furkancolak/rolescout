@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"example.com/rolescout/api/internal/domain"
+	"example.com/rolescout/api/internal/focus"
 )
 
 func strp(s string) *string { return &s }
@@ -325,5 +326,71 @@ func TestDueRespectsCompanyBackoff(t *testing.T) {
 	pool.Exec(ctx, `UPDATE companies SET next_check_at = NOW() + INTERVAL '5 hours' WHERE id = $1`, c.ID)
 	if isDue() {
 		t.Fatal("a company in backoff must not be synced")
+	}
+}
+
+func TestFocusCountriesAreDetectedFirstAndCountriesAreLearned(t *testing.T) {
+	pool := requireDB(t)
+	repo := NewCompanyRepository(pool)
+	ctx := context.Background()
+	// Older companies come first by default; the focus country jumps the queue.
+	var ids = map[string]string{}
+	for _, c := range []struct{ name, country string }{{"first-de", "DE"}, {"second-us", "US"}, {"third-tr", "TR"}, {"fourth-none", ""}} {
+		co, _, err := repo.UpsertDiscovered(ctx, CompanyParams{
+			Name: uniq(c.name), CareersURL: "https://" + uniq("c") + ".example.com/careers", ATS: "unknown", Origin: "seed", Country: c.country,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids[c.country] = co.ID
+		pool.Exec(ctx, `UPDATE companies SET next_check_at = NOW() - $2 * INTERVAL '1 minute' WHERE id = $1`, co.ID, 100-len(ids))
+	}
+	pool.Exec(ctx, `UPDATE companies SET status = 'disabled' WHERE status = 'pending' AND id <> ALL($1::uuid[])`, []string{ids["DE"], ids["US"], ids["TR"], ids[""]})
+
+	plain, err := repo.PendingDetection(ctx, 10)
+	if err != nil || len(plain) != 4 || plain[0].ID != ids["DE"] {
+		t.Fatalf("without focus: %d companies, first %v, err %v", len(plain), plain[0].ID, err)
+	}
+	focused, err := repo.PendingDetection(focus.With(ctx, []string{"TR"}), 10)
+	if err != nil || focused[0].ID != ids["TR"] || focused[1].ID != ids["DE"] {
+		t.Fatalf("with focus TR: first %v, want %v (err %v)", focused[0].ID, ids["TR"], err)
+	}
+
+	// A later sighting with a country fills it in; it does not overwrite one.
+	co, _, _ := repo.UpsertDiscovered(ctx, CompanyParams{Name: "x", CareersURL: plain[3].CareersURL, ATS: "unknown", Origin: "link", Country: "FR"})
+	var got *string
+	pool.QueryRow(ctx, `SELECT country FROM companies WHERE id = $1`, co.ID).Scan(&got)
+	if got == nil || *got != "FR" {
+		t.Errorf("country of a company seen again = %v", got)
+	}
+	repo.UpsertDiscovered(ctx, CompanyParams{Name: "x", CareersURL: plain[3].CareersURL, ATS: "unknown", Origin: "link", Country: "IT"})
+	pool.QueryRow(ctx, `SELECT country FROM companies WHERE id = $1`, co.ID).Scan(&got)
+	if *got != "FR" {
+		t.Errorf("country was overwritten: %s", *got)
+	}
+}
+
+func TestRefreshCountriesUsesTheCountryOfMostJobs(t *testing.T) {
+	pool := requireDB(t)
+	repo := NewCompanyRepository(pool)
+	ctx := context.Background()
+	co, _, err := repo.UpsertDiscovered(ctx, CompanyParams{Name: uniq("refresh"), CareersURL: "https://" + uniq("r") + ".example.com/careers", ATS: "unknown", Origin: "seed"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, cc := range []string{"TR", "TR", "DE"} {
+		if _, err := pool.Exec(ctx, `
+			INSERT INTO jobs (dedupe_key, title, company_name, company_id, country_code) VALUES ($1, 't', 'c', $2, $3)`,
+			uniq("k")+string(rune('a'+i)), co.ID, cc); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := repo.RefreshCountries(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var got *string
+	pool.QueryRow(ctx, `SELECT country FROM companies WHERE id = $1`, co.ID).Scan(&got)
+	if got == nil || *got != "TR" {
+		t.Fatalf("country = %v, want TR", got)
 	}
 }

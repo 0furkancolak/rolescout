@@ -24,7 +24,7 @@ var (
 )
 
 // defaultMaxPages bounds one fetch (Workday caps results anyway).
-const defaultMaxPages = 100
+const defaultMaxPages = 250
 
 // Adapter fetches one career site per source. Config:
 //
@@ -35,7 +35,7 @@ type Adapter struct {
 	Client   *crawl.Client
 	BaseURL  string // overrides https://{host} (for tests)
 	PageSize int    // default 20, Workday's maximum
-	MaxPages int    // default 100
+	MaxPages int    // default 250
 	Now      func() time.Time
 }
 

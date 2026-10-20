@@ -14,6 +14,7 @@ import (
 	"example.com/rolescout/api/internal/crawl"
 	"example.com/rolescout/api/internal/discovery"
 	"example.com/rolescout/api/internal/domain"
+	"example.com/rolescout/api/internal/focus"
 	"example.com/rolescout/api/internal/infrastructure/database"
 	"example.com/rolescout/api/internal/ingest"
 )
@@ -46,6 +47,7 @@ type CompanyStore interface {
 	SetDisabled(ctx context.Context, id string, disabled bool) (domain.Company, error)
 	CountsByATS(ctx context.Context) (map[string]int, error)
 	UpdateTiers(ctx context.Context, top, mid, low time.Duration) error
+	RefreshCountries(ctx context.Context) (int64, error)
 }
 
 type JobStore interface {
@@ -220,6 +222,11 @@ func (p *Pipeline) execute(ctx context.Context, run domain.ResearchRun, rep *rep
 	if err != nil {
 		return nil, fmt.Errorf("load profile: %w", err)
 	}
+	// Companies of the profile's countries are looked at first in every stage.
+	ctx = focus.With(ctx, profile.Countries)
+	if len(profile.Countries) > 0 {
+		rep.event("info", domain.StageDiscovery, "", "focus on "+strings.Join(profile.Countries, ", ")+": their companies are read first")
+	}
 
 	release, err := p.lockStages(ctx, rep)
 	if err != nil {
@@ -237,6 +244,13 @@ func (p *Pipeline) execute(ctx context.Context, run domain.ResearchRun, rep *rep
 	}()
 	if err != nil {
 		return nil, err
+	}
+	// What the jobs say about where each company hires lets the next run read
+	// the profile's countries first.
+	if n, err := p.Companies.RefreshCountries(ctx); err != nil {
+		p.Logger.Warn("refresh company countries", "error", err)
+	} else if n > 0 {
+		rep.event("info", domain.StageCollection, "", fmt.Sprintf("country known for %d more companies", n))
 	}
 
 	open, matches, fresh, err := p.score(ctx, run, profile, rep)
@@ -314,38 +328,23 @@ func (p *Pipeline) discover(ctx context.Context, rep *reporter) error {
 		rep.end(stage, "skipped", fmt.Sprintf("catalog is fresh, %d companies", known))
 		return nil
 	}
+	// The sources are independent (each keeps its own state), and most of the time
+	// is spent waiting for other servers, so they all run at the same time: a
+	// slow one no longer holds up the rest. progress counts finished sources
+	// until the whole catalog size replaces it below.
+	rep.update(stage, func(sp *domain.StageProgress) { sp.Total, sp.Done = len(p.Sources), 0 })
+	var wg sync.WaitGroup
 	for _, src := range p.Sources {
-		key := "discovery." + src.Name()
-		state, err := p.Runs.State(ctx, key)
-		if err != nil {
-			return err
-		}
-		added := 0
-		next, err := src.Discover(ctx, state, func(c discovery.Candidate) error {
-			created, err := p.addCandidate(ctx, c)
-			if err != nil {
-				rep.event("warn", stage, c.Name, fmt.Sprintf("skipped %s: %v", c.URL, err))
-				return ctx.Err()
-			}
-			if created {
-				added++
-				rep.update(stage, func(sp *domain.StageProgress) { sp.Detail[src.Name()]++ })
-				if added%100 == 0 {
-					rep.event("info", stage, "", fmt.Sprintf("%s: %d new companies so far", src.Name(), added))
-				}
-			}
-			return nil
-		})
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		if err != nil {
-			rep.update(stage, func(sp *domain.StageProgress) { sp.Failed++ })
-			rep.event("error", stage, "", fmt.Sprintf("source %s failed: %v", src.Name(), err))
-		} else if err := p.Runs.SetState(ctx, key, next); err != nil {
-			return err
-		}
-		rep.event("info", stage, "", fmt.Sprintf("%s: %d new companies", src.Name(), added))
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			p.discoverFrom(ctx, rep, src)
+			rep.update(stage, func(sp *domain.StageProgress) { sp.Done++ })
+		}()
+	}
+	wg.Wait()
+	if ctx.Err() != nil {
+		return ctx.Err()
 	}
 	if err := p.Runs.SetState(ctx, lastFullKey, p.Now().UTC().Format(time.RFC3339)); err != nil {
 		return err
@@ -357,6 +356,50 @@ func (p *Pipeline) discover(ctx context.Context, rep *reporter) error {
 	rep.update(stage, func(sp *domain.StageProgress) { sp.Total, sp.Done = known, known })
 	rep.end(stage, "done", "")
 	return nil
+}
+
+// discoverFrom reads one discovery source and stores what it finds. A failing
+// source is reported and does not stop the others.
+func (p *Pipeline) discoverFrom(ctx context.Context, rep *reporter, src discovery.Source) {
+	stage := domain.StageDiscovery
+	key := "discovery." + src.Name()
+	state, err := p.Runs.State(ctx, key)
+	if err != nil {
+		rep.update(stage, func(sp *domain.StageProgress) { sp.Failed++ })
+		rep.event("error", stage, "", fmt.Sprintf("source %s: %v", src.Name(), err))
+		return
+	}
+	var mu sync.Mutex
+	added := 0
+	rep.event("info", stage, "", fmt.Sprintf("%s: started", src.Name()))
+	next, err := src.Discover(ctx, state, func(c discovery.Candidate) error {
+		created, err := p.addCandidate(ctx, c)
+		if err != nil {
+			rep.event("warn", stage, c.Name, fmt.Sprintf("skipped %s: %v", c.URL, err))
+			return ctx.Err()
+		}
+		if created {
+			mu.Lock()
+			added++
+			n := added
+			mu.Unlock()
+			rep.update(stage, func(sp *domain.StageProgress) { sp.Detail[src.Name()]++ })
+			if n%100 == 0 {
+				rep.event("info", stage, "", fmt.Sprintf("%s: %d new companies so far", src.Name(), n))
+			}
+		}
+		return nil
+	})
+	if ctx.Err() != nil {
+		return
+	}
+	if err != nil {
+		rep.update(stage, func(sp *domain.StageProgress) { sp.Failed++ })
+		rep.event("error", stage, "", fmt.Sprintf("source %s failed: %v", src.Name(), err))
+	} else if err := p.Runs.SetState(ctx, key, next); err != nil {
+		rep.event("error", stage, "", fmt.Sprintf("source %s: save state: %v", src.Name(), err))
+	}
+	rep.event("info", stage, "", fmt.Sprintf("%s: %d new companies", src.Name(), added))
 }
 
 func (p *Pipeline) knownCompanies(ctx context.Context) (int, error) {
@@ -371,7 +414,10 @@ func (p *Pipeline) knownCompanies(ctx context.Context) (int, error) {
 // addCandidate stores a discovered URL as a company: with its board when the
 // URL is a board, else as a career page to detect.
 func (p *Pipeline) addCandidate(ctx context.Context, c discovery.Candidate) (bool, error) {
-	params := database.CompanyParams{Name: c.Name, CareersURL: c.URL, ATS: "unknown", Origin: c.Origin}
+	params := database.CompanyParams{Name: c.Name, CareersURL: c.URL, ATS: "unknown", Origin: c.Origin, Country: c.Country}
+	if params.Country == "" {
+		params.Country = discovery.CountryOfURL(c.URL)
+	}
 	if b, ok := discovery.ParseBoardURL(c.URL); ok {
 		params.ATS, params.ATSID = b.ATS, &b.ID
 		if params.Name == "" {

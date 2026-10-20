@@ -6,6 +6,11 @@ include breaking changes, which are called out.
 
 ## [Unreleased]
 ### Added
+- Country focus: a research profile's countries are read first in every stage
+  (companies of those countries are identified and their jobs collected before
+  the rest), and the sector search asks about those countries before the
+  general regions. Companies carry a country (from the career page's domain, the
+  shipped Türkiye list, then the countries of their jobs).
 - Company discovery from more places: US stock exchange listings (Nasdaq Trader
   directories) and, when AI is on, sector by sector (25 industries × worldwide,
   Türkiye, Europe, United States). Both only produce names; a name becomes a
@@ -63,6 +68,11 @@ include breaking changes, which are called out.
   employers).
 - `make dev` streams the API and worker logs into the terminal.
 ### Changed
+- Research is much faster: all discovery sources run at the same time (the
+  stage shows sources finished), names are probed eight at a time, defaults are
+  32 hosts in parallel and 8 requests per job board API (150 ms apart), the
+  sector search asks four sector/region questions at once, and larger career
+  sites are read in full (500 pages, Workday 250 pages of 20).
 - All SQL is written out as literal statements with parameters; the dynamic
   query builder (job search, facets) is replaced by fixed statements with
   optional filters, and a test fails if SQL is ever built at run time.

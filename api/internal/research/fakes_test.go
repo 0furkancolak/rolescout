@@ -214,6 +214,7 @@ func (f *fakeCompanies) CountsByATS(context.Context) (map[string]int, error) {
 	}
 	return m, nil
 }
+func (f *fakeCompanies) RefreshCountries(context.Context) (int64, error) { return 0, nil }
 func (f *fakeCompanies) UpdateTiers(context.Context, time.Duration, time.Duration, time.Duration) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()

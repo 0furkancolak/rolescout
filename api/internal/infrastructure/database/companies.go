@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"example.com/rolescout/api/internal/focus"
 	"fmt"
 	"regexp"
 	"strings"
@@ -41,6 +42,8 @@ type CompanyParams struct {
 	Origin     string
 	ATSID      *string
 	Domain     *string
+	// Country is the ISO 3166-1 alpha-2 code the company hires in, when known.
+	Country string
 }
 
 // UpsertDiscovered adds a company or returns the existing one. A known board
@@ -63,10 +66,10 @@ func (r *CompanyRepository) UpsertDiscovered(ctx context.Context, p CompanyParam
 		switch {
 		case err == pgx.ErrNoRows:
 			err = tx.QueryRow(ctx, `
-				INSERT INTO companies (name, domain, careers_url, ats, ats_id, origin)
-				VALUES ($1, $2, $3, $4, $5, $6)
+				INSERT INTO companies (name, domain, careers_url, ats, ats_id, origin, country)
+				VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7::text, ''))
 				ON CONFLICT DO NOTHING RETURNING id`,
-				p.Name, p.Domain, p.CareersURL, ats, p.ATSID, p.Origin).Scan(&id)
+				p.Name, p.Domain, p.CareersURL, ats, p.ATSID, p.Origin, p.Country).Scan(&id)
 			if err == pgx.ErrNoRows {
 				// Inserted concurrently by another discoverer.
 				return tx.QueryRow(ctx, `SELECT id FROM companies WHERE careers_url = $1 OR (ats = $2 AND ats_id = $3)`,
@@ -78,6 +81,11 @@ func (r *CompanyRepository) UpsertDiscovered(ctx context.Context, p CompanyParam
 			created = true
 		case err != nil:
 			return translate(err, "find company")
+		default:
+			// A known company learns its country from a later sighting.
+			if _, err := tx.Exec(ctx, `UPDATE companies SET country = $2 WHERE id = $1 AND country IS NULL AND $2::text <> ''`, id, p.Country); err != nil {
+				return translate(err, "set company country")
+			}
 		}
 		c, err = scanCompany(tx.QueryRow(ctx, `SELECT c.id, c.name, c.domain, c.careers_url, c.ats, c.ats_id, c.origin, c.status,
 	c.last_checked_at, c.last_error, c.failure_count, c.next_check_at,
@@ -109,7 +117,8 @@ func (r *CompanyRepository) PendingDetection(ctx context.Context, limit int) ([]
 	c.created_at, c.updated_at FROM companies c
 		WHERE c.status = 'pending'
 		   OR (c.ats = 'unknown' AND c.status NOT IN ('disabled') AND c.next_check_at <= NOW())
-		ORDER BY c.next_check_at, c.id LIMIT $1`, limit)
+		-- Companies of the research profile's countries are identified first.
+		ORDER BY COALESCE(c.country = ANY($2::text[]), FALSE) DESC, c.next_check_at, c.id LIMIT $1`, limit, focus.Countries(ctx))
 	return collectCompanies(rows, err, "list companies pending detection")
 }
 
@@ -402,4 +411,20 @@ func (r *CompanyRepository) NamesWithoutBoard(ctx context.Context, after string,
 		out = append(out, n)
 	}
 	return out, translate(rows.Err(), "list names without board")
+}
+
+// RefreshCountries sets each company's country to the country most of its jobs
+// are in, so the next research run can read the companies of a profile's
+// countries first. It returns how many companies changed.
+func (r *CompanyRepository) RefreshCountries(ctx context.Context) (int64, error) {
+	tag, err := r.pool.Exec(ctx, `
+		UPDATE companies c SET country = j.country
+		FROM (
+			SELECT company_id, mode() WITHIN GROUP (ORDER BY country_code) AS country
+			FROM jobs
+			WHERE company_id IS NOT NULL AND country_code IS NOT NULL
+			GROUP BY company_id
+		) j
+		WHERE c.id = j.company_id AND c.country IS DISTINCT FROM j.country`)
+	return tag.RowsAffected(), translate(err, "refresh company countries")
 }

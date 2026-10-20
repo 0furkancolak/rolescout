@@ -235,3 +235,44 @@ func TestDiscoveryLogsProgressEveryHundredCompanies(t *testing.T) {
 		t.Fatalf("progress events = %v", progress)
 	}
 }
+
+// gateSource waits until every other gateSource has started, which only
+// happens when the sources run at the same time.
+type gateSource struct {
+	name    string
+	started chan<- string
+	all     <-chan struct{}
+}
+
+func (g gateSource) Name() string { return g.name }
+func (g gateSource) Discover(ctx context.Context, state string, fn func(discovery.Candidate) error) (string, error) {
+	g.started <- g.name
+	select {
+	case <-g.all:
+		return "ok", fn(discovery.Candidate{URL: "https://" + g.name + ".example/careers", Name: g.name, Origin: "seed"})
+	case <-time.After(3 * time.Second):
+		return state, errors.New("the other source never started: sources run one after another")
+	}
+}
+
+func TestDiscoverySourcesRunAtTheSameTime(t *testing.T) {
+	h := newHarness()
+	started := make(chan string, 3)
+	all := make(chan struct{})
+	h.p.Sources = []discovery.Source{
+		gateSource{"alpha", started, all}, gateSource{"beta", started, all}, gateSource{"gamma", started, all},
+	}
+	go func() {
+		for range 3 {
+			<-started
+		}
+		close(all)
+	}()
+	if err := h.p.Execute(context.Background(), testRun); err != nil {
+		t.Fatal(err)
+	}
+	disc := lastSaved(h.runs).Stages[domain.StageDiscovery]
+	if disc.Failed != 0 || disc.Detail["alpha"] != 1 || disc.Detail["beta"] != 1 || disc.Detail["gamma"] != 1 {
+		t.Fatalf("discovery = %+v", disc)
+	}
+}
