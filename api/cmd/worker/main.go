@@ -81,6 +81,8 @@ func run() error {
 			&discovery.CatalogProbe{Probe: &discovery.Probe{Client: crawler}, Names: companies.NamesWithoutBoard},
 			&discovery.HackerNews{Client: crawler, ThreadURL: "https://hn.algolia.com/api/v1"},
 			&discovery.MarkdownList{Client: crawler, URLs: discovery.DefaultLists},
+			// Y Combinator companies that are hiring.
+			&discovery.YCombinator{Client: crawler},
 		},
 		Config: research.Config{
 			DiscoveryInterval:   cfg.Crawl.DiscoveryInterval,

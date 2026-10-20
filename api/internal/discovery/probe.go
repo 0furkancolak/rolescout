@@ -36,8 +36,41 @@ type Probe struct {
 
 func (p *Probe) Name() string { return "probe" }
 
-// ProbeNames returns the embedded company names.
-func ProbeNames() []string { return parseNames(probeNamesFile) }
+// ProbeNames returns the embedded company names and the names of the embedded
+// seeds that are not job boards themselves (their career pages are found by
+// detection; the probe also looks for their boards by name).
+func ProbeNames() []string {
+	names := parseNames(probeNamesFile)
+	seen := map[string]bool{}
+	for _, n := range names {
+		seen[strings.ToLower(n)] = true
+	}
+	for _, file := range []string{turkeyEmployersFile, agenciesFile} {
+		seeds, _ := ParseSeeds(file)
+		for _, s := range seeds {
+			n := probeNameOf(s.Name)
+			if n != "" && !seen[strings.ToLower(n)] {
+				seen[strings.ToLower(n)] = true
+				names = append(names, n)
+			}
+		}
+	}
+	return names
+}
+
+// probeNameOf is the company name behind a seed's label: "Adecco Türkiye" is
+// probed as "Adecco", and labels of career sites ("Turkcell Kariyer") are not
+// names of companies.
+func probeNameOf(label string) string {
+	label = strings.TrimSpace(label)
+	if strings.HasSuffix(label, " Kariyer") {
+		return ""
+	}
+	for _, suffix := range []string{" Türkiye", " Turkey"} {
+		label = strings.TrimSuffix(label, suffix)
+	}
+	return label
+}
 
 func parseNames(text string) []string {
 	var out []string

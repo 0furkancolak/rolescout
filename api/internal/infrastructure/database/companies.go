@@ -44,6 +44,9 @@ type CompanyParams struct {
 	Domain     *string
 	// Country is the ISO 3166-1 alpha-2 code the company hires in, when known.
 	Country string
+	// SameSite lists other spellings of a bare home page (www, http, trailing
+	// slash); a company stored under one of them is the same company.
+	SameSite []string
 }
 
 // UpsertDiscovered adds a company or returns the existing one. A known board
@@ -60,9 +63,9 @@ func (r *CompanyRepository) UpsertDiscovered(ctx context.Context, p CompanyParam
 		var id string
 		err := tx.QueryRow(ctx, `
 			SELECT id FROM companies
-			WHERE ($1::text IS NOT NULL AND ats = $2 AND ats_id = $1) OR careers_url = $3
-			ORDER BY (ats_id = $1) DESC NULLS LAST LIMIT 1 FOR UPDATE`,
-			p.ATSID, ats, p.CareersURL).Scan(&id)
+			WHERE ($1::text IS NOT NULL AND ats = $2 AND ats_id = $1) OR careers_url = $3 OR careers_url = ANY($4::text[])
+			ORDER BY (ats_id = $1) DESC NULLS LAST, (careers_url = $3) DESC LIMIT 1 FOR UPDATE`,
+			p.ATSID, ats, p.CareersURL, p.SameSite).Scan(&id)
 		switch {
 		case err == pgx.ErrNoRows:
 			err = tx.QueryRow(ctx, `

@@ -1,0 +1,256 @@
+# Employers in Türkiye: company sites and career pages, including staffing agencies, banks,
+# software houses, defence, telecom and corporates: "URL | Company".
+# Each answered over HTTPS on 2026-10-20. They are not job boards: the detector finds the career page
+# of each, or the company is probed on the supported job board systems by name.
+https://about.meta.com | Meta
+https://dreamgames.com | Dream Games
+https://kariyer.garantibbva.com.tr | Garanti BBVA Kariyer
+https://kariyer.thy.com | THY Kariyer
+https://kariyer.turkcell.com.tr | Turkcell Kariyer
+https://kariyer.vodafone.com.tr | Vodafone Kariyer
+https://useinsider.com | Insider
+https://www.a101.com.tr | A101
+https://www.abbott.com.tr | Abbott Türkiye
+https://www.abdiibrahim.com.tr | Abdi İbrahim
+https://www.accenture.com | Accenture
+https://www.acibadem.com.tr | Acıbadem
+https://www.adecco.com.tr | Adecco Türkiye
+https://www.agavegames.com | Agave Games
+https://www.agesa.com.tr | Agesa
+https://www.akbank.com | Akbank
+https://www.akcansa.com.tr | Akçansa
+https://www.aksa.com.tr | Aksa
+https://www.aksigorta.com.tr | Aksigorta
+https://www.albarakaturk.com.tr | Albaraka Türk
+https://www.allianz.com.tr | Allianz Türkiye
+https://www.amazon.jobs | Amazon
+https://www.anadolugrubu.com.tr | Anadolu Grubu
+https://www.anadolusigorta.com.tr | Anadolu Sigorta
+https://www.arabam.com | arabam.com
+https://www.arcelik.com.tr | Arçelik
+https://www.aselsan.com | ASELSAN
+https://www.avivasa.com.tr | AvivaSA
+https://www.axa.com.tr | AXA Türkiye
+https://www.aygaz.com.tr | Aygaz
+https://www.bain.com | Bain & Company
+https://www.banvit.com | Banvit
+https://www.bauhaus.com.tr | Bauhaus Türkiye
+https://www.bayer.com.tr | Bayer Türkiye
+https://www.baykartech.com | Baykar
+https://www.bcg.com | BCG
+https://www.beko.com | Beko
+https://www.biletall.com | Biletall
+https://www.bilgeadam.com | BilgeAdam
+https://www.bilkent.edu.tr | Bilkent Üniversitesi
+https://www.bim.com.tr | BİM
+https://www.bmc.com.tr | BMC
+https://www.borsaistanbul.com | Borsa İstanbul
+https://www.borusan.com | Borusan
+https://www.bosch.com | Bosch
+https://www.boun.edu.tr | Boğaziçi Üniversitesi
+https://www.boyner.com.tr | Boyner
+https://www.bp.com | BP
+https://www.btcturk.com | BtcTurk
+https://www.capgemini.com | Capgemini
+https://www.carrefoursa.com | CarrefourSA
+https://www.ciceksepeti.com | Çiçeksepeti
+https://www.cimsa.com.tr | Çimsa
+https://www.cisco.com | Cisco
+https://www.colendi.com | Colendi
+https://www.craftgate.io | Craftgate
+https://www.danone.com.tr | Danone Türkiye
+https://www.defacto.com.tr | DeFacto
+https://www.deloitte.com | Deloitte
+https://www.demirdokum.com.tr | Demirdöküm
+https://www.denizbank.com | DenizBank
+https://www.dogusgrubu.com.tr | Doğuş Grubu
+https://www.doktortakvimi.com | Doktor Takvimi
+https://www.eca.com.tr | ECA
+https://www.eczacibasi.com.tr | Eczacıbaşı
+https://www.efes.com.tr | Anadolu Efes
+https://www.egonzehnder.com | Egon Zehnder
+https://www.emlakkonut.com.tr | Emlak Konut
+https://www.enka.com | ENKA
+https://www.enpara.com | Enpara
+https://www.enuygun.com | Enuygun
+https://www.erdemir.com.tr | Erdemir
+https://www.ericsson.com | Ericsson
+https://www.eti.com.tr | Eti
+https://www.etiya.com | Etiya
+https://www.etstur.com | ETS Tur
+https://www.ey.com | EY
+https://www.fibabanka.com.tr | Fibabanka
+https://www.figopara.com | Figopara
+https://www.flo.com.tr | FLO
+https://www.fnss.com.tr | FNSS
+https://www.ford.com.tr | Ford Otosan
+https://www.garantibbva.com.tr | Garanti BBVA
+https://www.garantibbvateknoloji.com.tr | Garanti BBVA Teknoloji
+https://www.garantibbvayatirim.com.tr | Garanti BBVA Yatırım
+https://www.getir.com | Getir
+https://www.gigroup.com.tr | Gi Group Türkiye
+https://www.gitlab.com | GitLab
+https://www.google.com | Google
+https://www.halkbank.com.tr | Halkbank
+https://www.havelsan.com.tr | HAVELSAN
+https://www.hays.com.tr | Hays Türkiye
+https://www.hdisigorta.com.tr | HDI Sigorta
+https://www.heidrick.com | Heidrick & Struggles
+https://www.hepsiburada.com | Hepsiburada
+https://www.hiddenstory.com | Hidden Story
+https://www.hmgroup.com | H&M Group
+https://www.hop.com.tr | Hop
+https://www.hsbc.com.tr | HSBC Türkiye
+https://www.huawei.com | Huawei
+https://www.hudson.com | Hudson
+https://www.hugin.com.tr | Hugin
+https://www.ibm.com | IBM
+https://www.ikea.com.tr | IKEA Türkiye
+https://www.inditex.com | Inditex
+https://www.ingbank.com.tr | ING Türkiye
+https://www.ininal.com | ininal
+https://www.innova.com.tr | Innova
+https://www.intel.com | Intel
+https://www.isbank.com.tr | İş Bankası
+https://www.isyatirim.com.tr | İş Yatırım
+https://www.itu.edu.tr | İTÜ
+https://www.iyzico.com | iyzico
+https://www.jetbrains.com | JetBrains
+https://www.jollytur.com | Jolly
+https://www.kalyon.com.tr | Kalyon
+https://www.kardemir.com | Kardemir
+https://www.karsan.com.tr | Karsan
+https://www.kellyservices.com.tr | Kelly Services Türkiye
+https://www.king.com | King
+https://www.koc.com.tr | Koç Holding
+https://www.kocsistem.com.tr | Koç Sistem
+https://www.kolin.com.tr | Kolin
+https://www.kornferry.com | Korn Ferry
+https://www.koton.com | Koton
+https://www.kpmg.com | KPMG
+https://www.kuveytturk.com.tr | Kuveyt Türk
+https://www.lcwaikiki.com | LC Waikiki
+https://www.lessmore.games | Lessmore Games
+https://www.letgo.com | letgo
+https://www.limak.com.tr | Limak
+https://www.liv.hospital | Liv Hospital
+https://www.logo.com.tr | Logo Yazılım
+https://www.mapfre.com.tr | Mapfre Türkiye
+https://www.mavi.com | Mavi
+https://www.mediamarkt.com.tr | MediaMarkt Türkiye
+https://www.medicalpark.com.tr | Medical Park
+https://www.medicana.com.tr | Medicana
+https://www.memorial.com.tr | Memorial
+https://www.metro-tr.com | Metro Türkiye
+https://www.metu.edu.tr | ODTÜ
+https://www.michaelpage.com.tr | Michael Page Türkiye
+https://www.microsoft.com | Microsoft
+https://www.midas.app | Midas
+https://www.migros.com.tr | Migros
+https://www.mikro.com.tr | Mikro Yazılım
+https://www.mkk.com.tr | MKK
+https://www.moka.com | Moka
+https://www.n11.com | n11
+https://www.nanobit.com | Nanobit
+https://www.nestle.com.tr | Nestlé Türkiye
+https://www.netas.com.tr | Netaş
+https://www.nkolay.com | Nkolay
+https://www.nobel.com.tr | Nobel İlaç
+https://www.nokia.com | Nokia
+https://www.novartis.com.tr | Novartis Türkiye
+https://www.obilet.com | obilet
+https://www.obss.com.tr | OBSS
+https://www.odeabank.com.tr | Odeabank
+https://www.opet.com.tr | Opet
+https://www.oracle.com | Oracle
+https://www.otokar.com.tr | Otokar
+https://www.oyakrenault.com.tr | Oyak Renault
+https://www.ozdilek.com.tr | Özdilek
+https://www.papara.com | Papara
+https://www.param.com.tr | Param
+https://www.parasut.com | Paraşüt
+https://www.paribu.com | Paribu
+https://www.pasabahce.com | Paşabahçe
+https://www.pavo.com.tr | Pavo
+https://www.payten.com | Payten
+https://www.peak.com | Peak
+https://www.pegasus.com.tr | Pegasus
+https://www.pepsico.com.tr | PepsiCo Türkiye
+https://www.petkim.com.tr | Petkim
+https://www.petrolofisi.com.tr | Petrol Ofisi
+https://www.pfizer.com.tr | Pfizer Türkiye
+https://www.pg.com.tr | P&G Türkiye
+https://www.philips.com.tr | Philips Türkiye
+https://www.pinar.com.tr | Pınar
+https://www.playstudios.com | Playstudios
+https://www.pwc.com.tr | PwC Türkiye
+https://www.qnbfinansbank.com | QNB Finansbank
+https://www.randstad.com.tr | Randstad Türkiye
+https://www.roberthalf.com | Robert Half
+https://www.roketsan.com.tr | Roketsan
+https://www.ronesans.com | Rönesans İnşaat
+https://www.rovio.com | Rovio
+https://www.russellreynolds.com | Russell Reynolds
+https://www.sabanciuniv.edu | Sabancı Üniversitesi
+https://www.sahibinden.com | sahibinden.com
+https://www.samsung.com | Samsung
+https://www.sanofi.com.tr | Sanofi Türkiye
+https://www.sap.com | SAP
+https://www.sasa.com.tr | SASA
+https://www.scopely.com | Scopely
+https://www.sekerbank.com.tr | Şekerbank
+https://www.setur.com.tr | Setur
+https://www.shell.com.tr | Shell Türkiye
+https://www.siemens.com | Siemens
+https://www.sipay.com.tr | Sipay
+https://www.sisecam.com | Şişecam
+https://www.sokmarket.com.tr | ŞOK
+https://www.sompo.com.tr | Sompo
+https://www.spencerstuart.com | Spencer Stuart
+https://www.stm.com.tr | STM
+https://www.sunexpress.com | SunExpress
+https://www.supercell.com | Supercell
+https://www.superonline.net | Superonline
+https://www.sutas.com.tr | Sütaş
+https://www.tai.com.tr | Türk Havacılık ve Uzay Sanayii
+https://www.takasbank.com.tr | Takasbank
+https://www.talentboutique.com | Talent Boutique
+https://www.tat.com.tr | Tat Gıda
+https://www.tatilbudur.com | Tatilbudur
+https://www.tatilsepeti.com | Tatilsepeti
+https://www.tcmb.gov.tr | TCMB
+https://www.teb.com.tr | TEB
+https://www.tekfen.com.tr | Tekfen
+https://www.teknosa.com | Teknosa
+https://www.temsa.com | Temsa
+https://www.tofas.com.tr | Tofaş
+https://www.togg.com.tr | Togg
+https://www.torku.com.tr | Torku
+https://www.tosla.com | Tosla
+https://www.trendyol.com | Trendyol
+https://www.tripledotstudios.com | Tripledot
+https://www.tubitak.gov.tr | TÜBİTAK
+https://www.tupras.com.tr | Tüpraş
+https://www.turkcell.com.tr | Turkcell
+https://www.turkiyefinans.com.tr | Türkiye Finans
+https://www.turkiyesigorta.com.tr | Türkiye Sigorta
+https://www.turktelekom.com.tr | Türk Telekom
+https://www.ubisoft.com | Ubisoft
+https://www.ulker.com.tr | Ülker
+https://www.unilever.com.tr | Unilever Türkiye
+https://www.vakifbank.com.tr | VakıfBank
+https://www.vakifkatilim.com.tr | Vakıf Katılım
+https://www.vakko.com | Vakko
+https://www.vatanbilgisayar.com | Vatan Bilgisayar
+https://www.vertigogames.co | Vertigo Games
+https://www.vestel.com.tr | Vestel
+https://www.vitra.com.tr | VitrA
+https://www.vodafone.com.tr | Vodafone Türkiye
+https://www.yapikredi.com.tr | Yapı Kredi
+https://www.yemeksepeti.com | Yemeksepeti
+https://www.yildiz.edu.tr | Yıldız Teknik
+https://www.yildizholding.com.tr | Yıldız Holding
+https://www.ziraatbank.com.tr | Ziraat Bankası
+https://www.ziraatkatilim.com.tr | Ziraat Katılım
+https://www.zorlu.com.tr | Zorlu Holding
+https://www.zynga.com | Zynga
