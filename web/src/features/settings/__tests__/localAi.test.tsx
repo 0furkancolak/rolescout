@@ -11,7 +11,15 @@ const settingsBase = {
   ...admin,
   "GET /admin/adapters": { body: { data: [] } },
   "GET /admin/settings": { body: { data: [] } },
+  "GET /admin/llm/config": { body: { data: config() } },
 };
+
+function config(over = {}) {
+  return {
+    enabled: true, base_url: "http://host.docker.internal:11434/v1", model: "qwen3:4b-instruct-2507-q4_K_M",
+    has_api_key: false, background: true, background_auto: true, local: true, stored: {}, ...over,
+  };
+}
 
 const status = (over = {}) => ({
   enabled: true, base_host: "host.docker.internal:11434", model: "qwen3:4b-instruct-2507-q4_K_M", fallback_model: "qwen3:1.7b-q4_K_M",
@@ -20,7 +28,7 @@ const status = (over = {}) => ({
 });
 
 async function card() {
-  const heading = await screen.findByRole("heading", { name: "Local AI" });
+  const heading = await screen.findByRole("heading", { name: "AI" });
   return heading.closest("section") as HTMLElement;
 }
 
@@ -29,8 +37,8 @@ describe("LocalAiCard", () => {
     mockApi({ ...settingsBase, "GET /admin/llm": { body: { data: { enabled: false } } } });
     renderApp("/settings");
     const c = within(await card());
-    expect(await c.findByText("Local AI is off")).toBeInTheDocument();
-    expect(c.getByText(/LLM_ENABLED=true/)).toBeInTheDocument();
+    expect(await c.findByText("AI is off")).toBeInTheDocument();
+    expect(c.getByText(/connection form above/)).toBeInTheDocument();
     expect(c.getByRole("link", { name: /local-ai/i })).toHaveAttribute("href", expect.stringContaining("local-ai.md"));
     expect(c.queryByRole("button", { name: "Test connection" })).toBeNull();
   });
@@ -115,5 +123,73 @@ describe("LocalAiCard", () => {
     renderApp("/settings");
     const c = within(await card());
     expect(await c.findByRole("alert")).toHaveTextContent("Job text is sent to gpu.example.com:443");
+  });
+
+  it("saves a hosted service with its API key and never shows the key back", async () => {
+    const api = mockApi({
+      ...settingsBase,
+      "GET /admin/llm": { body: { data: status() } },
+      "PUT /admin/llm/config": () => ({
+        body: { data: config({ base_url: "https://api.openai.com/v1", model: "gpt-4o-mini", has_api_key: true, api_key_hint: "••••1234", background: false }) },
+      }),
+    });
+    renderApp("/settings");
+    const c = within(await card());
+    await userEvent.click(await c.findByRole("button", { name: "OpenAI" }));
+    expect(c.getByLabelText("Base URL")).toHaveValue("https://api.openai.com/v1");
+    expect(c.getByLabelText("Model")).toHaveValue("gpt-4o-mini");
+    expect(c.getByRole("note")).toHaveTextContent("Job text is sent to api.openai.com");
+    expect(c.getByText(/Automatic: off/)).toBeInTheDocument();
+    await userEvent.type(c.getByLabelText("API key"), "sk-test-1234");
+    await userEvent.click(c.getByRole("button", { name: "Save" }));
+    expect(await c.findByText("Saved.")).toBeInTheDocument();
+    const put = api.calls.find((x) => x.method === "PUT" && x.path === "/admin/llm/config");
+    expect(put?.body).toMatchObject({ enabled: true, base_url: "https://api.openai.com/v1", model: "gpt-4o-mini", api_key: "sk-test-1234", reset_background: true });
+    expect(c.getByLabelText("API key")).toHaveValue("");
+    expect(c.getByText("Saved (••••1234). Leave empty to keep it.")).toBeInTheDocument();
+    expect(document.body.textContent).not.toContain("sk-test-1234");
+  });
+
+  it("leaves the saved key alone unless a new one is typed", async () => {
+    const api = mockApi({
+      ...settingsBase,
+      "GET /admin/llm/config": { body: { data: config({ has_api_key: true, api_key_hint: "••••1234" }) } },
+      "GET /admin/llm": { body: { data: status() } },
+      "PUT /admin/llm/config": { body: { data: config({ has_api_key: true, api_key_hint: "••••1234" }) } },
+    });
+    renderApp("/settings");
+    const c = within(await card());
+    await userEvent.click(await c.findByRole("button", { name: "Save" }));
+    await c.findByText("Saved.");
+    const put = api.calls.find((x) => x.method === "PUT");
+    expect(put?.body).not.toHaveProperty("api_key");
+  });
+
+  it("removes the saved key", async () => {
+    const api = mockApi({
+      ...settingsBase,
+      "GET /admin/llm/config": { body: { data: config({ has_api_key: true, api_key_hint: "••••1234" }) } },
+      "GET /admin/llm": { body: { data: status() } },
+      "PUT /admin/llm/config": { body: { data: config() } },
+    });
+    renderApp("/settings");
+    const c = within(await card());
+    await userEvent.click(await c.findByRole("button", { name: "Remove saved key" }));
+    await vi.waitFor(() => expect(api.calls.find((x) => x.method === "PUT")?.body).toEqual({ api_key: "" }));
+  });
+
+  it("shows the server's complaint about a bad URL next to the field", async () => {
+    mockApi({
+      ...settingsBase,
+      "GET /admin/llm": { body: { data: status() } },
+      "PUT /admin/llm/config": {
+        status: 422,
+        body: { error: { code: "invalid_input", message: "invalid", fields: [{ field: "base_url", message: "must be an absolute http(s) URL" }] } },
+      },
+    });
+    renderApp("/settings");
+    const c = within(await card());
+    await userEvent.click(await c.findByRole("button", { name: "Save" }));
+    expect(await c.findByText("must be an absolute http(s) URL")).toBeInTheDocument();
   });
 });

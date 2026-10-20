@@ -84,6 +84,18 @@ maintainers instead of opening a public issue.
   multi-user installation, close registration so only trusted users can add
   pages to crawl.
 
+## Language model and API key (optional)
+An administrator can connect a hosted OpenAI-compatible service in Settings → AI.
+The API key is then stored **in plain text in the `app_settings` table**, like
+`POSTGRES_PASSWORD` it protects only as far as the database does: restrict
+access to the database and its backups (`scripts/backup.sh` includes it). The
+API never returns the key, only its last four characters; it is sent only in the
+`Authorization` header to the configured base URL; only the administrator can
+read or change the connection. Job text then leaves your machine for that
+service (the form says so). On-demand generation is limited to 60 requests an
+hour per client IP, and the worker does not read the catalog on its own for a
+non-local host unless the administrator turns that on.
+
 ## Local language model (optional)
 With `LLM_ENABLED=true` the worker sends job descriptions, titles and, for match
 explanations, a short summary of a research profile to the model server named

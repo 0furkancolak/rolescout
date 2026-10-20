@@ -86,6 +86,32 @@ export interface JobAI {
   extra_technologies: string[];
 }
 
+export interface LlmConfig {
+  enabled: boolean;
+  base_url: string;
+  model: string;
+  has_api_key: boolean;
+  api_key_hint?: string;
+  background: boolean;
+  background_auto: boolean;
+  local: boolean;
+  stored: Record<string, boolean>;
+}
+
+export interface LlmConfigUpdate {
+  enabled?: boolean;
+  base_url?: string;
+  model?: string;
+  api_key?: string;
+  background?: boolean;
+  reset_background?: boolean;
+}
+
+export interface Analysis {
+  explanation: string;
+  ai: JobAI | null;
+}
+
 export interface LlmStatus {
   enabled: boolean;
   base_host?: string;

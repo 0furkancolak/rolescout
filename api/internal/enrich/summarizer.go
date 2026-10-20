@@ -19,8 +19,11 @@ type SummaryStore interface {
 // Summarizer writes a job summary on first request and reuses it after. Only
 // one request per job and language asks the model at a time.
 type Summarizer struct {
-	Client  llm.Completer
-	Model   string
+	Client llm.Completer
+	Model  string
+	// ModelFn, when set, names the model that wrote a summary (it can change
+	// at run time) instead of Model.
+	ModelFn func(ctx context.Context) string
 	Store   SummaryStore
 	Timeout time.Duration
 
@@ -82,7 +85,7 @@ func (s *Summarizer) begin(ctx context.Context, jobID, title, company, descripti
 		defer cancel()
 		c.text, c.err = llm.Summarize(run, s.Client, title, company, description, language, c.write)
 		if c.err == nil {
-			_ = s.Store.Put(run, jobID, language, hash, llm.SummaryPromptVersion, s.Model, c.text)
+			_ = s.Store.Put(run, jobID, language, hash, llm.SummaryPromptVersion, s.modelName(run), c.text)
 		}
 		s.mu.Lock()
 		delete(s.flight, key)
@@ -155,4 +158,11 @@ func (s *Summarizer) timeout() time.Duration {
 		return s.Timeout
 	}
 	return 3 * time.Minute
+}
+
+func (s *Summarizer) modelName(ctx context.Context) string {
+	if s.ModelFn != nil {
+		return s.ModelFn(ctx)
+	}
+	return s.Model
 }

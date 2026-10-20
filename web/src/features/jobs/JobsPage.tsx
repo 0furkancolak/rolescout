@@ -206,7 +206,7 @@ export function JobsPage() {
 
         <div className={selected ? "" : "hidden lg:block"}>
           {selected ? (
-            <JobDetailPane job={selected} onBack={() => update({ job: "" }, true)} />
+            <JobDetailPane job={selected} profileId={search.profile} onBack={() => update({ job: "" }, true)} />
           ) : (
             <p className="rounded-hero border border-dashed border-line-strong p-8 text-center text-sm text-ink-muted">
               {t("browse.selectJob")}

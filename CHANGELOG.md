@@ -6,6 +6,19 @@ include breaking changes, which are called out.
 
 ## [Unreleased]
 ### Added
+- AI with an API key: Settings → AI edits the connection (on/off, base URL,
+  model, API key) in the database; changes apply within seconds without a
+  restart and override `LLM_*` (`GET`/`PUT /admin/llm/config`). The key is never
+  returned. Works with any OpenAI-compatible service.
+- "Generate AI explanation" on a job's "Why it matches": reads the posting and
+  writes why it fits at any score, so low-scoring matches get AI text on demand
+  (`POST /workspaces/{id}/jobs/{id}/analyze`, 60 an hour per client). For a
+  hosted service the worker no longer reads the whole catalog unless the
+  administrator turns on background reading.
+- `make doctor` checks Docker, Node, ports and `.env`; `make dev` stops early
+  with a clear message (for example when port 8080 is taken); `make rebuild`
+  restarts the API and worker after Go changes; `make test-api` runs the
+  database tests against the dev PostgreSQL when it is up.
 - Job browser: results load as you scroll; filters moved to a drawer behind a
   "Filters" button; the selected job scrolls on its own with its title and
   actions pinned; original description on the left and the model's reading

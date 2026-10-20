@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -17,7 +16,8 @@ import (
 	"example.com/rolescout/api/internal/config"
 	"example.com/rolescout/api/internal/enrich"
 	"example.com/rolescout/api/internal/infrastructure/database"
-	"example.com/rolescout/api/internal/llm"
+	"example.com/rolescout/api/internal/ingest"
+	"example.com/rolescout/api/internal/llmconfig"
 	httptransport "example.com/rolescout/api/internal/transport/http"
 )
 
@@ -73,6 +73,9 @@ func run() error {
 	httptransport.RegisterMetricsRoute(app, metrics, pool)
 	workspaces := database.NewWorkspaceRepository(pool)
 	enrichments := database.NewEnrichmentRepository(pool)
+	// AI settings saved in the web app override the environment, so a model,
+	// URL or API key can change without a restart.
+	resolver := &llmconfig.Resolver{Env: cfg.LLM, Store: database.NewSettingsRepository(pool)}
 	httptransport.RegisterAPIRoutes(app, httptransport.Deps{
 		Auth: database.NewAuthRepository(pool),
 		AuthConfig: httptransport.AuthConfig{
@@ -93,10 +96,14 @@ func run() error {
 		Activity:       database.NewActivityRepository(pool),
 		UserState:      database.NewUserStateRepository(pool),
 		Enrichments:    enrichments,
-		LLM:            llmChecker(cfg.LLM, enrichments),
-		Summaries:      summarizer(cfg.LLM, pool),
-		CrawlSettings:  crawlSettings(cfg.Crawl),
-		Workspaces:     httptransport.MembershipAuthorizer{Workspaces: workspaces},
+		LLM:            &enrich.Checker{Repo: enrichments, Resolve: resolver.Client},
+		LLMSettings:    resolver,
+		AI: &enrich.Analyzer{Repo: enrichments, LLM: llmconfig.Dynamic{R: resolver},
+			Resolve: resolver.Current, ResolveCountry: ingest.InferCountry},
+		Summaries: &enrich.Summarizer{Client: llmconfig.Dynamic{R: resolver}, ModelFn: func(ctx context.Context) string { return resolver.Current(ctx).Model },
+			Store: database.NewSummaryRepository(pool)},
+		CrawlSettings: crawlSettings(cfg.Crawl),
+		Workspaces:    httptransport.MembershipAuthorizer{Workspaces: workspaces},
 	})
 	if !cfg.CookieSecure {
 		logger.Warn("COOKIE_SECURE=false; session cookies are sent over plain HTTP")
@@ -111,29 +118,6 @@ func run() error {
 		ShutdownTimeout:       10 * time.Second,
 		DisableStartupMessage: true,
 	})
-}
-
-// llmChecker reports on the optional local model; nil when it is off, so the
-// admin endpoints answer {enabled:false} without any network call.
-func llmChecker(cfg config.LLM, repo *database.EnrichmentRepository) httptransport.LLMStatusProvider {
-	if !cfg.Enabled {
-		return nil
-	}
-	return &enrich.Checker{
-		Config: cfg, Repo: repo,
-		Client: llm.NewClient(llm.Options{BaseURL: cfg.BaseURL, Model: cfg.Model, APIKey: cfg.APIKey, Timeout: cfg.Timeout}),
-	}
-}
-
-// summarizer writes job summaries with the local model; nil when it is off.
-func summarizer(cfg config.LLM, pool *pgxpool.Pool) httptransport.JobSummarizer {
-	if !cfg.Enabled {
-		return nil
-	}
-	return &enrich.Summarizer{
-		Client: llm.NewClient(llm.Options{BaseURL: cfg.BaseURL, Model: cfg.Model, APIKey: cfg.APIKey, Timeout: cfg.Timeout}),
-		Model:  cfg.Model, Store: database.NewSummaryRepository(pool),
-	}
 }
 
 func main() {

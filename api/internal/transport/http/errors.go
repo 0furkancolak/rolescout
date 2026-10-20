@@ -101,6 +101,12 @@ func fiberCode(status int) string {
 		return "bad_request"
 	case fiber.StatusTooManyRequests:
 		return "rate_limited"
+	case fiber.StatusPreconditionFailed:
+		return "ai_disabled"
+	case fiber.StatusServiceUnavailable:
+		return "ai_unavailable"
+	case fiber.StatusBadGateway:
+		return "ai_failed"
 	case fiber.StatusUnsupportedMediaType:
 		return "unsupported_media_type"
 	default:

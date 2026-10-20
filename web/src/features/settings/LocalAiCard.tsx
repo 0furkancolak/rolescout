@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Card, ErrorState, Spinner } from "../../components/ui";
 import { data, isApiError, type LlmStatus } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
+import { AiConnectionForm } from "./AiConnectionForm";
 
 const statusKey = ["admin", "llm"] as const;
 const DOCS = "https://github.com/0furkancolak/rolescout/blob/main/docs/local-ai.md";
@@ -29,6 +30,7 @@ export function LocalAiCard() {
         {t("localAi.title")}
       </h2>
       <p className="mt-1 text-sm text-ink-muted">{t("localAi.hint")}</p>
+      <AiConnectionForm />
       {status.isPending ? (
         <Spinner />
       ) : status.isError ? (

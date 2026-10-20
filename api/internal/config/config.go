@@ -48,6 +48,10 @@ type LLM struct {
 	FallbackModel string
 	// APIKey is sent as a bearer token when set (llama.cpp --api-key).
 	APIKey string
+	// Background turns the worker's automatic reading of the whole catalog on
+	// or off. Nil means automatic: on for a model on this machine or network,
+	// off for a hosted service, where every job read costs money.
+	Background *bool
 	// Timeout bounds one model request.
 	Timeout     time.Duration
 	Concurrency int

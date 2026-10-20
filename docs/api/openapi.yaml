@@ -958,6 +958,60 @@ paths:
                   data: { $ref: "#/components/schemas/LlmStatus" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "429": { $ref: "#/components/responses/RateLimited" }
+  /api/v1/admin/llm/config:
+    get:
+      tags: [admin]
+      summary: AI connection in effect (administrator)
+      description: >
+        The base URL, model and whether an API key is set, with a hint of its last
+        four characters. The key itself is never returned.
+      operationId: getLlmConfig
+      responses:
+        "200":
+          description: The effective configuration.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/LlmConfig" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    put:
+      tags: [admin]
+      summary: Change the AI connection (administrator)
+      description: >
+        Saves the connection in the database; it takes effect within seconds, with
+        no restart. A field left out stays as it is. An empty string removes the
+        saved value so the environment default applies again. `api_key` is stored
+        as given and never returned.
+      operationId: putLlmConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                enabled: { type: boolean }
+                base_url: { type: string, description: "An OpenAI-compatible endpoint such as https://api.openai.com/v1." }
+                model: { type: string }
+                api_key: { type: string }
+                background: { type: boolean, description: Let the worker read the whole catalog on its own. }
+                reset_background: { type: boolean, description: Return `background` to automatic (on for a local model, off for a hosted service). }
+      responses:
+        "200":
+          description: The new effective configuration.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: "#/components/schemas/LlmConfig" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/InvalidInput" }
   /api/v1/admin/settings:
     get:
       tags: [admin]
@@ -1354,6 +1408,50 @@ paths:
                   next_cursor: { type: [string, "null"] }
         "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/InvalidInput" }
+  /api/v1/workspaces/{workspaceID}/jobs/{jobID}/analyze:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+      - $ref: "#/components/parameters/JobID"
+      - name: profile
+        in: query
+        required: true
+        description: The research profile whose match is explained.
+        schema: { type: string, format: uuid }
+      - name: lang
+        in: query
+        description: Language of the explanation; defaults to the workspace owner's.
+        schema: { type: string, enum: [tr, en] }
+    post:
+      tags: [jobs]
+      summary: Generate the AI reading and match explanation of one job on request
+      description: >
+        Reads the posting with the configured model if that has not happened yet and
+        writes why it matches the profile, at any score. This is how a weak match
+        gets AI text. It can take several seconds. The result is stored.
+        412 `ai_disabled`: AI is switched off. 503 `ai_unavailable`: the service
+        cannot be reached or the key is refused. 502 `ai_failed`: the answer was unusable.
+      operationId: analyzeJob
+      responses:
+        "200":
+          description: The explanation and what the model read from the job.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [explanation, ai]
+                    properties:
+                      explanation: { type: string }
+                      ai: { $ref: "#/components/schemas/JobAI" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "412": { description: AI is switched off., content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "422": { $ref: "#/components/responses/InvalidInput" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "502": { description: The AI answered with something unusable., content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "503": { description: The AI service could not be reached., content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
   /api/v1/workspaces/{workspaceID}/jobs/{jobID}/summary:
     parameters:
       - $ref: "#/components/parameters/WorkspaceID"
@@ -1913,6 +2011,22 @@ components:
                     properties:
                       code: { type: string, enum: [title, keyword, role, tech, remote, remote_abroad, country, location, region, hybrid, seniority, fresh] }
                       params: { type: object, additionalProperties: { type: string } }
+    LlmConfig:
+      type: object
+      required: [enabled, base_url, model, has_api_key, background, background_auto, local, stored]
+      properties:
+        enabled: { type: boolean }
+        base_url: { type: string }
+        model: { type: string }
+        has_api_key: { type: boolean }
+        api_key_hint: { type: string, description: Last four characters of the key. }
+        background: { type: boolean }
+        background_auto: { type: boolean, description: Nobody chose; it follows where the model runs. }
+        local: { type: boolean }
+        stored:
+          type: object
+          description: Which values are saved in the web app (the rest come from the environment).
+          additionalProperties: { type: boolean }
     LlmStatus:
       type: object
       required: [enabled, reachable, model_present, degraded, local, queue, enriched, failed, avg_latency_ms, last_checked_at, probe_ok, probe_ms]

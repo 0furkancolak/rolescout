@@ -64,7 +64,11 @@ Off by default. When on, a worker loop reads job descriptions with a small model
 running on your own machine and extracts salary, remote policy, extra
 technologies and a short summary. Nothing is sent to a hosted service. See
 [ADR 0005](adr/0005-local-llm-enrichment.md); setup steps are in
-[local AI](local-ai.md) once written.
+[local AI](local-ai.md).
+
+The connection (on/off, base URL, model, API key, background reading) can also be
+edited in the web app under **Settings → AI**. Saved values live in the database,
+override the variables below and apply within seconds without a restart.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |

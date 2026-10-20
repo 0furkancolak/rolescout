@@ -161,11 +161,11 @@ func TestAPIApplicationTrackingFlow(t *testing.T) {
 	expectStatus(t, f.a.call(t, f.app, "PATCH", appPath, map[string]string{"status": "ghosted"}), 422)
 
 	r = f.a.call(t, f.app, "POST", appPath+"/events", map[string]any{
-		"type": "interview", "occurred_at": "2026-10-20T14:00:00Z", "details": map[string]string{"round": "technical"},
+		"type": "interview", "occurred_at": "2031-10-20T14:00:00Z", "details": map[string]string{"round": "technical"},
 	})
 	expectStatus(t, r, 201)
 	expectStatus(t, f.a.call(t, f.app, "POST", appPath+"/events", map[string]any{
-		"type": "status_changed", "occurred_at": "2026-10-20T14:00:00Z",
+		"type": "status_changed", "occurred_at": "2031-10-20T14:00:00Z",
 	}), 422)
 
 	r = f.a.call(t, f.app, "GET", appPath+"/events", nil)

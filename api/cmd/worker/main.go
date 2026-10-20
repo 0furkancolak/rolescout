@@ -16,7 +16,7 @@ import (
 	"example.com/rolescout/api/internal/infrastructure/database"
 	"example.com/rolescout/api/internal/ingest"
 	"example.com/rolescout/api/internal/ingest/adapters"
-	"example.com/rolescout/api/internal/llm"
+	"example.com/rolescout/api/internal/llmconfig"
 	"example.com/rolescout/api/internal/research"
 )
 
@@ -81,26 +81,29 @@ func run() error {
 	// runs execute the full pipeline. Both stop when ctx is cancelled.
 	var wg sync.WaitGroup
 	wg.Add(2)
-	if cfg.LLM.Enabled {
-		wg.Add(1)
-		enricher := &enrich.Enricher{
-			Repo:  database.NewEnrichmentRepository(pool),
-			LLM:   llm.NewClient(llm.Options{BaseURL: cfg.LLM.BaseURL, Model: cfg.LLM.Model, APIKey: cfg.LLM.APIKey, Timeout: cfg.LLM.Timeout}),
-			Model: cfg.LLM.Model, FallbackModel: cfg.LLM.FallbackModel,
-			Concurrency: cfg.LLM.Concurrency, Batch: cfg.LLM.Batch,
-			MaxChars: cfg.LLM.MaxInputChars, MaxTokens: cfg.LLM.MaxOutputTokens,
-			Breaker:         enrich.NewBreaker(3, 10*time.Minute, nil),
-			Logger:          logger,
-			ResolveCountry:  ingest.InferCountry,
-			ExplainMinScore: 70,
-		}
-		logger.Info("local model enrichment on", "model", cfg.LLM.Model, "fallback", cfg.LLM.FallbackModel,
-			"host", hostOf(cfg.LLM.BaseURL), "concurrency", cfg.LLM.Concurrency, "batch", cfg.LLM.Batch)
-		go func() {
-			defer wg.Done()
-			enricher.Loop(ctx, cfg.WorkerTick)
-		}()
+	// The enricher always runs and asks the live settings each tick, so turning
+	// AI on or changing its key in the web app takes effect without a restart.
+	// Whether it reads the whole catalog on its own is decided there too: with
+	// a hosted service that is off unless an administrator chooses it.
+	wg.Add(1)
+	resolver := &llmconfig.Resolver{Env: cfg.LLM, Store: database.NewSettingsRepository(pool)}
+	enricher := &enrich.Enricher{
+		Repo:    database.NewEnrichmentRepository(pool),
+		LLM:     llmconfig.Dynamic{R: resolver},
+		Resolve: resolver.Current,
+		Model:   cfg.LLM.Model, FallbackModel: cfg.LLM.FallbackModel,
+		Concurrency: cfg.LLM.Concurrency, Batch: cfg.LLM.Batch,
+		MaxChars: cfg.LLM.MaxInputChars, MaxTokens: cfg.LLM.MaxOutputTokens,
+		Breaker:         enrich.NewBreaker(3, 10*time.Minute, nil),
+		Logger:          logger,
+		ResolveCountry:  ingest.InferCountry,
+		ExplainMinScore: 70,
 	}
+	logger.Info("AI enrichment loop started", "env_enabled", cfg.LLM.Enabled, "host", hostOf(cfg.LLM.BaseURL))
+	go func() {
+		defer wg.Done()
+		enricher.Loop(ctx, cfg.WorkerTick)
+	}()
 	go func() {
 		defer wg.Done()
 		runner.Loop(ctx, cfg.WorkerTick, ingest.RunDueOptions{Concurrency: cfg.Crawl.Concurrency})

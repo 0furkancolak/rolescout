@@ -47,6 +47,9 @@ OpenAI-compatible `/v1/chat/completions` that enforces `response_format`
 (`json_schema`) works, including LM Studio.
 
 ## 2. Turn it on
+The quickest way is **Settings → AI** in the web app (see the hosted-service
+section below for the fields). The `.env` variables work too:
+
 In `.env`:
 ```
 LLM_ENABLED=true
@@ -65,6 +68,31 @@ From the command line:
 cd api
 LLM_BASE_URL=http://127.0.0.1:11434/v1 go run ./cmd/admin llm check
 ```
+
+## Hosted service with an API key (alternative)
+Instead of a model on your computer you can use any OpenAI-compatible service
+(OpenAI, OpenRouter, a company gateway …). Nothing needs a restart or an `.env`
+edit:
+
+1. Sign in as the administrator and open **Settings → AI**.
+2. Pick the **OpenAI** preset or type the base URL (ending in `/v1`) and model,
+   paste the **API key**, tick **Turn AI on** and save.
+3. Press **Test connection**. A rejected key shows as "can't reach".
+
+The key is stored in the database (table `app_settings`), is never returned by
+the API (only its last four characters) and applies within seconds. Values
+saved here override `LLM_*` from `.env`; clearing a field brings the `.env`
+value back. The service must accept `response_format: json_schema` and
+`max_tokens` (OpenAI `gpt-4o-mini` does; the newest reasoning models want
+`max_completion_tokens` and are not supported).
+
+**Cost control.** For a hosted service the worker does *not* read the whole
+catalog on its own (that could be tens of thousands of paid requests). AI text
+is made when you ask for it: on a job with no explanation, open **Why it
+matches** and press **Generate AI explanation**. That reads the posting and
+writes the reason, at any score; the result is stored, and the per-IP limit is
+60 generations an hour. Tick **Read every new job in the background** in
+Settings if you want the bulk run anyway (a local model has it on by default).
 
 ## What happens
 After a research run collects jobs, a separate worker loop reads their

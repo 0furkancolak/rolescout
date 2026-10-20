@@ -222,15 +222,7 @@ ORDER BY x.job_id, x.created_at DESC`, workspaceID, profileID, jobIDs)
 // best first. An attempt that produced nothing is stored with an empty text, so
 // it is not offered again until the description or the prompt changes.
 func (r *EnrichmentRepository) ExplanationQueue(ctx context.Context, model string, promptVersion, minScore, limit int) ([]domain.ExplanationTask, error) {
-	rows, err := r.pool.Query(ctx, `
-SELECT p.workspace_id, m.profile_id, m.job_id, j.description_hash, j.title, j.company_name, m.score, m.reasons,
-       `+effTechnologiesDistinct+`, p.technologies, `+effSeniority+`, `+effArrangement+`, COALESCE(`+effCountry+`, ''),
-       COALESCE((SELECT u.locale FROM workspace_memberships wm JOIN users u ON u.id = wm.user_id
-                 WHERE wm.workspace_id = p.workspace_id AND wm.role = 'owner' ORDER BY wm.created_at LIMIT 1), 'en')
-FROM research_matches m
-JOIN research_profiles p ON p.id = m.profile_id
-JOIN jobs j ON j.id = m.job_id AND j.closed_at IS NULL
-JOIN job_ai ai ON ai.job_id = j.id
+	rows, err := r.pool.Query(ctx, explanationSelect+`
 WHERE m.score >= $1
   AND NOT EXISTS (SELECT 1 FROM match_explanations x WHERE x.workspace_id = p.workspace_id AND x.profile_id = p.id
       AND x.job_id = j.id AND x.description_hash = j.description_hash AND x.model = $2 AND x.prompt_version = $3)
@@ -240,6 +232,23 @@ LIMIT $4`, minScore, model, promptVersion, limit)
 		return nil, err
 	}
 	defer rows.Close()
+	return scanExplanationTasks(rows)
+}
+
+// explanationSelect lists the facts an explanation is built from, for matches
+// on open jobs the model has read.
+var explanationSelect = `
+SELECT p.workspace_id, m.profile_id, m.job_id, j.description_hash, j.title, j.company_name, m.score, m.reasons,
+       ` + effTechnologiesDistinct + `, p.technologies, ` + effSeniority + `, ` + effArrangement + `, COALESCE(` + effCountry + `, ''),
+       COALESCE((SELECT u.locale FROM workspace_memberships wm JOIN users u ON u.id = wm.user_id
+                 WHERE wm.workspace_id = p.workspace_id AND wm.role = 'owner' ORDER BY wm.created_at LIMIT 1), 'en')
+FROM research_matches m
+JOIN research_profiles p ON p.id = m.profile_id
+JOIN jobs j ON j.id = m.job_id AND j.closed_at IS NULL
+JOIN job_ai ai ON ai.job_id = j.id
+`
+
+func scanExplanationTasks(rows pgx.Rows) ([]domain.ExplanationTask, error) {
 	var out []domain.ExplanationTask
 	for rows.Next() {
 		var t domain.ExplanationTask
@@ -328,4 +337,40 @@ func (r *EnrichmentRepository) RecentOK(ctx context.Context, model string, since
 	err := r.pool.QueryRow(ctx, `SELECT count(*)::int FROM job_enrichments
 		WHERE model = $1 AND status = 'ok' AND latency_ms > 0 AND updated_at >= $2`, model, since).Scan(&n)
 	return n, err
+}
+
+// EnrichmentTaskFor returns one job as an enrichment task, or ErrNotFound.
+func (r *EnrichmentRepository) EnrichmentTaskFor(ctx context.Context, jobID string) (domain.EnrichmentTask, error) {
+	var t domain.EnrichmentTask
+	err := r.pool.QueryRow(ctx, `SELECT j.id, j.title, j.company_name, j.description, j.description_hash, COALESCE(j.location, '')
+		FROM jobs j WHERE j.id = $1`, jobID).Scan(&t.JobID, &t.Title, &t.CompanyName, &t.Description, &t.DescriptionHash, &t.Location)
+	return t, translate(err, "get enrichment task")
+}
+
+// HasEnrichment reports whether the job's current description was read by the model.
+func (r *EnrichmentRepository) HasEnrichment(ctx context.Context, jobID string) (bool, error) {
+	var ok bool
+	err := r.pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM job_ai WHERE job_id = $1)`, jobID).Scan(&ok)
+	return ok, translate(err, "check enrichment")
+}
+
+// ExplanationTaskFor returns the facts of one match for an explanation, at any
+// score, or ErrNotFound when the job has no match for the profile or the model
+// has not read it yet.
+func (r *EnrichmentRepository) ExplanationTaskFor(ctx context.Context, workspaceID, profileID, jobID string) (domain.ExplanationTask, error) {
+	rows, err := r.pool.Query(ctx, explanationSelect+`
+WHERE p.workspace_id = $1 AND m.profile_id = $2 AND m.job_id = $3
+LIMIT 1`, workspaceID, profileID, jobID)
+	if err != nil {
+		return domain.ExplanationTask{}, translate(err, "get explanation task")
+	}
+	defer rows.Close()
+	tasks, err := scanExplanationTasks(rows)
+	if err != nil {
+		return domain.ExplanationTask{}, translate(err, "get explanation task")
+	}
+	if len(tasks) == 0 {
+		return domain.ExplanationTask{}, translate(pgx.ErrNoRows, "get explanation task")
+	}
+	return tasks[0], nil
 }

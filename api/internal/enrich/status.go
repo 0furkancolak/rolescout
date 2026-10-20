@@ -22,7 +22,10 @@ type StatsRepository interface {
 // Status is the local model's state as shown to an administrator. It never
 // carries the API key or the URL path.
 type Status struct {
-	Enabled       bool
+	Enabled bool
+	// Background is whether the worker reads the catalog on its own.
+	Background    bool
+	HasAPIKey     bool
 	BaseHost      string
 	Model         string
 	FallbackModel string
@@ -46,12 +49,17 @@ type Status struct {
 type Checker struct {
 	Config config.LLM
 	Client *llm.Client
-	Repo   StatsRepository
-	Now    func() time.Time
+	// Resolve, when set, supplies the live configuration and client instead of
+	// Config and Client.
+	Resolve func(ctx context.Context) (*llm.Client, config.LLM)
+	Repo    StatsRepository
+	Now     func() time.Time
 
 	mu       sync.Mutex
 	last     Status
 	lastTime time.Time
+	// lastModel is the model and URL the cached status was taken for.
+	lastModel string
 }
 
 const statusCacheTTL = 5 * time.Second
@@ -66,11 +74,15 @@ func (c *Checker) now() time.Time {
 // Status returns the current state. With probe it also runs a one-token
 // completion; without it a read is cached for a few seconds.
 func (c *Checker) Status(ctx context.Context, probe bool) (Status, error) {
-	if !c.Config.Enabled {
+	cfg, client := c.Config, c.Client
+	if c.Resolve != nil {
+		client, cfg = c.Resolve(ctx)
+	}
+	if !cfg.Enabled {
 		return Status{}, nil
 	}
 	c.mu.Lock()
-	if !probe && !c.lastTime.IsZero() && c.now().Sub(c.lastTime) < statusCacheTTL {
+	if !probe && !c.lastTime.IsZero() && c.now().Sub(c.lastTime) < statusCacheTTL && c.lastModel == cfg.Model+cfg.BaseURL {
 		cached := c.last
 		c.mu.Unlock()
 		return cached, nil
@@ -79,30 +91,30 @@ func (c *Checker) Status(ctx context.Context, probe bool) (Status, error) {
 
 	now := c.now()
 	s := Status{
-		Enabled: true, BaseHost: hostOnly(c.Config.BaseURL), Model: c.Config.Model, FallbackModel: c.Config.FallbackModel,
-		Local: isLocalHost(hostOnly(c.Config.BaseURL)), LastCheckedAt: &now,
+		Enabled: true, Background: BackgroundOn(cfg), HasAPIKey: cfg.APIKey != "", BaseHost: hostOnly(cfg.BaseURL), Model: cfg.Model, FallbackModel: cfg.FallbackModel,
+		Local: isLocalHost(hostOnly(cfg.BaseURL)), LastCheckedAt: &now,
 	}
-	if h, err := c.Client.Health(ctx); err == nil {
+	if h, err := client.Health(ctx); err == nil {
 		s.Reachable, s.ModelPresent = h.Reachable, h.ModelPresent
 	}
 	if probe && s.Reachable && s.ModelPresent {
-		if resp, err := c.Client.Probe(ctx); err == nil {
+		if resp, err := client.Probe(ctx); err == nil {
 			s.ProbeOK, s.ProbeMs = true, int(resp.Latency/time.Millisecond)
 		}
 	}
-	if st, err := c.Repo.Stats(ctx, c.Config.Model, llm.PromptVersion, llm.SchemaVersion); err == nil {
+	if st, err := c.Repo.Stats(ctx, cfg.Model, llm.PromptVersion, llm.SchemaVersion); err == nil {
 		s.Queue, s.Enriched, s.Failed, s.AvgLatencyMs, s.LastError = st.Queue, st.Enriched, st.Failed, st.AvgLatencyMs, st.LastError
 	} else {
 		return Status{}, err
 	}
-	if c.Config.FallbackModel != "" {
+	if cfg.FallbackModel != "" {
 		since := now.Add(-15 * time.Minute)
-		fb, _ := c.Repo.RecentOK(ctx, c.Config.FallbackModel, since)
-		main, _ := c.Repo.RecentOK(ctx, c.Config.Model, since)
+		fb, _ := c.Repo.RecentOK(ctx, cfg.FallbackModel, since)
+		main, _ := c.Repo.RecentOK(ctx, cfg.Model, since)
 		s.Degraded = fb > 0 && main == 0
 	}
 	c.mu.Lock()
-	c.last, c.lastTime = s, now
+	c.last, c.lastTime, c.lastModel = s, now, cfg.Model+cfg.BaseURL
 	c.mu.Unlock()
 	return s, nil
 }
@@ -134,3 +146,6 @@ func isLocalHost(hostport string) bool {
 	}
 	return false
 }
+
+// IsLocalURL reports whether a base URL points at this machine or a private network.
+func IsLocalURL(raw string) bool { return isLocalHost(hostOnly(raw)) }

@@ -6,6 +6,7 @@ import {
   ChevronDown,
   ExternalLink,
   Send,
+  Sparkles,
   Undo2,
   WandSparkles,
 } from "lucide-react";
@@ -16,13 +17,14 @@ import { Pill } from "../../components/Pill";
 import { ScoreRing } from "../../components/ScoreRing";
 import { Button, InlineError } from "../../components/ui";
 import { buttonClass } from "../../components/styles";
-import type { WorkspaceJob } from "../../lib/api";
+import { isApiError, type WorkspaceJob } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { enumLabel } from "../../lib/labels";
 import { useApplications, useDeleteApplication } from "../applications/api";
 import { useWorkspace } from "../workspaces/context";
 import { AutofillPanel } from "./AutofillPanel";
 import {
+  useAnalyzeJob,
   useApplyToJob,
   useJob,
   useJobSummary,
@@ -36,9 +38,12 @@ import { MatchReasons } from "./MatchReasons";
 // with a way back).
 export function JobDetailPane({
   job,
+  profileId,
   onBack,
 }: {
   job: WorkspaceJob;
+  /** The profile the list is scored against; empty when browsing without one. */
+  profileId?: string;
   onBack: () => void;
 }) {
   const { t, locale, formatDate } = useI18n();
@@ -50,10 +55,12 @@ export function JobDetailPane({
   const applications = useApplications(workspace.id);
   const application = applications.data?.find((a) => a.job_id === job.id);
   const summary = useJobSummary(workspace.id, job.id, locale);
+  const analyze = useAnalyzeJob(workspace.id);
   const [fillOpen, setFillOpen] = useState(false);
   const url = detail.data?.listings[0]?.url;
 
-  const ai = job.ai ?? detail.data?.ai ?? null;
+  const generated = analyze.variables?.jobID === job.id ? analyze.data : undefined;
+  const ai = job.ai ?? detail.data?.ai ?? generated?.ai ?? null;
   const filled = new Set<string>(ai?.fields ?? []);
   const place = [
     job.company_name,
@@ -98,7 +105,8 @@ export function JobDetailPane({
   const shownSummary = aiSummary ?? (summary.status === "unavailable" ? ai?.summary || null : null);
   const technologies = mergeTechnologies(job.technologies, ai?.extra_technologies ?? []);
   const reasons = job.match?.reasons ?? [];
-  const explanation = job.match?.explanation ?? null;
+  const explanation = job.match?.explanation ?? generated?.explanation ?? null;
+  const canGenerate = !!job.match && !!profileId && !explanation;
 
   return (
     <section
@@ -288,7 +296,7 @@ export function JobDetailPane({
               </ul>
             )}
 
-            {reasons.length > 0 && (
+            {job.match && (reasons.length > 0 || canGenerate) && (
               <details className="group rounded-card bg-canvas px-4 py-3">
                 <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-semibold text-ink">
                   {t("browse.whyMatch")}
@@ -299,9 +307,26 @@ export function JobDetailPane({
                 </summary>
                 <div className="mt-3">
                   <MatchReasons reasons={reasons} />
-                  {explanation && ai && (
+                  {canGenerate && (
+                    <div className="mt-3 space-y-2">
+                      <Button
+                        variant="secondary"
+                        busy={analyze.isPending && analyze.variables?.jobID === job.id}
+                        onClick={() => analyze.mutate({ jobID: job.id, profileID: profileId ?? "", lang: locale })}
+                      >
+                        <Sparkles aria-hidden className="size-4" />
+                        {t("ai.generate")}
+                      </Button>
+                      {analyze.isError && analyze.variables?.jobID === job.id && (
+                        <p role="alert" className="text-sm text-danger">
+                          {analyzeError(t, analyze.error)}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {explanation && (
                     <p className="mt-3 flex items-start gap-1.5 text-sm text-ink">
-                      <AiBadge model={ai.model} />
+                      {ai && <AiBadge model={ai.model} />}
                       <span>{explanation}</span>
                     </p>
                   )}
@@ -321,6 +346,14 @@ export function JobDetailPane({
       </div>
     </section>
   );
+}
+
+function analyzeError(t: ReturnType<typeof useI18n>["t"], err: unknown): string {
+  if (isApiError(err, "ai_disabled")) return t("ai.generateOff");
+  if (isApiError(err, "ai_unavailable")) return t("ai.generateUnavailable");
+  if (isApiError(err, "ai_failed")) return t("ai.generateFailed");
+  if (isApiError(err, "rate_limited")) return t("ai.generateBusy");
+  return t("common.error");
 }
 
 function salaryText(

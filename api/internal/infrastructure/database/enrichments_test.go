@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"slices"
 	"testing"
 	"time"
@@ -569,5 +570,42 @@ func TestAIFactsMarksOnlyWhatTheModelAdded(t *testing.T) {
 	}
 	if got, _ := ef.repo.AIFacts(context.Background(), nil); len(got) != 0 {
 		t.Errorf("no ids returned %v", got)
+	}
+}
+
+func TestExplanationTaskForServesAnyScoreAndOnlyTheWorkspacesOwnMatch(t *testing.T) {
+	ef := newEnrichFixture(t)
+	other := newEnrichFixture(t)
+	pool := requireDB(t)
+	ctx := context.Background()
+	profile, err := NewResearchRepository(pool).CreateProfile(ctx, ef.workspace.ID, ProfileParams{
+		Name: uniq("low"), TitleKeywords: []string{"engineer"}, Technologies: []string{"go"}, Remote: domain.RemoteAny,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	weak := ef.effectiveJob(t, "Weak enriched", "unknown", "unknown", []string{"go"}, nil)
+	unread := ef.effectiveJob(t, "Weak unread", "unknown", "unknown", []string{"go"}, nil)
+	ef.enrich(t, weak, `{"seniority":"senior","work_arrangement":"remote","country_code":"DE","technologies":["go"],"summary":"x"}`)
+	for _, j := range []domain.Job{weak, unread} {
+		if _, err := pool.Exec(ctx, `INSERT INTO research_matches (profile_id, job_id, score, reasons) VALUES ($1, $2, 12, '[{"code":"remote"}]'::jsonb)`, profile.ID, j.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	task, err := ef.repo.ExplanationTaskFor(ctx, ef.workspace.ID, profile.ID, weak.ID)
+	if err != nil || task.Score != 12 || task.Title != "Weak enriched" || len(task.MatchedTechnologies) != 1 {
+		t.Fatalf("task = %+v err = %v", task, err)
+	}
+	if _, err := ef.repo.ExplanationTaskFor(ctx, ef.workspace.ID, profile.ID, unread.ID); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("a job the model has not read: err = %v", err)
+	}
+	if _, err := ef.repo.ExplanationTaskFor(ctx, other.workspace.ID, profile.ID, weak.ID); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("another workspace must not reach the match: err = %v", err)
+	}
+	if ok, err := ef.repo.HasEnrichment(ctx, weak.ID); err != nil || !ok {
+		t.Fatalf("HasEnrichment weak = %v %v", ok, err)
+	}
+	if ok, _ := ef.repo.HasEnrichment(ctx, unread.ID); ok {
+		t.Fatal("unread job reported as read")
 	}
 }

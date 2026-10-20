@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"example.com/rolescout/api/internal/config"
 	"example.com/rolescout/api/internal/domain"
 	"example.com/rolescout/api/internal/llm"
 )
@@ -34,6 +35,10 @@ type Enricher struct {
 	MaxTokens     int
 	Breaker       *Breaker
 	Now           func() time.Time
+	// Resolve, when set, supplies the live configuration (settings saved in
+	// the web app) and replaces Model and FallbackModel.
+	Resolve func(ctx context.Context) config.LLM
+	sig     atomic.Value // connection signature seen by the last tick
 
 	// held back explanations after trouble: key -> when to try again.
 	heldMu         sync.Mutex
@@ -83,15 +88,27 @@ func (e *Enricher) log() *slog.Logger {
 // Tick enriches up to Batch queued jobs.
 func (e *Enricher) Tick(ctx context.Context) (Result, error) {
 	var res Result
-	model := e.Model
+	model, fallback := e.Model, e.FallbackModel
+	if e.Resolve != nil {
+		cfg := e.Resolve(ctx)
+		if !cfg.Enabled || !BackgroundOn(cfg) {
+			res.Skipped = true
+			return res, nil
+		}
+		model, fallback = cfg.Model, cfg.FallbackModel
+		// A changed connection (new key, URL or model) deserves a fresh start.
+		if sig := cfg.BaseURL + "\x00" + cfg.Model + "\x00" + cfg.APIKey; e.sig.Swap(sig) != sig {
+			e.Breaker.Success()
+		}
+	}
 	probing := e.Breaker.Allow()
 	if !probing {
-		if e.FallbackModel == "" {
+		if fallback == "" {
 			res.Skipped = true
 			e.warnOnce("local model unavailable, enrichment paused")
 			return res, nil
 		}
-		model, res.Degraded = e.FallbackModel, true
+		model, res.Degraded = fallback, true
 		e.warnOnce("local model unavailable, using the fallback model")
 	} else {
 		e.warned.Store(false)
@@ -355,4 +372,14 @@ func (e *Enricher) heldCount() int {
 	e.heldMu.Lock()
 	defer e.heldMu.Unlock()
 	return len(e.held)
+}
+
+// BackgroundOn reports whether the worker may read the whole catalog on its
+// own. Unless an administrator chose, that is on for a model on this machine or
+// network and off for a hosted service, where each job read costs money.
+func BackgroundOn(cfg config.LLM) bool {
+	if cfg.Background != nil {
+		return *cfg.Background
+	}
+	return isLocalHost(hostOnly(cfg.BaseURL))
 }

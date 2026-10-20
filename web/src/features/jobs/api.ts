@@ -5,6 +5,7 @@ import {
   data,
   query,
   request,
+  type Analysis,
   type Application,
   type Facets,
   type Job,
@@ -227,5 +228,15 @@ export function useApplyToJob(ws: string) {
       return data<Application>(wsPath(ws, `/applications/${app.id}`), { method: "PATCH", body: { status: "applied" } });
     },
     onSuccess: () => client.invalidateQueries({ queryKey: ["workspaces", ws, "applications"] }),
+  });
+}
+
+/** Asks the model to read one job and say why it matches the profile, at any score. */
+export function useAnalyzeJob(ws: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ jobID, profileID, lang }: { jobID: string; profileID: string; lang: string }) =>
+      data<Analysis>(wsPath(ws, `/jobs/${jobID}/analyze`) + query({ profile: profileID, lang }), { method: "POST" }),
+    onSuccess: () => client.invalidateQueries({ queryKey: workspaceJobsKey(ws) }),
   });
 }

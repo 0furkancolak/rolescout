@@ -67,6 +67,8 @@ type Deps struct {
 	UserState      UserStateStore
 	Summaries      JobSummarizer // nil when the local model is off
 	LLM            LLMStatusProvider
+	AI             MatchAnalyzer // writes AI text for one job on request
+	LLMSettings    LLMSettingsStore
 	Enrichments    EnrichmentReader
 	// CrawlSettings are shown read-only to administrators.
 	CrawlSettings []Setting
@@ -106,12 +108,15 @@ func RegisterAPIRoutes(app *fiber.App, d Deps) {
 	admin.Get("/settings", h.crawlSettings)
 	admin.Get("/llm", h.llmStatus)
 	admin.Post("/llm/check", h.llmCheck)
+	admin.Get("/llm/config", h.getLLMConfig)
+	admin.Put("/llm/config", h.putLLMConfig)
 
 	ws := private.Group("/workspaces/:workspaceID", h.requireWorkspace)
 	ws.Get("/members", h.listMembers)
 	ws.Post("/members", h.addMember)
 	ws.Get("/jobs", h.listWorkspaceJobs)
 	ws.Get("/jobs/facets", h.workspaceJobFacets)
+	ws.Post("/jobs/:jobID/analyze", rateLimit(d.RateLimits.Analyze, false), renderErrors, h.analyzeJob)
 	ws.Get("/jobs/:jobID/summary", h.jobSummary)
 	ws.Get("/jobs/:jobID/summary/stream", h.jobSummaryStream)
 	ws.Get("/saved-jobs", h.listSavedJobs)

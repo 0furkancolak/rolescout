@@ -9,20 +9,32 @@ COMPOSE ?= docker compose
 WEB_DEV_PORT ?= 5173
 
 .DEFAULT_GOAL := help
-.PHONY: help env dev backend web-deps up down logs ps test test-api test-web lint smoke
+.PHONY: help doctor env dev backend rebuild web-deps up down logs ps test test-api test-web lint smoke
 
 help: ## List the available tasks
 	@awk 'BEGIN {FS = ":.*## "} /^[a-z-]+:.*## / {printf "  %-10s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
+doctor: ## Check Docker, Node, ports and .env before starting
+	@scripts/doctor.sh
+
 env: ## Create .env with a random database password if it is missing
 	@scripts/init-env.sh
 
-dev: backend web-deps ## Backend in Docker, web app with hot reload on :5173, Go logs in this terminal
+dev: preflight backend web-deps ## Backend in Docker, web app with hot reload on :5173, Go logs in this terminal
 	@port=$$(. ./.env; echo "$${API_HOST_PORT:-8080}"); \
 	echo "RoleScout: http://127.0.0.1:$(WEB_DEV_PORT)  (API on :$$port)"; \
 	$(COMPOSE) logs -f --tail=20 api worker & logs=$$!; \
 	trap 'kill $$logs 2>/dev/null' EXIT INT TERM; \
 	cd web && API_PROXY_TARGET="http://127.0.0.1:$$port" npm run dev -- --host 127.0.0.1 --port $(WEB_DEV_PORT) --strictPort
+
+# preflight stops early with a clear message instead of a Docker stack trace.
+.PHONY: preflight
+preflight:
+	@docker info >/dev/null 2>&1 || { echo "Docker is not running. Start Docker Desktop or OrbStack, then run make dev again."; exit 1; }
+	@scripts/doctor.sh --check
+
+rebuild: env ## Rebuild and restart the API and worker after Go changes
+	$(COMPOSE) up -d --build --wait api worker
 
 backend: env ## Start PostgreSQL, the API and the worker in Docker
 	$(COMPOSE) up -d --build --wait postgres api worker
@@ -47,8 +59,16 @@ ps: ## Show container status
 
 test: test-api test-web ## Run all unit tests
 
-test-api:
-	cd api && go test -race ./...
+# Database tests need PostgreSQL. When the dev database is up they run against
+# it (in throwaway databases); otherwise they are skipped, as in "go test".
+test-api: ## Go tests; uses the dev PostgreSQL when it is running
+	@if [ -z "$$TEST_DATABASE_URL" ] && [ -f .env ] && $(COMPOSE) ps --status running --services 2>/dev/null | grep -qx postgres; then \
+	  set -a; . ./.env; set +a; \
+	  echo "Using the dev PostgreSQL for database tests."; \
+	  cd api && TEST_DATABASE_URL="postgres://$$POSTGRES_USER:$$POSTGRES_PASSWORD@127.0.0.1:$${POSTGRES_PORT:-5432}/$$POSTGRES_DB?sslmode=disable" go test -race ./...; \
+	else \
+	  cd api && go test -race ./...; \
+	fi
 
 test-web: web-deps
 	cd web && npm test

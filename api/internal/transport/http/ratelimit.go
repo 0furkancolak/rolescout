@@ -18,6 +18,9 @@ type Limit struct {
 type RateLimits struct {
 	Login    Limit
 	Register Limit
+	// Analyze caps on-demand AI generations per client: each one is a paid
+	// request when a hosted service is configured.
+	Analyze Limit
 }
 
 // DefaultRateLimits allows 10 failed sign-ins per 15 minutes and 5 sign-ups
@@ -25,6 +28,7 @@ type RateLimits struct {
 var DefaultRateLimits = RateLimits{
 	Login:    Limit{Max: 10, Window: 15 * time.Minute},
 	Register: Limit{Max: 5, Window: time.Hour},
+	Analyze:  Limit{Max: 60, Window: time.Hour},
 }
 
 func rateLimit(l Limit, onlyFailures bool) fiber.Handler {
