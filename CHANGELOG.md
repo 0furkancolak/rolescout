@@ -6,6 +6,15 @@ include breaking changes, which are called out.
 
 ## [Unreleased]
 ### Added
+- Career pages that are plain HTML with no job board or JSON-LD (such as
+  e-adam.com/kariyer) are read by the new `htmlpage` adapter; detection also
+  tries the usual career paths (`/kariyer`, `/careers`, `/is-ilanlari`, ...)
+  on a company's home page.
+- `kariyernet` adapter: reads the public category lists of kariyer.net
+  (title, company, place, work model) every 12 hours. See docs/sources/kariyernet.md
+  for its limits; it can be switched off with `admin adapters disable`.
+- Discovery adds DBpedia as a source of companies with websites per country
+  (the profile's countries first).
 - AI memory: a note about the work you look for and an uploaded CV (PDF, Word
   or text, 5 MB) per workspace. Profile drafts, match explanations and the
   technology comparison use them; a draft can be made from the memory alone.
