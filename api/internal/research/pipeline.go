@@ -728,14 +728,15 @@ func (p *Pipeline) score(ctx context.Context, run domain.ResearchRun, profile do
 func (p *Pipeline) pendingSources(ctx context.Context) (bool, error) {
 	for _, src := range p.Sources {
 		pd, ok := src.(discovery.Pender)
-		if !ok {
+		cpd, cok := src.(discovery.CtxPender)
+		if !ok && !cok {
 			continue
 		}
 		state, err := p.Runs.State(ctx, "discovery."+src.Name())
 		if err != nil {
 			return false, err
 		}
-		if pd.Pending(state) {
+		if (ok && pd.Pending(state)) || (cok && cpd.PendingCtx(ctx, state)) {
 			return true, nil
 		}
 	}

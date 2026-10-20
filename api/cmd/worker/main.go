@@ -75,6 +75,9 @@ func run() error {
 			&discovery.FeedSource{Feed: &discovery.ExchangeFeed{Client: crawler}, Probe: &discovery.Probe{Client: crawler}},
 			&discovery.FeedSource{Feed: &discovery.SectorFeed{LLM: llmconfig.Dynamic{R: resolver},
 				Enabled: func(ctx context.Context) bool { return resolver.Current(ctx).Enabled }}, Probe: &discovery.Probe{Client: crawler}},
+			// The companies of the focus countries (and a few big ones) with a
+			// website in DBpedia; the detector finds their career pages.
+			&discovery.DBpedia{Client: crawler},
 			&discovery.CatalogProbe{Probe: &discovery.Probe{Client: crawler}, Names: companies.NamesWithoutBoard},
 			&discovery.HackerNews{Client: crawler, ThreadURL: "https://hn.algolia.com/api/v1"},
 			&discovery.MarkdownList{Client: crawler, URLs: discovery.DefaultLists},
