@@ -116,10 +116,10 @@ func TestLoadCrawlDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := Crawl{
-		Concurrency: 16, HostInterval: time.Second, VendorConcurrency: 4,
+		Concurrency: 32, HostInterval: time.Second, VendorConcurrency: 8,
 		UserAgentURL:      "https://github.com/0furkancolak/rolescout",
 		DiscoveryInterval: 168 * time.Hour, CompanySyncInterval: 12 * time.Hour,
-		ResearchInterval: 12 * time.Hour, JSONLDMaxPages: 200, MatchMinScore: 40,
+		ResearchInterval: 12 * time.Hour, JSONLDMaxPages: 0, MatchMinScore: 40,
 		ClosedJobRetention: 2160 * time.Hour,
 	}
 	if cfg.Crawl != want {
@@ -162,7 +162,7 @@ func TestLoadRejectsInvalidCrawlSettings(t *testing.T) {
 		"DISCOVERY_INTERVAL":       "5m",
 		"COMPANY_SYNC_INTERVAL":    "abc",
 		"RESEARCH_INTERVAL":        "10m",
-		"JSONLD_MAX_PAGES":         "0",
+		"JSONLD_MAX_PAGES":         "-1",
 		"MATCH_MIN_SCORE":          "101",
 		"CLOSED_JOB_RETENTION":     "1h",
 	} {

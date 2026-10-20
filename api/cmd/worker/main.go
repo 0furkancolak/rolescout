@@ -53,6 +53,7 @@ func run() error {
 		Adapters:  adapters.Registry(crawler, adapters.Options{JSONLDMaxPages: cfg.Crawl.JSONLDMaxPages}),
 		Logger:    logger,
 	}
+	resolver := &llmconfig.Resolver{Env: cfg.LLM, Store: database.NewSettingsRepository(pool)}
 	pipeline := &research.Pipeline{
 		Runs:      database.NewResearchRepository(pool),
 		Companies: companies,
@@ -62,8 +63,13 @@ func run() error {
 		Sources: []discovery.Source{
 			discovery.SeedSource{},
 			&discovery.Probe{Client: crawler},
+			// Names from other places, turned into boards by the same probe: the
+			// stock exchanges, and (when AI is on) sector by sector.
+			&discovery.FeedSource{Feed: &discovery.ExchangeFeed{Client: crawler}, Probe: &discovery.Probe{Client: crawler}},
+			&discovery.FeedSource{Feed: &discovery.SectorFeed{LLM: llmconfig.Dynamic{R: resolver},
+				Enabled: func(ctx context.Context) bool { return resolver.Current(ctx).Enabled }}, Probe: &discovery.Probe{Client: crawler}},
 			&discovery.CatalogProbe{Probe: &discovery.Probe{Client: crawler}, Names: companies.NamesWithoutBoard},
-			&discovery.HackerNews{Client: crawler},
+			&discovery.HackerNews{Client: crawler, ThreadURL: "https://hn.algolia.com/api/v1"},
 			&discovery.MarkdownList{Client: crawler, URLs: discovery.DefaultLists},
 		},
 		Config: research.Config{
@@ -88,7 +94,6 @@ func run() error {
 	// Whether it reads the whole catalog on its own is decided there too: with
 	// a hosted service that is off unless an administrator chooses it.
 	wg.Add(1)
-	resolver := &llmconfig.Resolver{Env: cfg.LLM, Store: database.NewSettingsRepository(pool)}
 	enricher := &enrich.Enricher{
 		Repo:    database.NewEnrichmentRepository(pool),
 		LLM:     llmconfig.Dynamic{R: resolver},

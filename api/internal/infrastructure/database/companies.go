@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"example.com/rolescout/api/internal/focus"
 	"fmt"
 	"regexp"
 	"strings"
@@ -23,12 +24,6 @@ func NewCompanyRepository(pool *pgxpool.Pool) *CompanyRepository {
 	return &CompanyRepository{pool: pool}
 }
 
-const companyColumns = `c.id, c.name, c.domain, c.careers_url, c.ats, c.ats_id, c.origin, c.status,
-	c.last_checked_at, c.last_error, c.failure_count, c.next_check_at,
-	(SELECT s.id FROM job_sources s WHERE s.company_id = c.id),
-	(SELECT count(*) FROM jobs j WHERE j.company_id = c.id AND j.closed_at IS NULL)::int,
-	c.created_at, c.updated_at`
-
 func scanCompany(row pgx.Row, extra ...any) (domain.Company, error) {
 	var c domain.Company
 	dst := []any{&c.ID, &c.Name, &c.Domain, &c.CareersURL, &c.ATS, &c.ATSID, &c.Origin, &c.Status,
@@ -47,6 +42,8 @@ type CompanyParams struct {
 	Origin     string
 	ATSID      *string
 	Domain     *string
+	// Country is the ISO 3166-1 alpha-2 code the company hires in, when known.
+	Country string
 }
 
 // UpsertDiscovered adds a company or returns the existing one. A known board
@@ -69,10 +66,10 @@ func (r *CompanyRepository) UpsertDiscovered(ctx context.Context, p CompanyParam
 		switch {
 		case err == pgx.ErrNoRows:
 			err = tx.QueryRow(ctx, `
-				INSERT INTO companies (name, domain, careers_url, ats, ats_id, origin)
-				VALUES ($1, $2, $3, $4, $5, $6)
+				INSERT INTO companies (name, domain, careers_url, ats, ats_id, origin, country)
+				VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7::text, ''))
 				ON CONFLICT DO NOTHING RETURNING id`,
-				p.Name, p.Domain, p.CareersURL, ats, p.ATSID, p.Origin).Scan(&id)
+				p.Name, p.Domain, p.CareersURL, ats, p.ATSID, p.Origin, p.Country).Scan(&id)
 			if err == pgx.ErrNoRows {
 				// Inserted concurrently by another discoverer.
 				return tx.QueryRow(ctx, `SELECT id FROM companies WHERE careers_url = $1 OR (ats = $2 AND ats_id = $3)`,
@@ -84,15 +81,28 @@ func (r *CompanyRepository) UpsertDiscovered(ctx context.Context, p CompanyParam
 			created = true
 		case err != nil:
 			return translate(err, "find company")
+		default:
+			// A known company learns its country from a later sighting.
+			if _, err := tx.Exec(ctx, `UPDATE companies SET country = $2 WHERE id = $1 AND country IS NULL AND $2::text <> ''`, id, p.Country); err != nil {
+				return translate(err, "set company country")
+			}
 		}
-		c, err = scanCompany(tx.QueryRow(ctx, `SELECT `+companyColumns+` FROM companies c WHERE c.id = $1`, id))
+		c, err = scanCompany(tx.QueryRow(ctx, `SELECT c.id, c.name, c.domain, c.careers_url, c.ats, c.ats_id, c.origin, c.status,
+	c.last_checked_at, c.last_error, c.failure_count, c.next_check_at,
+	(SELECT s.id FROM job_sources s WHERE s.company_id = c.id),
+	(SELECT count(*) FROM jobs j WHERE j.company_id = c.id AND j.closed_at IS NULL)::int,
+	c.created_at, c.updated_at FROM companies c WHERE c.id = $1`, id))
 		return translate(err, "read company")
 	})
 	return c, created, err
 }
 
 func (r *CompanyRepository) Get(ctx context.Context, id string) (domain.Company, error) {
-	c, err := scanCompany(r.pool.QueryRow(ctx, `SELECT `+companyColumns+` FROM companies c WHERE c.id = $1`, id))
+	c, err := scanCompany(r.pool.QueryRow(ctx, `SELECT c.id, c.name, c.domain, c.careers_url, c.ats, c.ats_id, c.origin, c.status,
+	c.last_checked_at, c.last_error, c.failure_count, c.next_check_at,
+	(SELECT s.id FROM job_sources s WHERE s.company_id = c.id),
+	(SELECT count(*) FROM jobs j WHERE j.company_id = c.id AND j.closed_at IS NULL)::int,
+	c.created_at, c.updated_at FROM companies c WHERE c.id = $1`, id))
 	return c, translate(err, "get company")
 }
 
@@ -100,10 +110,15 @@ func (r *CompanyRepository) Get(ctx context.Context, id string) (domain.Company,
 // identified: new ones and unknown ones whose next check is due.
 func (r *CompanyRepository) PendingDetection(ctx context.Context, limit int) ([]domain.Company, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT `+companyColumns+` FROM companies c
+		SELECT c.id, c.name, c.domain, c.careers_url, c.ats, c.ats_id, c.origin, c.status,
+	c.last_checked_at, c.last_error, c.failure_count, c.next_check_at,
+	(SELECT s.id FROM job_sources s WHERE s.company_id = c.id),
+	(SELECT count(*) FROM jobs j WHERE j.company_id = c.id AND j.closed_at IS NULL)::int,
+	c.created_at, c.updated_at FROM companies c
 		WHERE c.status = 'pending'
 		   OR (c.ats = 'unknown' AND c.status NOT IN ('disabled') AND c.next_check_at <= NOW())
-		ORDER BY c.next_check_at, c.id LIMIT $1`, limit)
+		-- Companies of the research profile's countries are identified first.
+		ORDER BY COALESCE(c.country = ANY($2::text[]), FALSE) DESC, c.next_check_at, c.id LIMIT $1`, limit, focus.Countries(ctx))
 	return collectCompanies(rows, err, "list companies pending detection")
 }
 
@@ -128,16 +143,15 @@ func (r *CompanyRepository) RecordDetection(ctx context.Context, id, ats string,
 				status = CASE WHEN status = 'disabled' THEN status ELSE $4 END,
 				last_error = $5, last_checked_at = NOW(),
 				failure_count = CASE WHEN $6 THEN failure_count + 1 ELSE 0 END,
-				next_check_at = CASE WHEN $6 THEN NOW() + `+backoffSQL("failure_count + 1")+` ELSE NOW() END
+				next_check_at = CASE WHEN $6 THEN NOW() + LEAST(INTERVAL '1 hour' * power(2, GREATEST(failure_count + 1, 1) - 1), INTERVAL '168 hours') ELSE NOW() END
 			WHERE id = $1 RETURNING *
 		)
-		SELECT `+companyColumns+` FROM updated c`, id, ats, atsID, status, errMsg, failed))
+		SELECT c.id, c.name, c.domain, c.careers_url, c.ats, c.ats_id, c.origin, c.status,
+	c.last_checked_at, c.last_error, c.failure_count, c.next_check_at,
+	(SELECT s.id FROM job_sources s WHERE s.company_id = c.id),
+	(SELECT count(*) FROM jobs j WHERE j.company_id = c.id AND j.closed_at IS NULL)::int,
+	c.created_at, c.updated_at FROM updated c`, id, ats, atsID, status, errMsg, failed))
 	return c, translate(err, "record company detection")
-}
-
-// backoffSQL is 1 hour doubled per earlier failure, capped at 7 days.
-func backoffSQL(failures string) string {
-	return fmt.Sprintf("LEAST(INTERVAL '1 hour' * power(2, GREATEST(%s, 1) - 1), INTERVAL '168 hours')", failures)
 }
 
 var sourceKeyUnsafe = regexp.MustCompile(`[^a-z0-9_-]+`)
@@ -164,7 +178,8 @@ func (r *CompanyRepository) AttachSource(ctx context.Context, companyID string, 
 		ON CONFLICT (company_id) DO UPDATE SET
 			name = EXCLUDED.name, base_url = EXCLUDED.base_url, adapter = EXCLUDED.adapter,
 			config = EXCLUDED.config, enabled = TRUE
-		RETURNING `+sourceColumns, key, p.Name, p.BaseURL, p.Adapter, config, interval, companyID))
+		RETURNING id, key, name, base_url, enabled, adapter, config,
+	EXTRACT(EPOCH FROM sync_interval)::bigint, reviewed_at, review_note, company_id, created_at, updated_at`, key, p.Name, p.BaseURL, p.Adapter, config, interval, companyID))
 	return s, translate(err, "attach company source")
 }
 
@@ -191,7 +206,7 @@ func (r *CompanyRepository) RecordSyncOutcome(ctx context.Context, companyID str
 			status = CASE WHEN status = 'disabled' THEN status ELSE $2 END,
 			last_error = $3, last_checked_at = NOW(),
 			failure_count = CASE WHEN $4 THEN failure_count + 1 ELSE 0 END,
-			next_check_at = CASE WHEN $4 THEN NOW() + `+backoffSQL("failure_count + 1")+` ELSE NOW() END
+			next_check_at = CASE WHEN $4 THEN NOW() + LEAST(INTERVAL '1 hour' * power(2, GREATEST(failure_count + 1, 1) - 1), INTERVAL '168 hours') ELSE NOW() END
 		WHERE id = $1`, companyID, status, errMsg, failed)
 	return translate(err, "record company sync outcome")
 }
@@ -220,7 +235,11 @@ func (r *CompanyRepository) List(ctx context.Context, f CompanyFilter) ([]domain
 		ws = &f.WorkspaceID
 	}
 	rows, err := r.pool.Query(ctx, `
-		SELECT `+companyColumns+`,
+		SELECT c.id, c.name, c.domain, c.careers_url, c.ats, c.ats_id, c.origin, c.status,
+	c.last_checked_at, c.last_error, c.failure_count, c.next_check_at,
+	(SELECT s.id FROM job_sources s WHERE s.company_id = c.id),
+	(SELECT count(*) FROM jobs j WHERE j.company_id = c.id AND j.closed_at IS NULL)::int,
+	c.created_at, c.updated_at,
 			($4::uuid IS NOT NULL AND EXISTS (
 				SELECT 1 FROM workspace_company_blocks b WHERE b.workspace_id = $4 AND b.company_id = c.id))
 		FROM companies c
@@ -273,7 +292,11 @@ func (r *CompanyRepository) SetDisabled(ctx context.Context, id string, disabled
 		if _, err := tx.Exec(ctx, `UPDATE job_sources SET enabled = NOT $2 WHERE company_id = $1`, id, disabled); err != nil {
 			return translate(err, "set company source enabled")
 		}
-		c, err = scanCompany(tx.QueryRow(ctx, `SELECT `+companyColumns+` FROM companies c WHERE c.id = $1`, id))
+		c, err = scanCompany(tx.QueryRow(ctx, `SELECT c.id, c.name, c.domain, c.careers_url, c.ats, c.ats_id, c.origin, c.status,
+	c.last_checked_at, c.last_error, c.failure_count, c.next_check_at,
+	(SELECT s.id FROM job_sources s WHERE s.company_id = c.id),
+	(SELECT count(*) FROM jobs j WHERE j.company_id = c.id AND j.closed_at IS NULL)::int,
+	c.created_at, c.updated_at FROM companies c WHERE c.id = $1`, id))
 		return translate(err, "read company")
 	})
 	return c, err
@@ -388,4 +411,20 @@ func (r *CompanyRepository) NamesWithoutBoard(ctx context.Context, after string,
 		out = append(out, n)
 	}
 	return out, translate(rows.Err(), "list names without board")
+}
+
+// RefreshCountries sets each company's country to the country most of its jobs
+// are in, so the next research run can read the companies of a profile's
+// countries first. It returns how many companies changed.
+func (r *CompanyRepository) RefreshCountries(ctx context.Context) (int64, error) {
+	tag, err := r.pool.Exec(ctx, `
+		UPDATE companies c SET country = j.country
+		FROM (
+			SELECT company_id, mode() WITHIN GROUP (ORDER BY country_code) AS country
+			FROM jobs
+			WHERE company_id IS NOT NULL AND country_code IS NOT NULL
+			GROUP BY company_id
+		) j
+		WHERE c.id = j.company_id AND c.country IS DISTINCT FROM j.country`)
+	return tag.RowsAffected(), translate(err, "refresh company countries")
 }

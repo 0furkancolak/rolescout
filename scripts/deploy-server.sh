@@ -13,7 +13,11 @@ DIR="${ROLESCOUT_REMOTE_DIR:-rolescout}"
 PORT="${ROLESCOUT_WEB_PORT:-4173}"
 
 cd "$(git rev-parse --show-toplevel)"
-git archive --format=tar HEAD | ssh "$HOST" "mkdir -p '$DIR' && tar -x -C '$DIR'"
+# Extract into a fresh directory so files deleted in the repository do not
+# linger on the server, then keep the server's own .env.
+git archive --format=tar HEAD | ssh "$HOST" "rm -rf '$DIR.new' && mkdir -p '$DIR.new' && tar -x -C '$DIR.new' \
+  && { [ ! -f '$DIR/.env' ] || cp -p '$DIR/.env' '$DIR.new/.env'; } \
+  && mkdir -p '$DIR' && rm -rf '$DIR.old' && mv '$DIR' '$DIR.old' && mv '$DIR.new' '$DIR'"
 
 ssh "$HOST" bash -s -- "$DIR" "$PORT" <<'REMOTE'
 set -euo pipefail

@@ -6,6 +6,16 @@ include breaking changes, which are called out.
 
 ## [Unreleased]
 ### Added
+- Country focus: a research profile's countries are read first in every stage
+  (companies of those countries are identified and their jobs collected before
+  the rest), and the sector search asks about those countries before the
+  general regions. Companies carry a country (from the career page's domain, the
+  shipped Türkiye list, then the countries of their jobs).
+- Company discovery from more places: US stock exchange listings (Nasdaq Trader
+  directories) and, when AI is on, sector by sector (25 industries × worldwide,
+  Türkiye, Europe, United States). Both only produce names; a name becomes a
+  company only if its job board really exists (the name probe). They work in
+  batches over several runs instead of blocking one.
 - Settings → System: RAM each service uses now and may use (API and worker
   measured, PostgreSQL and web by limit), with container memory limits in
   Compose (`API_MEM_LIMIT`, `WORKER_MEM_LIMIT`, `POSTGRES_MEM_LIMIT`,
@@ -58,6 +68,20 @@ include breaking changes, which are called out.
   employers).
 - `make dev` streams the API and worker logs into the terminal.
 ### Changed
+- Research is much faster: all discovery sources run at the same time (the
+  stage shows sources finished), names are probed eight at a time, defaults are
+  32 hosts in parallel and 8 requests per job board API (150 ms apart), the
+  sector search asks four sector/region questions at once, and larger career
+  sites are read in full (no page cap: every page found is read, Workday until its list ends).
+- All SQL is written out as literal statements with parameters; the dynamic
+  query builder (job search, facets) is replaced by fixed statements with
+  optional filters, and a test fails if SQL is ever built at run time.
+- Hacker News discovery reads a whole "Who is hiring?" thread in one request
+  (HN Search API) instead of one request per comment, so the first run takes
+  seconds instead of tens of minutes; the old per-comment path is the fallback.
+- A run that failed, was cancelled or was interrupted no longer shows a stage as
+  still "in progress" (stored that way too); its log is shown when you open the
+  page again; the run page shows memory use for administrators.
 - Every clickable control shows a pointer cursor; dialogs dim the page with a dark
   scrim in both themes (it looked like a white wash in dark mode).
 - No favicon.

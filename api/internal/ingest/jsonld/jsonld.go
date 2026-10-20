@@ -20,7 +20,7 @@ import (
 // Adapter fetches one career site per source. Config: {"url": "https://acme.example/careers", "company": "Acme"}.
 type Adapter struct {
 	Client   *crawl.Client
-	MaxPages int
+	MaxPages int // 0 reads every page it finds
 }
 
 func New(c *crawl.Client, maxPages int) *Adapter {
@@ -35,7 +35,10 @@ func (a *Adapter) Validate(config map[string]any) error {
 
 // FetchTimeout gives a crawl time for its page limit at a polite pace.
 func (a *Adapter) FetchTimeout(map[string]any) time.Duration {
-	return min(max(time.Duration(max(a.MaxPages, 1))*5*time.Second, 2*time.Minute), time.Hour)
+	if a.MaxPages <= 0 {
+		return time.Hour
+	}
+	return min(max(time.Duration(a.MaxPages)*5*time.Second, 2*time.Minute), time.Hour)
 }
 
 // skips counts pages and blocks that were left out, by reason.
@@ -65,7 +68,7 @@ func (a *Adapter) Fetch(ctx context.Context, config map[string]any) ([]ingest.Ra
 	}
 	start := ingest.ConfigString(config, "url")
 	company := ingest.ConfigString(config, "company")
-	maxPages := max(a.MaxPages, 1)
+	unlimited := a.MaxPages <= 0
 
 	queue := []string{start}
 	visited := map[string]bool{start: true}
@@ -73,7 +76,7 @@ func (a *Adapter) Fetch(ctx context.Context, config map[string]any) ([]ingest.Ra
 	var out []ingest.RawListing
 	var skipped skips
 	pages := 0
-	for ; len(queue) > 0 && pages < maxPages; pages++ {
+	for ; len(queue) > 0 && (unlimited || pages < a.MaxPages); pages++ {
 		if ctx.Err() != nil {
 			break
 		}
@@ -158,7 +161,7 @@ func (a *Adapter) Fetch(ctx context.Context, config map[string]any) ([]ingest.Ra
 		n := skipped.unreadable
 		return out, ingest.Incomplete("%s", withNote(fmt.Sprintf("%d %s could not be read", n, map[bool]string{true: "page", false: "pages"}[n == 1])))
 	case len(queue) > 0:
-		return out, ingest.Incomplete("%s", withNote(fmt.Sprintf("page limit of %d reached", maxPages)))
+		return out, ingest.Incomplete("%s", withNote(fmt.Sprintf("page limit of %d reached", a.MaxPages)))
 	case note != "":
 		return out, ingest.Note("%s", note)
 	}

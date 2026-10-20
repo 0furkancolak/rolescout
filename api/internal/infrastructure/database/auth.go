@@ -62,7 +62,7 @@ func (r *AuthRepository) Register(ctx context.Context, p RegisterParams) (domain
 		u, err = scanUser(tx.QueryRow(ctx, `
 			INSERT INTO users (email, display_name, locale, is_admin)
 			VALUES ($1, $2, $3, NOT EXISTS (SELECT 1 FROM users))
-			RETURNING `+userColumns,
+			RETURNING id, email, display_name, locale, created_at, updated_at, is_admin`,
 			strings.ToLower(strings.TrimSpace(p.Email)), p.DisplayName, locale))
 		if err != nil {
 			return translate(err, "create user")
@@ -95,7 +95,7 @@ func (r *AuthRepository) HasUsers(ctx context.Context) (bool, error) {
 
 // ListUsers returns all accounts, oldest first.
 func (r *AuthRepository) ListUsers(ctx context.Context) ([]domain.User, error) {
-	rows, err := r.pool.Query(ctx, `SELECT `+userColumns+` FROM users ORDER BY created_at, id`)
+	rows, err := r.pool.Query(ctx, `SELECT id, email, display_name, locale, created_at, updated_at, is_admin FROM users ORDER BY created_at, id`)
 	if err != nil {
 		return nil, translate(err, "list users")
 	}
@@ -140,7 +140,13 @@ func (r *AuthRepository) CreateSession(ctx context.Context, tokenHash []byte, us
 // UserBySession returns the user of an unexpired session, or ErrNotFound.
 func (r *AuthRepository) UserBySession(ctx context.Context, tokenHash []byte) (domain.User, error) {
 	u, err := scanUser(r.pool.QueryRow(ctx, `
-		SELECT `+prefixed("u", userColumns)+`
+		SELECT u.id,
+			u.email,
+			u.display_name,
+			u.locale,
+			u.created_at,
+			u.updated_at,
+			u.is_admin
 		FROM sessions s JOIN users u ON u.id = s.user_id
 		WHERE s.token_hash = $1 AND s.expires_at > NOW()`, tokenHash))
 	return u, translate(err, "get session user")

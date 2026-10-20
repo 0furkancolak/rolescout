@@ -133,3 +133,14 @@ nor a private address.
   creating a new account while registration is open.
 - Sessions cannot be listed or revoked per device from the UI.
 - Rate limits are in memory and reset when the API restarts.
+
+## SQL injection
+Every SQL statement is a string literal written out in full next to its
+parameters; values only ever travel as parameters (`$1`, `$2`…). Nothing builds
+SQL at run time: no `fmt.Sprintf`, no concatenation, no helper that returns SQL.
+Optional filters are written as `($1::text = '' OR column = $1::text)` and the
+connection plans with the actual values (`plan_cache_mode=force_custom_plan`),
+so such a statement is as fast as one written for exactly those filters.
+`TestSQLIsStaticLiteralsOnly` (`api/internal/infrastructure/database`) fails the
+build if a statement is not a plain literal. The only exception is the
+migration runner, which executes the `.sql` files shipped with the application.

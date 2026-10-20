@@ -47,15 +47,15 @@ limits how fast it calls each host.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `CRAWL_CONCURRENCY` | `16` | Hosts crawled in parallel (1–256). |
+| `CRAWL_CONCURRENCY` | `32` | Hosts crawled in parallel (1–256). |
 | `CRAWL_HOST_INTERVAL` | `1s` | Minimum gap between requests to one company site, at least `100ms`. |
-| `CRAWL_VENDOR_CONCURRENCY` | `4` | Parallel requests to one job board API host (Greenhouse, Lever…), which serves many companies; requests are at least 250 ms apart per connection. |
+| `CRAWL_VENDOR_CONCURRENCY` | `8` | Parallel requests to one job board API host (Greenhouse, Lever…), which serves many companies; requests are at least 150 ms apart per connection. |
 | `CRAWL_USER_AGENT_URL` | project URL | Link in the User-Agent so site owners can find out who is crawling. |
 | `CRAWL_ALLOW_PRIVATE` | `false` | Allow crawling private, loopback and link-local addresses. Leave off in production: it is the SSRF guard. Only for tests and local fixtures. |
 | `DISCOVERY_INTERVAL` | `168h` | How often the company catalog is grown from Common Crawl and seeds, at least `1h`. |
 | `COMPANY_SYNC_INTERVAL` | `12h` | Refresh interval for companies with matching jobs, at least `1h`. Others refresh every 3 days, companies without jobs weekly. |
 | `RESEARCH_INTERVAL` | `12h` | Default schedule of research profiles, at least `1h`. |
-| `JSONLD_MAX_PAGES` | `200` | Pages read per company career site without a supported job board (1–10000). |
+| `JSONLD_MAX_PAGES` | `0` | Pages read per company career site without a supported job board. `0` (default) reads every page it finds, within the one-hour time budget per site. |
 | `MATCH_MIN_SCORE` | `40` | Lowest score (0–100) stored as a match. |
 | `CLOSED_JOB_RETENTION` | `2160h` | Closed jobs nobody saved or applied to are deleted after this long; `0` keeps them. At least `24h` otherwise. |
 
@@ -107,7 +107,7 @@ use. Change a limit in `.env` and restart (`docker compose up -d`):
 | Variable | Default | Notes |
 | --- | --- | --- |
 | `API_MEM_LIMIT` / `API_GOMEMLIMIT` | `512m` / `400MiB` | Go collects harder near `GOMEMLIMIT`; keep it about 80% of the limit. |
-| `WORKER_MEM_LIMIT` / `WORKER_GOMEMLIMIT` | `1g` / `800MiB` | Crawling and AI reading. Lower `CRAWL_CONCURRENCY` before lowering this. |
+| `WORKER_MEM_LIMIT` / `WORKER_GOMEMLIMIT` | `1536m` / `1200MiB` | Crawling and AI reading. Lower `CRAWL_CONCURRENCY` before lowering this. |
 | `POSTGRES_MEM_LIMIT` | `1g` | Also set `POSTGRES_MEM_LIMIT_MB` (the same number in MB) so the page shows it. |
 | `WEB_MEM_LIMIT` | `128m` | Also set `WEB_MEM_LIMIT_MB`. |
 

@@ -11,7 +11,7 @@ for machines to read.
 
 The adapter starts at the configured career page, reads the JSON-LD on it and
 follows links that stay on the same host under the same path (for example
-`/careers/...`), breadth first, up to `JSONLD_MAX_PAGES` pages (default 200).
+`/careers/...`), breadth first, through every page it finds (set `JSONLD_MAX_PAGES` to cap it; default 0 = no cap).
 Objects, arrays and `@graph` wrappers are understood; postings whose
 `validThrough` has passed are skipped. Non-HTML responses, broken scripts and
 missing linked pages are skipped; only a failure of the start page fails the

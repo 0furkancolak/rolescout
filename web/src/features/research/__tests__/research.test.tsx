@@ -1,7 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { makeProfile, makeRun, mockApi, PROFILE, renderApp, RUN, signedIn, WS } from "../../../test/utils";
+import { makeProfile, makeRun, mockApi, PROFILE, renderApp, RUN, signedIn, user, WS } from "../../../test/utils";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -37,6 +37,46 @@ describe("RunPage", () => {
     expect(await within(log).findByText(/board not found/)).toBeInTheDocument();
     expect(polls).toBeGreaterThan(1);
     expect(api.calls.some((c) => c.path.endsWith("/events") && c.search.get("after") === "1")).toBe(true);
+  });
+
+  it("shows where a failed run stopped instead of a spinner, with the log of an earlier visit", async () => {
+    const failed = makeRun({ state: "failed", error: "the worker stopped during the run", finished_at: "2026-10-17T10:07:00Z" });
+    mockApi({
+      ...signedIn(),
+      [`GET ${base}/research-runs/${RUN}`]: { body: { data: failed } },
+      [`GET ${base}/research-profiles/${PROFILE}`]: { body: { data: makeProfile() } },
+      [`GET ${base}/research-runs/${RUN}/events`]: (call) => ({
+        body: { data: call.search.get("after") === "0" ? [{ id: 1, at: "2026-10-17T10:00:02Z", level: "info", stage: "collection", company: "", message: "seed: 144 new companies" }] : [] },
+      }),
+    });
+    renderApp(`/research/runs/${RUN}`);
+    const collection = await screen.findByRole("region", { name: "Job collection" });
+    expect(within(collection).getByText("Failed")).toBeInTheDocument();
+    expect(within(collection).getByText("The run stopped during this stage.")).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Matching and scoring" })).getByText("Skipped")).toBeInTheDocument();
+    expect(screen.queryByText("In progress")).toBeNull();
+    expect(await within(screen.getByRole("log")).findByText(/144 new companies/)).toBeInTheDocument();
+  });
+
+  it("shows memory use on the run page to administrators", async () => {
+    const MB = 1 << 20;
+    mockApi({
+      ...signedIn(),
+      "GET /auth/me": { body: { data: { ...user, is_admin: true } } },
+      [`GET ${base}/research-runs/${RUN}`]: { body: { data: makeRun() } },
+      [`GET ${base}/research-profiles/${PROFILE}`]: { body: { data: makeProfile() } },
+      [`GET ${base}/research-runs/${RUN}/events`]: { body: { data: [] } },
+      "GET /admin/system": {
+        body: { data: { host_total_bytes: 16384 * MB, postgres: {}, services: [
+          { name: "api", used_bytes: 72 * MB, limit_bytes: 512 * MB, estimated: false, stale: false },
+          { name: "worker", used_bytes: 300 * MB, limit_bytes: 1024 * MB, estimated: false, stale: false },
+        ] } },
+      },
+    });
+    renderApp(`/research/runs/${RUN}`);
+    const box = within(await screen.findByRole("region", { name: "System usage" }));
+    expect(await box.findByText("300 MB")).toBeInTheDocument();
+    expect(box.getByRole("link", { name: "All services" })).toHaveAttribute("href", "/settings?tab=system");
   });
 
   it("cancels a running run", async () => {

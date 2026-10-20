@@ -222,7 +222,16 @@ ORDER BY x.job_id, x.created_at DESC`, workspaceID, profileID, jobIDs)
 // best first. An attempt that produced nothing is stored with an empty text, so
 // it is not offered again until the description or the prompt changes.
 func (r *EnrichmentRepository) ExplanationQueue(ctx context.Context, model string, promptVersion, minScore, limit int) ([]domain.ExplanationTask, error) {
-	rows, err := r.pool.Query(ctx, explanationSelect+`
+	rows, err := r.pool.Query(ctx, `
+SELECT p.workspace_id, m.profile_id, m.job_id, j.description_hash, j.title, j.company_name, m.score, m.reasons,
+       ARRAY(SELECT DISTINCT t FROM unnest((j.technologies || COALESCE(ai.technologies, '{}'::text[]))) AS t ORDER BY t), p.technologies, COALESCE(NULLIF(j.seniority, 'unknown'), ai.seniority, 'unknown'), COALESCE(NULLIF(j.work_arrangement, 'unknown'), ai.work_arrangement, 'unknown'), COALESCE(COALESCE(j.country_code, ai.country_code), ''),
+       COALESCE((SELECT u.locale FROM workspace_memberships wm JOIN users u ON u.id = wm.user_id
+                 WHERE wm.workspace_id = p.workspace_id AND wm.role = 'owner' ORDER BY wm.created_at LIMIT 1), 'en')
+FROM research_matches m
+JOIN research_profiles p ON p.id = m.profile_id
+JOIN jobs j ON j.id = m.job_id AND j.closed_at IS NULL
+JOIN job_ai ai ON ai.job_id = j.id
+
 WHERE m.score >= $1
   AND NOT EXISTS (SELECT 1 FROM match_explanations x WHERE x.workspace_id = p.workspace_id AND x.profile_id = p.id
       AND x.job_id = j.id AND x.description_hash = j.description_hash AND x.model = $2 AND x.prompt_version = $3)
@@ -234,19 +243,6 @@ LIMIT $4`, minScore, model, promptVersion, limit)
 	defer rows.Close()
 	return scanExplanationTasks(rows)
 }
-
-// explanationSelect lists the facts an explanation is built from, for matches
-// on open jobs the model has read.
-var explanationSelect = `
-SELECT p.workspace_id, m.profile_id, m.job_id, j.description_hash, j.title, j.company_name, m.score, m.reasons,
-       ` + effTechnologiesDistinct + `, p.technologies, ` + effSeniority + `, ` + effArrangement + `, COALESCE(` + effCountry + `, ''),
-       COALESCE((SELECT u.locale FROM workspace_memberships wm JOIN users u ON u.id = wm.user_id
-                 WHERE wm.workspace_id = p.workspace_id AND wm.role = 'owner' ORDER BY wm.created_at LIMIT 1), 'en')
-FROM research_matches m
-JOIN research_profiles p ON p.id = m.profile_id
-JOIN jobs j ON j.id = m.job_id AND j.closed_at IS NULL
-JOIN job_ai ai ON ai.job_id = j.id
-`
 
 func scanExplanationTasks(rows pgx.Rows) ([]domain.ExplanationTask, error) {
 	var out []domain.ExplanationTask
@@ -358,7 +354,16 @@ func (r *EnrichmentRepository) HasEnrichment(ctx context.Context, jobID string) 
 // score, or ErrNotFound when the job has no match for the profile or the model
 // has not read it yet.
 func (r *EnrichmentRepository) ExplanationTaskFor(ctx context.Context, workspaceID, profileID, jobID string) (domain.ExplanationTask, error) {
-	rows, err := r.pool.Query(ctx, explanationSelect+`
+	rows, err := r.pool.Query(ctx, `
+SELECT p.workspace_id, m.profile_id, m.job_id, j.description_hash, j.title, j.company_name, m.score, m.reasons,
+       ARRAY(SELECT DISTINCT t FROM unnest((j.technologies || COALESCE(ai.technologies, '{}'::text[]))) AS t ORDER BY t), p.technologies, COALESCE(NULLIF(j.seniority, 'unknown'), ai.seniority, 'unknown'), COALESCE(NULLIF(j.work_arrangement, 'unknown'), ai.work_arrangement, 'unknown'), COALESCE(COALESCE(j.country_code, ai.country_code), ''),
+       COALESCE((SELECT u.locale FROM workspace_memberships wm JOIN users u ON u.id = wm.user_id
+                 WHERE wm.workspace_id = p.workspace_id AND wm.role = 'owner' ORDER BY wm.created_at LIMIT 1), 'en')
+FROM research_matches m
+JOIN research_profiles p ON p.id = m.profile_id
+JOIN jobs j ON j.id = m.job_id AND j.closed_at IS NULL
+JOIN job_ai ai ON ai.job_id = j.id
+
 WHERE p.workspace_id = $1 AND m.profile_id = $2 AND m.job_id = $3
 LIMIT 1`, workspaceID, profileID, jobID)
 	if err != nil {

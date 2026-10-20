@@ -84,8 +84,6 @@ func (r *AnnotationRepository) ListApplicationTags(ctx context.Context, workspac
 	return tags, translate(err, "list application tags")
 }
 
-const noteColumns = `id, workspace_id, application_id, author_id, body, created_at, updated_at`
-
 func scanNote(row pgx.Row) (domain.Note, error) {
 	var n domain.Note
 	err := row.Scan(&n.ID, &n.WorkspaceID, &n.ApplicationID, &n.AuthorID, &n.Body, &n.CreatedAt, &n.UpdatedAt)
@@ -95,7 +93,7 @@ func scanNote(row pgx.Row) (domain.Note, error) {
 func (r *AnnotationRepository) AddNote(ctx context.Context, workspaceID, applicationID string, authorID *string, body string) (domain.Note, error) {
 	n, err := scanNote(r.pool.QueryRow(ctx, `
 		INSERT INTO notes (workspace_id, application_id, author_id, body) VALUES ($1, $2, $3, $4)
-		RETURNING `+noteColumns, workspaceID, applicationID, authorID, body))
+		RETURNING id, workspace_id, application_id, author_id, body, created_at, updated_at`, workspaceID, applicationID, authorID, body))
 	return n, translate(err, "add note")
 }
 
@@ -103,13 +101,13 @@ func (r *AnnotationRepository) UpdateNote(ctx context.Context, workspaceID, appl
 	n, err := scanNote(r.pool.QueryRow(ctx, `
 		UPDATE notes SET body = $4
 		WHERE workspace_id = $1 AND application_id = $2 AND id = $3
-		RETURNING `+noteColumns, workspaceID, applicationID, noteID, body))
+		RETURNING id, workspace_id, application_id, author_id, body, created_at, updated_at`, workspaceID, applicationID, noteID, body))
 	return n, translate(err, "update note")
 }
 
 func (r *AnnotationRepository) ListNotes(ctx context.Context, workspaceID, applicationID string) ([]domain.Note, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT `+noteColumns+` FROM notes
+		SELECT id, workspace_id, application_id, author_id, body, created_at, updated_at FROM notes
 		WHERE workspace_id = $1 AND application_id = $2
 		ORDER BY created_at, id`, workspaceID, applicationID)
 	if err != nil {

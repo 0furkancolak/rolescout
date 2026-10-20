@@ -62,6 +62,7 @@ func hnServer(t *testing.T, now time.Time) (*HackerNews, *atomic.Int32) {
 		"/v0/item/301.json":         `{"id":301,"type":"comment","text":"Acme Corp | Full Stack Engineer | Remote<p>Apply: <a href=\"https:&#x2F;&#x2F;jobs.lever.co&#x2F;acme\" rel=\"nofollow\">https:&#x2F;&#x2F;jobs.lever.co&#x2F;acme</a> or see <a href=\"https:&#x2F;&#x2F;acme.example&#x2F;blog\">blog</a>"}`,
 		"/v0/item/302.json":         `{"id":302,"type":"comment","text":"Beta GmbH | Berlin | <a href=\"https:&#x2F;&#x2F;beta.example&#x2F;careers\">https:&#x2F;&#x2F;beta.example&#x2F;careers</a>"}`,
 		"/v0/item/303.json":         `{"id":303,"type":"comment","deleted":true}`,
+		"/algolia/items/300":        `{"children":[{"text":"Acme Corp | Remote<p>Apply: <a href=\"https:&#x2F;&#x2F;jobs.lever.co&#x2F;acme\">x</a>"},{"text":""}]}`,
 		"/v0/item/201.json":         `{"id":201,"type":"comment","text":"Gamma | <a href=\"https:&#x2F;&#x2F;gamma.example\">gamma.example</a>"}`,
 	}
 	c, base := ingesttest.Server(t, func(w http.ResponseWriter, r *http.Request) {
@@ -307,5 +308,29 @@ func TestCatalogProbeWalksNamesInBatchesAndFinishes(t *testing.T) {
 	// A finished pass waits.
 	if again, _ := c.Discover(ingesttest.Ctx(t), state, collect); again != state {
 		t.Errorf("finished pass ran again: %q", again)
+	}
+}
+
+func TestHackerNewsReadsAThreadInOneRequestWhenTheSearchAPIAnswers(t *testing.T) {
+	now := time.Date(2026, 10, 17, 0, 0, 0, 0, time.UTC)
+	hn, hits := hnServer(t, now)
+	hn.ThreadURL = strings.TrimSuffix(hn.BaseURL, "/v0") + "/algolia"
+	got, _ := collect(t, hn, "200")
+	if len(got) != 1 || got[0].URL != "https://jobs.lever.co/acme" {
+		t.Fatalf("candidates = %+v", got)
+	}
+	// whoishiring + 4 stories + 1 thread; no per-comment requests.
+	if hits.Load() > 6 {
+		t.Errorf("requests = %d", hits.Load())
+	}
+}
+
+func TestHackerNewsFallsBackWhenTheSearchAPIFails(t *testing.T) {
+	now := time.Date(2026, 10, 17, 0, 0, 0, 0, time.UTC)
+	hn, _ := hnServer(t, now)
+	hn.ThreadURL = hn.BaseURL + "/nothing" // 404 on this server
+	got, _ := collect(t, hn, "200")
+	if u := urls(got); u != "https://beta.example/careers https://jobs.lever.co/acme" {
+		t.Errorf("candidates = %s", u)
 	}
 }

@@ -59,7 +59,42 @@ LEFT JOIN nm USING (day)
 LEFT JOIN jc USING (day)
 LEFT JOIN ac USING (day)
 ORDER BY d.day`
-	rows, err := r.pool.Query(ctx, q, workspaceID, now, days)
+	rows, err := r.pool.Query(ctx, `
+WITH b AS (SELECT (($2::timestamptz AT TIME ZONE 'UTC')::date) AS today),
+rng AS (
+    SELECT (b.today - ($3::int - 1))::timestamp AT TIME ZONE 'UTC' AS lo,
+           (b.today + 1)::timestamp AT TIME ZONE 'UTC' AS hi
+    FROM b
+),
+d AS (
+    SELECT g::date AS day
+    FROM b, generate_series((b.today - ($3::int - 1))::timestamp, b.today::timestamp, interval '1 day') g
+),
+nm AS (
+    SELECT (m.first_matched_at AT TIME ZONE 'UTC')::date AS day, count(*)::int AS n
+    FROM research_matches m
+    JOIN research_profiles p ON p.id = m.profile_id, rng
+    WHERE p.workspace_id = $1 AND m.first_matched_at >= rng.lo AND m.first_matched_at < rng.hi
+    GROUP BY 1
+),
+jc AS (
+    SELECT (j.first_seen_at AT TIME ZONE 'UTC')::date AS day, count(*)::int AS n
+    FROM jobs j, rng
+    WHERE j.closed_at IS NULL AND j.first_seen_at >= rng.lo AND j.first_seen_at < rng.hi
+    GROUP BY 1
+),
+ac AS (
+    SELECT (a.created_at AT TIME ZONE 'UTC')::date AS day, count(*)::int AS n
+    FROM applications a, rng
+    WHERE a.workspace_id = $1 AND a.created_at >= rng.lo AND a.created_at < rng.hi
+    GROUP BY 1
+)
+SELECT to_char(d.day, 'YYYY-MM-DD'), COALESCE(nm.n, 0), COALESCE(jc.n, 0), COALESCE(ac.n, 0)
+FROM d
+LEFT JOIN nm USING (day)
+LEFT JOIN jc USING (day)
+LEFT JOIN ac USING (day)
+ORDER BY d.day`, workspaceID, now, days)
 	if err != nil {
 		return domain.Activity{}, err
 	}

@@ -22,16 +22,11 @@ func NewApplicationRepository(pool *pgxpool.Pool) *ApplicationRepository {
 	return &ApplicationRepository{pool: pool}
 }
 
-const applicationColumns = `id, workspace_id, job_id, status, created_by, created_at, updated_at`
-
 func scanApplication(row pgx.Row) (domain.Application, error) {
 	var a domain.Application
 	err := row.Scan(&a.ID, &a.WorkspaceID, &a.JobID, &a.Status, &a.CreatedBy, &a.CreatedAt, &a.UpdatedAt)
 	return a, err
 }
-
-const eventColumns = `id, workspace_id, application_id, attempt_id, type, from_status,
-	to_status, occurred_at, details, created_by, created_at`
 
 func scanEvent(row pgx.Row) (domain.ApplicationEvent, error) {
 	var e domain.ApplicationEvent
@@ -65,7 +60,8 @@ func insertEvent(ctx context.Context, tx pgx.Tx, e eventInsert) (domain.Applicat
 		INSERT INTO application_events (workspace_id, application_id, attempt_id, type,
 			from_status, to_status, occurred_at, details, created_by)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-		RETURNING `+eventColumns,
+		RETURNING id, workspace_id, application_id, attempt_id, type, from_status,
+	to_status, occurred_at, details, created_by, created_at`,
 		e.workspaceID, e.applicationID, e.attemptID, e.eventType, e.fromStatus,
 		e.toStatus, occurredAt.UTC(), details, e.createdBy,
 	))
@@ -76,7 +72,7 @@ func insertEvent(ctx context.Context, tx pgx.Tx, e eventInsert) (domain.Applicat
 // changes and attempt numbering are serialized.
 func lockApplication(ctx context.Context, tx pgx.Tx, workspaceID, id string) (domain.Application, error) {
 	a, err := scanApplication(tx.QueryRow(ctx, `
-		SELECT `+applicationColumns+` FROM applications
+		SELECT id, workspace_id, job_id, status, created_by, created_at, updated_at FROM applications
 		WHERE workspace_id = $1 AND id = $2 FOR UPDATE`, workspaceID, id))
 	return a, translate(err, "lock application")
 }
@@ -88,7 +84,7 @@ func (r *ApplicationRepository) Create(ctx context.Context, workspaceID, jobID s
 		var err error
 		a, err = scanApplication(tx.QueryRow(ctx, `
 			INSERT INTO applications (workspace_id, job_id, created_by) VALUES ($1, $2, $3)
-			RETURNING `+applicationColumns, workspaceID, jobID, createdBy))
+			RETURNING id, workspace_id, job_id, status, created_by, created_at, updated_at`, workspaceID, jobID, createdBy))
 		if err != nil {
 			return translate(err, "create application")
 		}
@@ -104,7 +100,7 @@ func (r *ApplicationRepository) Create(ctx context.Context, workspaceID, jobID s
 
 func (r *ApplicationRepository) Get(ctx context.Context, workspaceID, id string) (domain.Application, error) {
 	a, err := scanApplication(r.pool.QueryRow(ctx, `
-		SELECT `+applicationColumns+` FROM applications
+		SELECT id, workspace_id, job_id, status, created_by, created_at, updated_at FROM applications
 		WHERE workspace_id = $1 AND id = $2`, workspaceID, id))
 	return a, translate(err, "get application")
 }
@@ -125,7 +121,7 @@ func (r *ApplicationRepository) Delete(ctx context.Context, workspaceID, id stri
 // optionally filtered by status.
 func (r *ApplicationRepository) List(ctx context.Context, workspaceID string, status *domain.ApplicationStatus) ([]domain.Application, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT `+applicationColumns+` FROM applications
+		SELECT id, workspace_id, job_id, status, created_by, created_at, updated_at FROM applications
 		WHERE workspace_id = $1 AND ($2::text IS NULL OR status = $2)
 		ORDER BY updated_at DESC, id`, workspaceID, status)
 	if err != nil {
@@ -165,7 +161,7 @@ func setStatus(ctx context.Context, tx pgx.Tx, current domain.Application, to do
 	a, err := scanApplication(tx.QueryRow(ctx, `
 		UPDATE applications SET status = $3
 		WHERE workspace_id = $1 AND id = $2
-		RETURNING `+applicationColumns, current.WorkspaceID, current.ID, to))
+		RETURNING id, workspace_id, job_id, status, created_by, created_at, updated_at`, current.WorkspaceID, current.ID, to))
 	if err != nil {
 		return a, translate(err, "update application status")
 	}
@@ -280,7 +276,8 @@ func (r *ApplicationRepository) AddEvent(ctx context.Context, workspaceID, appli
 // ListEvents returns the application's history in chronological order.
 func (r *ApplicationRepository) ListEvents(ctx context.Context, workspaceID, applicationID string) ([]domain.ApplicationEvent, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT `+eventColumns+` FROM application_events
+		SELECT id, workspace_id, application_id, attempt_id, type, from_status,
+	to_status, occurred_at, details, created_by, created_at FROM application_events
 		WHERE workspace_id = $1 AND application_id = $2
 		ORDER BY occurred_at, created_at, id`, workspaceID, applicationID)
 	if err != nil {

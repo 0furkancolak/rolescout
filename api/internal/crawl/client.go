@@ -34,7 +34,7 @@ var DefaultVendorHosts = []string{
 	"apply.workable.com", "api.smartrecruiters.com",
 	".recruitee.com", ".jobs.personio.de", ".jobs.personio.com", ".bamboohr.com", ".myworkdayjobs.com",
 	// Discovery sources.
-	"hacker-news.firebaseio.com", "raw.githubusercontent.com",
+	"hacker-news.firebaseio.com", "hn.algolia.com", "www.nasdaqtrader.com", "raw.githubusercontent.com",
 }
 
 // conditionalHeader asks Get to send stored validators (ETag,
@@ -57,7 +57,7 @@ type Options struct {
 	// HostInterval spaces requests to the same ordinary host (default 1s).
 	HostInterval time.Duration
 	// VendorHosts get VendorConcurrency parallel requests spaced by
-	// VendorInterval (defaults 4 and 250ms).
+	// VendorInterval (defaults 8 and 150ms).
 	VendorHosts       []string
 	VendorConcurrency int
 	VendorInterval    time.Duration
@@ -141,7 +141,7 @@ func New(o Options) *Client {
 		o.VendorConcurrency = 4
 	}
 	if o.VendorInterval <= 0 {
-		o.VendorInterval = 250 * time.Millisecond
+		o.VendorInterval = 150 * time.Millisecond
 	}
 	if o.Timeout <= 0 {
 		o.Timeout = 60 * time.Second

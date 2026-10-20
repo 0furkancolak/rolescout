@@ -18,8 +18,6 @@ func NewUserRepository(pool *pgxpool.Pool) *UserRepository {
 	return &UserRepository{pool: pool}
 }
 
-const userColumns = `id, email, display_name, locale, created_at, updated_at, is_admin`
-
 func scanUser(row pgx.Row) (domain.User, error) {
 	var u domain.User
 	err := row.Scan(&u.ID, &u.Email, &u.DisplayName, &u.Locale, &u.CreatedAt, &u.UpdatedAt, &u.IsAdmin)
@@ -41,7 +39,7 @@ func (r *UserRepository) Create(ctx context.Context, p CreateUserParams) (domain
 	u, err := scanUser(r.pool.QueryRow(ctx, `
 		INSERT INTO users (email, display_name, locale)
 		VALUES ($1, $2, $3)
-		RETURNING `+userColumns,
+		RETURNING id, email, display_name, locale, created_at, updated_at, is_admin`,
 		strings.ToLower(strings.TrimSpace(p.Email)), p.DisplayName, locale,
 	))
 	return u, translate(err, "create user")
@@ -49,13 +47,13 @@ func (r *UserRepository) Create(ctx context.Context, p CreateUserParams) (domain
 
 func (r *UserRepository) GetByID(ctx context.Context, id string) (domain.User, error) {
 	u, err := scanUser(r.pool.QueryRow(ctx,
-		`SELECT `+userColumns+` FROM users WHERE id = $1`, id))
+		`SELECT id, email, display_name, locale, created_at, updated_at, is_admin FROM users WHERE id = $1`, id))
 	return u, translate(err, "get user")
 }
 
 func (r *UserRepository) GetByEmail(ctx context.Context, email string) (domain.User, error) {
 	u, err := scanUser(r.pool.QueryRow(ctx,
-		`SELECT `+userColumns+` FROM users WHERE email = $1`,
+		`SELECT id, email, display_name, locale, created_at, updated_at, is_admin FROM users WHERE email = $1`,
 		strings.ToLower(strings.TrimSpace(email))))
 	return u, translate(err, "get user by email")
 }

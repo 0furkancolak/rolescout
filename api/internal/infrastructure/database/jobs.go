@@ -28,11 +28,7 @@ func NewJobRepository(pool *pgxpool.Pool) *JobRepository {
 	return &JobRepository{pool: pool, facetCache: map[string]facetEntry{}}
 }
 
-const jobColumns = `id, dedupe_key, title, company_name, location, work_arrangement,
-	employment_type, seniority, technologies, description, company_id, country_code,
-	closed_at, first_seen_at, last_seen_at, created_at, updated_at`
-
-// jobDest lists scan destinations in jobColumns order.
+// jobDest lists scan destinations in the column order of the job statements.
 func jobDest(j *domain.Job) []any {
 	return []any{&j.ID, &j.DedupeKey, &j.Title, &j.CompanyName, &j.Location,
 		&j.WorkArrangement, &j.EmploymentType, &j.Seniority, &j.Technologies,
@@ -45,9 +41,6 @@ func scanJob(row pgx.Row) (domain.Job, error) {
 	err := row.Scan(jobDest(&j)...)
 	return j, err
 }
-
-const listingColumns = `id, job_id, source_id, external_id, url, source_posted_at,
-	source_updated_at, first_ingested_at, last_ingested_at, closed_at`
 
 func scanListing(row pgx.Row) (domain.JobListing, error) {
 	var l domain.JobListing
@@ -122,7 +115,9 @@ func (r *JobRepository) UpsertListing(ctx context.Context, in IngestedListing) (
 				company_id = COALESCE(EXCLUDED.company_id, jobs.company_id),
 				country_code = COALESCE(EXCLUDED.country_code, jobs.country_code),
 				closed_at = NULL
-			RETURNING `+jobColumns,
+			RETURNING id, dedupe_key, title, company_name, location, work_arrangement,
+	employment_type, seniority, technologies, description, company_id, country_code,
+	closed_at, first_seen_at, last_seen_at, created_at, updated_at`,
 			in.DedupeKey, in.Title, in.CompanyName, in.Location, in.WorkArrangement,
 			in.EmploymentType, in.Seniority, technologies, in.Description, seenAt,
 			in.CompanyID, in.CountryCode,
@@ -142,7 +137,8 @@ func (r *JobRepository) UpsertListing(ctx context.Context, in IngestedListing) (
 				source_updated_at = EXCLUDED.source_updated_at,
 				last_ingested_at = GREATEST(job_source_listings.last_ingested_at, EXCLUDED.last_ingested_at),
 				closed_at = NULL
-			RETURNING `+listingColumns,
+			RETURNING id, job_id, source_id, external_id, url, source_posted_at,
+	source_updated_at, first_ingested_at, last_ingested_at, closed_at`,
 			job.ID, in.SourceID, in.ExternalID, in.URL, in.SourcePostedAt,
 			in.SourceUpdatedAt, seenAt,
 		))
@@ -228,13 +224,30 @@ func (r *JobRepository) CloseFailedSources(ctx context.Context, failingSince tim
 }
 
 func (r *JobRepository) GetJob(ctx context.Context, id string) (domain.Job, error) {
-	j, err := scanJob(r.pool.QueryRow(ctx, `SELECT `+effectiveJobColumns()+` FROM jobs j`+aiJoin+` WHERE j.id = $1`, id))
+	j, err := scanJob(r.pool.QueryRow(ctx, `SELECT j.id,
+			j.dedupe_key,
+			j.title,
+			j.company_name,
+			j.location,
+			COALESCE(NULLIF(j.work_arrangement, 'unknown'), ai.work_arrangement, 'unknown'),
+			j.employment_type,
+			COALESCE(NULLIF(j.seniority, 'unknown'), ai.seniority, 'unknown'),
+			ARRAY(SELECT DISTINCT t FROM unnest((j.technologies || COALESCE(ai.technologies, '{}'::text[]))) AS t ORDER BY t),
+			j.description,
+			j.company_id,
+			COALESCE(j.country_code, ai.country_code),
+			j.closed_at,
+			j.first_seen_at,
+			j.last_seen_at,
+			j.created_at,
+			j.updated_at FROM jobs j LEFT JOIN job_ai ai ON ai.job_id = j.id WHERE j.id = $1`, id))
 	return j, translate(err, "get job")
 }
 
 func (r *JobRepository) ListListings(ctx context.Context, jobID string) ([]domain.JobListing, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT `+listingColumns+` FROM job_source_listings
+		SELECT id, job_id, source_id, external_id, url, source_posted_at,
+	source_updated_at, first_ingested_at, last_ingested_at, closed_at FROM job_source_listings
 		WHERE job_id = $1 ORDER BY first_ingested_at, id`, jobID)
 	if err != nil {
 		return nil, translate(err, "list job listings")
@@ -319,13 +332,29 @@ func (r *JobRepository) SearchJobs(ctx context.Context, f JobFilter) (jobs []dom
 
 	// Rules win and the local model fills gaps, as in the workspace browser.
 	rows, err := r.pool.Query(ctx, `
-		SELECT `+effectiveJobColumns()+` FROM jobs j`+aiJoin+`
+		SELECT j.id,
+			j.dedupe_key,
+			j.title,
+			j.company_name,
+			j.location,
+			COALESCE(NULLIF(j.work_arrangement, 'unknown'), ai.work_arrangement, 'unknown'),
+			j.employment_type,
+			COALESCE(NULLIF(j.seniority, 'unknown'), ai.seniority, 'unknown'),
+			ARRAY(SELECT DISTINCT t FROM unnest((j.technologies || COALESCE(ai.technologies, '{}'::text[]))) AS t ORDER BY t),
+			j.description,
+			j.company_id,
+			COALESCE(j.country_code, ai.country_code),
+			j.closed_at,
+			j.first_seen_at,
+			j.last_seen_at,
+			j.created_at,
+			j.updated_at FROM jobs j LEFT JOIN job_ai ai ON ai.job_id = j.id
 		WHERE ($1 = '' OR j.title ILIKE $1 OR j.company_name ILIKE $1 OR j.location ILIKE $1)
-		  AND ($2 = '' OR `+effArrangement+` = $2)
+		  AND ($2 = '' OR COALESCE(NULLIF(j.work_arrangement, 'unknown'), ai.work_arrangement, 'unknown') = $2)
 		  AND ($3 = '' OR j.employment_type = $3)
-		  AND ($4 = '' OR `+effSeniority+` = $4)
-		  AND (cardinality($5::text[]) = 0 OR `+effTechnologies+` @> $5::text[])
-		  AND (cardinality($9::text[]) = 0 OR `+effCountry+` = ANY($9::text[]))
+		  AND ($4 = '' OR COALESCE(NULLIF(j.seniority, 'unknown'), ai.seniority, 'unknown') = $4)
+		  AND (cardinality($5::text[]) = 0 OR (j.technologies || COALESCE(ai.technologies, '{}'::text[])) @> $5::text[])
+		  AND (cardinality($9::text[]) = 0 OR COALESCE(j.country_code, ai.country_code) = ANY($9::text[]))
 		  AND ($6::timestamptz IS NULL OR (j.last_seen_at, j.id) < ($6, $7::uuid))
 		ORDER BY j.last_seen_at DESC, j.id DESC
 		LIMIT $8`,
@@ -371,7 +400,23 @@ func (r *JobRepository) UnsaveJob(ctx context.Context, workspaceID, jobID string
 // most recently saved first.
 func (r *JobRepository) ListSavedJobs(ctx context.Context, workspaceID string) ([]domain.SavedJob, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT s.workspace_id, s.saved_by, s.created_at, `+prefixed("j", jobColumns)+`
+		SELECT s.workspace_id, s.saved_by, s.created_at, j.id,
+			j.dedupe_key,
+			j.title,
+			j.company_name,
+			j.location,
+			j.work_arrangement,
+			j.employment_type,
+			j.seniority,
+			j.technologies,
+			j.description,
+			j.company_id,
+			j.country_code,
+			j.closed_at,
+			j.first_seen_at,
+			j.last_seen_at,
+			j.created_at,
+			j.updated_at
 		FROM saved_jobs s JOIN jobs j ON j.id = s.job_id
 		WHERE s.workspace_id = $1 ORDER BY s.created_at DESC, s.job_id`, workspaceID)
 	if err != nil {
@@ -387,20 +432,27 @@ func (r *JobRepository) ListSavedJobs(ctx context.Context, workspaceID string) (
 	return saved, translate(err, "list saved jobs")
 }
 
-// prefixed qualifies a comma-separated column list with a table alias.
-func prefixed(alias, columns string) string {
-	parts := strings.Split(columns, ",")
-	for i, c := range parts {
-		parts[i] = alias + "." + strings.TrimSpace(c)
-	}
-	return strings.Join(parts, ", ")
-}
-
 // OpenJobsForScoring streams every open job that the workspace has not
 // blocked the company of.
 func (r *JobRepository) OpenJobsForScoring(ctx context.Context, workspaceID string, fn func(domain.Job) error) error {
 	rows, err := r.pool.Query(ctx, `
-		SELECT `+effectiveJobColumns()+` FROM jobs j`+aiJoin+`
+		SELECT j.id,
+			j.dedupe_key,
+			j.title,
+			j.company_name,
+			j.location,
+			COALESCE(NULLIF(j.work_arrangement, 'unknown'), ai.work_arrangement, 'unknown'),
+			j.employment_type,
+			COALESCE(NULLIF(j.seniority, 'unknown'), ai.seniority, 'unknown'),
+			ARRAY(SELECT DISTINCT t FROM unnest((j.technologies || COALESCE(ai.technologies, '{}'::text[]))) AS t ORDER BY t),
+			j.description,
+			j.company_id,
+			COALESCE(j.country_code, ai.country_code),
+			j.closed_at,
+			j.first_seen_at,
+			j.last_seen_at,
+			j.created_at,
+			j.updated_at FROM jobs j LEFT JOIN job_ai ai ON ai.job_id = j.id
 		WHERE j.closed_at IS NULL
 		  AND NOT EXISTS (SELECT 1 FROM workspace_company_blocks b
 		                  WHERE b.workspace_id = $1 AND b.company_id = j.company_id)`, workspaceID)
