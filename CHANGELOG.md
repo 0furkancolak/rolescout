@@ -6,6 +6,11 @@ include breaking changes, which are called out.
 
 ## [Unreleased]
 ### Added
+- Company discovery from more places: US stock exchange listings (Nasdaq Trader
+  directories) and, when AI is on, sector by sector (25 industries × worldwide,
+  Türkiye, Europe, United States). Both only produce names; a name becomes a
+  company only if its job board really exists (the name probe). They work in
+  batches over several runs instead of blocking one.
 - Settings → System: RAM each service uses now and may use (API and worker
   measured, PostgreSQL and web by limit), with container memory limits in
   Compose (`API_MEM_LIMIT`, `WORKER_MEM_LIMIT`, `POSTGRES_MEM_LIMIT`,
@@ -58,6 +63,12 @@ include breaking changes, which are called out.
   employers).
 - `make dev` streams the API and worker logs into the terminal.
 ### Changed
+- Hacker News discovery reads a whole "Who is hiring?" thread in one request
+  (HN Search API) instead of one request per comment, so the first run takes
+  seconds instead of tens of minutes; the old per-comment path is the fallback.
+- A run that failed, was cancelled or was interrupted no longer shows a stage as
+  still "in progress" (stored that way too); its log is shown when you open the
+  page again; the run page shows memory use for administrators.
 - Every clickable control shows a pointer cursor; dialogs dim the page with a dark
   scrim in both themes (it looked like a white wash in dark mode).
 - No favicon.

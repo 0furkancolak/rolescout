@@ -219,7 +219,8 @@ func (r *ResearchRepository) FinishRun(ctx context.Context, id string, state dom
 	return inTx(ctx, r.pool, func(tx pgx.Tx) error {
 		var profileID string
 		err := tx.QueryRow(ctx, `
-			UPDATE research_runs SET state = $2, error = $3, summary = $4, finished_at = NOW(), updated_at = NOW()
+			UPDATE research_runs SET state = $2, error = $3, summary = $4, finished_at = NOW(), updated_at = NOW(),
+				stages = `+settleStages("$2::text")+`
 			WHERE id = $1 AND state IN ('queued', 'running')
 			RETURNING profile_id`, id, state, errMsg, sum).Scan(&profileID)
 		if err != nil {
@@ -288,6 +289,7 @@ func (r *ResearchRepository) ListRuns(ctx context.Context, workspaceID, profileI
 func (r *ResearchRepository) FailStaleRuns(ctx context.Context, maxAge time.Duration) (int64, error) {
 	tag, err := r.pool.Exec(ctx, `
 		UPDATE research_runs SET state = 'failed', finished_at = NOW(), updated_at = NOW(),
+			stages = `+settleStages("'failed'")+`,
 			error = 'the worker stopped while the run was in progress'
 		WHERE state = 'running' AND updated_at < NOW() - make_interval(secs => $1)`, maxAge.Seconds())
 	if err != nil {
@@ -494,4 +496,15 @@ func (r *ResearchRepository) TryStageLock(ctx context.Context) (release func(), 
 		_, _ = conn.Exec(context.Background(), `SELECT pg_advisory_unlock($1)`, stageLockKey)
 		conn.Release()
 	}, true, nil
+}
+
+// settleStages is SQL for the stages column of a run that has ended: a stage
+// still "running" did not finish, so it becomes failed (or skipped when the
+// run was cancelled) instead of spinning forever. A succeeded run is untouched.
+func settleStages(stateExpr string) string {
+	return `CASE WHEN ` + stateExpr + ` = 'succeeded' THEN stages ELSE COALESCE((
+		SELECT jsonb_object_agg(k, CASE WHEN v->>'state' = 'running'
+			THEN jsonb_set(v, '{state}', to_jsonb(CASE WHEN ` + stateExpr + ` = 'failed' THEN 'failed' ELSE 'skipped' END::text))
+			ELSE v END)
+		FROM jsonb_each(stages) AS s(k, v)), stages) END`
 }

@@ -115,6 +115,10 @@ export function useRunEvents(ws: string, runID: string, errorsOnly: boolean, act
       return page.length;
     },
     refetchInterval: active ? POLL_MS : false,
+    // The lines reach the screen through the queryFn above, so a cached answer
+    // from an earlier visit would leave the log empty: always fetch on mount.
+    staleTime: 0,
+    gcTime: 0,
   });
   return events;
 }

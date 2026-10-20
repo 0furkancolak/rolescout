@@ -20,10 +20,10 @@ const borders = {
 };
 
 // StageCard shows one research stage: its state, progress and counts.
-export function StageCard({ stage, index, progress }: { stage: Stage; index: number; progress: StageProgress }) {
+export function StageCard({ stage, index, progress, runEnd }: { stage: Stage; index: number; progress: StageProgress; runEnd?: string | null }) {
   const { t, formatDate } = useI18n();
   const title = t(`run.stage.${stage}`);
-  const secs = secondsBetween(progress.started_at, progress.finished_at);
+  const secs = secondsBetween(progress.started_at, progress.finished_at ?? runEnd ?? null);
   const { icon: Icon, className } = icons[progress.state] ?? icons.pending;
   const pct = progress.total > 0 ? Math.min(100, Math.round((progress.done / progress.total) * 100)) : progress.state === "done" ? 100 : 0;
   const detail = Object.entries(progress.detail ?? {}).filter(([, n]) => n > 0);

@@ -2,6 +2,7 @@ package discovery
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"html"
 	"regexp"
@@ -20,6 +21,11 @@ import (
 type HackerNews struct {
 	Client  *crawl.Client
 	BaseURL string // default https://hacker-news.firebaseio.com/v0
+	// ThreadURL, when set (the HN Search API, https://hn.algolia.com/api/v1),
+	// returns a whole thread in one request instead of one request per comment:
+	// a year of threads in a dozen requests rather than thousands. If it fails,
+	// the per-comment API is used.
+	ThreadURL string
 	// Months is how many monthly threads are read on the first run (default 12).
 	Months int
 	// Concurrency is how many comments are read at once (default 4, the
@@ -92,6 +98,19 @@ func (h *HackerNews) Discover(ctx context.Context, state string, fn func(Candida
 	}
 	for i := len(stories) - 1; i >= 0; i-- {
 		story := stories[i]
+		if h.ThreadURL != "" {
+			switch err := h.readThread(ctx, story.ID, fn); {
+			case err == nil:
+				if story.Time < cutoff && story.ID > next {
+					next = story.ID
+				}
+				continue
+			case ctx.Err() != nil:
+				return strconv.FormatInt(next, 10), ctx.Err()
+			case errors.Is(err, errCallback):
+				return strconv.FormatInt(next, 10), errors.Unwrap(err)
+			}
+		}
 		if err := h.readComments(ctx, base, story.Kids, workers, fn); err != nil {
 			return strconv.FormatInt(next, 10), err
 		}
@@ -103,6 +122,37 @@ func (h *HackerNews) Discover(ctx context.Context, state string, fn func(Candida
 		return state, nil
 	}
 	return strconv.FormatInt(next, 10), nil
+}
+
+var errCallback = errors.New("candidate callback failed")
+
+type searchThread struct {
+	Children []struct {
+		Text string `json:"text"`
+	} `json:"children"`
+}
+
+// readThread reads one thread's top-level comments (the job posts) from the
+// HN Search API. An error from fn is wrapped in errCallback.
+func (h *HackerNews) readThread(ctx context.Context, id int64, fn func(Candidate) error) error {
+	var t searchThread
+	if err := ingest.FetchJSON(ctx, h.Client, fmt.Sprintf("%s/items/%d", strings.TrimRight(h.ThreadURL, "/"), id), &t); err != nil {
+		return err
+	}
+	if len(t.Children) == 0 {
+		return fmt.Errorf("thread %d has no comments", id) // let the other API try
+	}
+	for _, c := range t.Children {
+		if c.Text == "" {
+			continue
+		}
+		for _, cand := range commentCandidates(c.Text) {
+			if err := fn(cand); err != nil {
+				return fmt.Errorf("%w: %w", errCallback, err)
+			}
+		}
+	}
+	return nil
 }
 
 // readComments reads a thread's comments with a few requests at a time and

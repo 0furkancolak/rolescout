@@ -83,3 +83,14 @@ docker compose run --rm admin companies list -status pending
 
 SmartRecruiters is not supported: the robots.txt of its API host disallows all
 crawlers except LinkedIn's.
+
+## Where companies are discovered
+Discovery runs before detection and collection and adds companies to the
+catalog. Sources, in order: the shipped seed lists, the name probe, **stock
+exchange listings** (Nasdaq Trader: Nasdaq, NYSE and other US exchanges),
+**sectors** (the AI names companies per industry and region; only when AI is
+on), a probe of catalog names without a board, Hacker News "Who is hiring?"
+and community Markdown lists. Exchange and sector sources produce only names; a
+name is added only when its job board exists on Lever, Greenhouse, Ashby,
+Workable or Recruitee, so a wrong name costs a few requests and nothing else.
+They are read in batches (150 names, two sector/region pairs per run).

@@ -4,7 +4,8 @@ import { Link, useParams } from "react-router-dom";
 import { BackLink } from "../../components/BackLink";
 import { Button, ErrorState, PageTitle, Spinner } from "../../components/ui";
 import { buttonClass } from "../../components/styles";
-import { stages, type ResearchRun, type Stage } from "../../lib/api";
+import { stages, type ResearchRun, type Stage, type StageProgress } from "../../lib/api";
+import { RunSystem } from "./RunSystem";
 import { inputClass } from "../../components/styles";
 import { useI18n } from "../../lib/i18n";
 import { useWorkspace } from "../workspaces/context";
@@ -30,6 +31,13 @@ export function RunPage() {
   if (run.isPending) return <Spinner />;
   if (run.isError) return <ErrorState error={run.error} onRetry={() => run.refetch()} />;
   const r = run.data;
+  // A run that ended leaves no stage "running" or waiting: show where it stopped.
+  const settle = (p: StageProgress): StageProgress => {
+    if (active || r.state === "succeeded") return p;
+    if (p.state === "running") return { ...p, state: r.state === "failed" ? "failed" : "skipped", note: p.note || t("run.interrupted") };
+    if (p.state === "pending") return { ...p, state: "skipped", note: t("run.notReached") };
+    return p;
+  };
 
   return (
     <div className="space-y-6">
@@ -74,12 +82,14 @@ export function RunPage() {
         </p>
       )}
 
+      <RunSystem active={active} />
+
       {r.state === "succeeded" && <Summary run={r} />}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <div className="space-y-3">
           {stages.map((s, i) => (
-            <StageCard key={s} stage={s} index={i + 1} progress={r.stages[s]} />
+            <StageCard key={s} stage={s} index={i + 1} progress={settle(r.stages[s])} runEnd={active ? null : r.finished_at} />
           ))}
         </div>
         <div className="space-y-2">

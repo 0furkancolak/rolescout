@@ -34,7 +34,7 @@ var DefaultVendorHosts = []string{
 	"apply.workable.com", "api.smartrecruiters.com",
 	".recruitee.com", ".jobs.personio.de", ".jobs.personio.com", ".bamboohr.com", ".myworkdayjobs.com",
 	// Discovery sources.
-	"hacker-news.firebaseio.com", "raw.githubusercontent.com",
+	"hacker-news.firebaseio.com", "hn.algolia.com", "www.nasdaqtrader.com", "raw.githubusercontent.com",
 }
 
 // conditionalHeader asks Get to send stored validators (ETag,

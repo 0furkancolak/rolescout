@@ -191,6 +191,35 @@ func TestFailStaleResearchRuns(t *testing.T) {
 	}
 }
 
+func TestEndedRunsDoNotKeepARunningStage(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	pool := requireDB(t)
+	repo := NewResearchRepository(pool)
+	for _, tc := range []struct {
+		end  domain.RunStatus
+		want string
+	}{{domain.RunFailed, "failed"}, {domain.RunCancelled, "skipped"}, {domain.RunSucceeded, "running"}} {
+		p, _ := repo.CreateProfile(ctx, f.workspace.ID, profileParams(uniq("settle")))
+		run, _ := repo.EnqueueRun(ctx, f.workspace.ID, p.ID, "manual")
+		pool.Exec(ctx, `UPDATE research_runs SET state = 'running', started_at = NOW() WHERE id = $1`, run.ID)
+		run.Stages = map[domain.Stage]domain.StageProgress{
+			domain.StageDiscovery: {State: "done"}, domain.StageDetection: {State: "running", Total: 4, Done: 1},
+		}
+		if err := repo.SaveProgress(ctx, run); err != nil {
+			t.Fatal(err)
+		}
+		if err := repo.FinishRun(ctx, run.ID, tc.end, nil, nil); err != nil {
+			t.Fatal(err)
+		}
+		got, _ := repo.GetRun(ctx, f.workspace.ID, run.ID)
+		if got.Stages[domain.StageDetection].State != tc.want || got.Stages[domain.StageDiscovery].State != "done" ||
+			got.Stages[domain.StageDetection].Done != 1 {
+			t.Errorf("%s: stages = %+v", tc.end, got.Stages)
+		}
+	}
+}
+
 func TestDueProfiles(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
