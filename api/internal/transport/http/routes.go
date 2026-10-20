@@ -68,6 +68,7 @@ type Deps struct {
 	Summaries      JobSummarizer // nil when the local model is off
 	LLM            LLMStatusProvider
 	AI             MatchAnalyzer // writes AI text for one job on request
+	Suggester      ProfileSuggester
 	LLMSettings    LLMSettingsStore
 	Enrichments    EnrichmentReader
 	// CrawlSettings are shown read-only to administrators.
@@ -150,6 +151,7 @@ func RegisterAPIRoutes(app *fiber.App, d Deps) {
 
 	ws.Get("/research-profiles", h.listProfiles)
 	ws.Post("/research-profiles", h.createProfile)
+	ws.Post("/research-profiles/suggest", rateLimit(d.RateLimits.Analyze, false), renderErrors, h.suggestProfile)
 	ws.Get("/research-profiles/:profileID", h.getProfile)
 	ws.Patch("/research-profiles/:profileID", h.updateProfile)
 	ws.Delete("/research-profiles/:profileID", h.deleteProfile)

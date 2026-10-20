@@ -19,6 +19,11 @@ type MatchAnalyzer interface {
 	Analyze(ctx context.Context, workspaceID, profileID, jobID, language string) (string, error)
 }
 
+// ProfileSuggester drafts a research profile from a description.
+type ProfileSuggester interface {
+	SuggestProfile(ctx context.Context, description string) (llm.ProfileSuggestion, error)
+}
+
 // LLMSettingsStore reads and edits the AI connection saved in the web app.
 type LLMSettingsStore interface {
 	Current(ctx context.Context) config.LLM
@@ -158,4 +163,70 @@ func (h *handlers) putLLMConfig(c fiber.Ctx) error {
 		return err
 	}
 	return c.JSON(dataResponse[llmConfigDTO]{Data: dto})
+}
+
+type suggestRequest struct {
+	Description string `json:"description"`
+}
+
+type profileDraftDTO struct {
+	Name             string   `json:"name"`
+	TitleKeywords    []string `json:"title_keywords"`
+	Keywords         []string `json:"keywords"`
+	Technologies     []string `json:"technologies"`
+	Countries        []string `json:"countries"`
+	Locations        []string `json:"locations"`
+	ExcludedKeywords []string `json:"excluded_keywords"`
+	Remote           string   `json:"remote"`
+	Seniority        []string `json:"seniority"`
+	ScheduleHours    int      `json:"schedule_hours"`
+}
+
+// suggestProfile drafts a research profile from a description. Nothing is
+// saved: the web form shows the draft and the user saves it as a normal profile.
+func (h *handlers) suggestProfile(c fiber.Ctx) error {
+	var req suggestRequest
+	if err := decodeJSON(c, &req); err != nil {
+		return err
+	}
+	var v domain.ValidationError
+	desc := strings.TrimSpace(req.Description)
+	if len([]rune(desc)) < 10 {
+		v.Add("description", "describe the job you want in a sentence or two")
+	} else if len([]rune(desc)) > llm.MaxProfileDescription {
+		v.Add("description", "must be at most %d characters", llm.MaxProfileDescription)
+	}
+	if err := v.Err(); err != nil {
+		return err
+	}
+	if h.Suggester == nil {
+		return fiber.NewError(fiber.StatusPreconditionFailed, "AI is switched off. An administrator can turn it on in Settings.")
+	}
+	s, err := h.Suggester.SuggestProfile(c.Context(), desc)
+	switch {
+	case err == nil:
+	case errors.Is(err, enrich.ErrDisabled):
+		return fiber.NewError(fiber.StatusPreconditionFailed, "AI is switched off. An administrator can turn it on in Settings.")
+	case errors.Is(err, llm.ErrUnavailable), errors.Is(err, llm.ErrTimeout):
+		return fiber.NewError(fiber.StatusServiceUnavailable, "The AI service could not be reached. Check the connection and API key in Settings.")
+	case errors.Is(err, context.Canceled):
+		return err
+	case errors.Is(err, llm.ErrInvalidOutput), errors.Is(err, llm.ErrBadResponse):
+		return fiber.NewError(fiber.StatusBadGateway, "The AI answered with something unusable. Try again or describe the job in more detail.")
+	default:
+		return err
+	}
+	return c.JSON(dataResponse[profileDraftDTO]{Data: profileDraftDTO{
+		Name: s.Name, TitleKeywords: nz(s.TitleKeywords), Keywords: nz(s.Keywords), Technologies: nz(s.Technologies),
+		Countries: nz(s.Countries), Locations: nz(s.Locations), ExcludedKeywords: nz(s.ExcludedKeywords),
+		Remote: s.Remote, Seniority: nz(s.Seniority), ScheduleHours: 12,
+	}})
+}
+
+// nz makes a nil list encode as [] rather than null.
+func nz(in []string) []string {
+	if in == nil {
+		return []string{}
+	}
+	return in
 }

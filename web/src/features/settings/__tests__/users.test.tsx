@@ -28,7 +28,7 @@ describe("UsersCard", () => {
       "GET /admin/users": { body: { data: [admin] } },
       "POST /admin/users": { status: 201, body: { data: created } },
     });
-    renderApp("/settings");
+    renderApp("/settings?tab=people");
     const c = await card();
     expect(await c.findByText(admin.email)).toBeInTheDocument();
     await userEvent.type(c.getByLabelText("Name"), "Grace");
@@ -47,12 +47,26 @@ describe("UsersCard", () => {
       "GET /admin/users": { body: { data: [admin] } },
       "POST /admin/users": { status: 409, body: { error: { code: "conflict", message: "exists" } } },
     });
-    renderApp("/settings");
+    renderApp("/settings?tab=people");
     const c = await card();
     await userEvent.type(await c.findByLabelText("Name"), "Ada");
     await userEvent.type(c.getByLabelText("Email"), "ada@example.com");
     await userEvent.type(c.getByLabelText("Password"), "a long enough password");
     await userEvent.click(c.getByRole("button", { name: "Add person" }));
     expect(await c.findByRole("alert")).toHaveTextContent("already exists");
+  });
+});
+
+describe("Settings tabs", () => {
+  it("shows one section at a time and keeps the tab in the address", async () => {
+    mockApi({ ...base, "GET /admin/users": { body: { data: [admin] } } });
+    const { router } = renderApp("/settings");
+    expect(await screen.findByRole("tab", { name: "Job boards", selected: true })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "People" })).toBeNull();
+    await userEvent.click(screen.getByRole("tab", { name: "People" }));
+    expect(await screen.findByRole("heading", { name: "People" })).toBeInTheDocument();
+    expect(router.state.location.search).toBe("?tab=people");
+    await userEvent.keyboard("{ArrowRight}");
+    expect(screen.getByRole("tab", { name: "AI", selected: true })).toBeInTheDocument();
   });
 });

@@ -118,3 +118,12 @@ export function useRunEvents(ws: string, runID: string, errorsOnly: boolean, act
   });
   return events;
 }
+
+// useSuggestProfile asks the AI for a profile draft from a description. It
+// saves nothing; the form shows the draft for review.
+export function useSuggestProfile(ws: string) {
+  return useMutation({
+    mutationFn: (description: string) =>
+      data<ProfileInput>(wsPath(ws, "/research-profiles/suggest"), { method: "POST", body: { description } }),
+  });
+}

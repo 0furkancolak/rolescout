@@ -30,7 +30,8 @@ describe("SettingsPage", () => {
     await vi.waitFor(() =>
       expect(api.calls.find((c) => c.method === "PATCH")?.body).toEqual({ enabled: true, note: "Checked the employers' terms" }),
     );
-    expect(screen.getByText("CRAWL_CONCURRENCY")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("tab", { name: "Crawl" }));
+    expect(await screen.findByText("CRAWL_CONCURRENCY")).toBeInTheDocument();
   });
 
   it("is not available to other users", async () => {

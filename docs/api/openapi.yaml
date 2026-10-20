@@ -1112,6 +1112,60 @@ paths:
                         name: { type: string }
                         value: { type: string }
         "403": { $ref: "#/components/responses/Forbidden" }
+  /api/v1/workspaces/{workspaceID}/research-profiles/suggest:
+    parameters:
+      - $ref: "#/components/parameters/WorkspaceID"
+    post:
+      tags: [research]
+      summary: Draft a research profile with AI
+      description: >
+        Turns a free-text description of the wanted job into a profile draft
+        (titles, keywords, technologies, countries, remote preference,
+        seniority). Nothing is saved; create the profile with the normal call
+        after reviewing it. Uses the AI connection from Settings and shares the
+        on-demand AI rate limit.
+      operationId: suggestResearchProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [description]
+              properties:
+                description: { type: string, minLength: 10, maxLength: 2000 }
+      responses:
+        "200":
+          description: The draft.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [name, title_keywords, keywords, technologies, countries, locations, excluded_keywords, remote, seniority, schedule_hours]
+                    properties:
+                      name: { type: string }
+                      title_keywords: { type: array, items: { type: string } }
+                      keywords: { type: array, items: { type: string } }
+                      technologies: { type: array, items: { type: string } }
+                      countries: { type: array, items: { type: string } }
+                      locations: { type: array, items: { type: string } }
+                      excluded_keywords: { type: array, items: { type: string } }
+                      remote: { type: string, enum: [any, remote_only, remote_or_hybrid, onsite_ok] }
+                      seniority: { type: array, items: { type: string } }
+                      schedule_hours: { type: integer }
+        "412":
+          description: "`ai_disabled`: AI is switched off."
+        "422": { $ref: "#/components/responses/InvalidInput" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "502":
+          description: "`ai_failed`: the model's answer was unusable."
+        "503":
+          description: "`ai_unavailable`: the AI service could not be reached."
   /api/v1/workspaces/{workspaceID}/research-profiles:
     parameters:
       - $ref: "#/components/parameters/WorkspaceID"

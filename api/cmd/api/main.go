@@ -100,6 +100,7 @@ func run() error {
 		LLMSettings:    resolver,
 		AI: &enrich.Analyzer{Repo: enrichments, LLM: llmconfig.Dynamic{R: resolver},
 			Resolve: resolver.Current, ResolveCountry: ingest.InferCountry},
+		Suggester: &enrich.ProfileSuggester{LLM: llmconfig.Dynamic{R: resolver}, Resolve: resolver.Current},
 		Summaries: &enrich.Summarizer{Client: llmconfig.Dynamic{R: resolver}, ModelFn: func(ctx context.Context) string { return resolver.Current(ctx).Model },
 			Store: database.NewSummaryRepository(pool)},
 		CrawlSettings: crawlSettings(cfg.Crawl),

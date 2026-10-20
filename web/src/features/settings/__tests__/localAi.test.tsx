@@ -35,7 +35,7 @@ async function card() {
 describe("LocalAiCard", () => {
   it("explains how to turn it on when it is off", async () => {
     mockApi({ ...settingsBase, "GET /admin/llm": { body: { data: { enabled: false } } } });
-    renderApp("/settings");
+    renderApp("/settings?tab=ai");
     const c = within(await card());
     expect(await c.findByText("AI is off")).toBeInTheDocument();
     expect(c.getByText(/connection form above/)).toBeInTheDocument();
@@ -45,7 +45,7 @@ describe("LocalAiCard", () => {
 
   it("tells what to start when the server is unreachable", async () => {
     mockApi({ ...settingsBase, "GET /admin/llm": { body: { data: status({ reachable: false, model_present: false }) } } });
-    renderApp("/settings");
+    renderApp("/settings?tab=ai");
     const c = within(await card());
     expect(await c.findByText("Can't reach the model server")).toBeInTheDocument();
     expect(c.getAllByText(/host\.docker\.internal:11434/).length).toBeGreaterThan(0);
@@ -54,7 +54,7 @@ describe("LocalAiCard", () => {
 
   it("shows the pull command when the model is missing", async () => {
     mockApi({ ...settingsBase, "GET /admin/llm": { body: { data: status({ model_present: false }) } } });
-    renderApp("/settings");
+    renderApp("/settings?tab=ai");
     const c = within(await card());
     expect(await c.findByText("The model is not on the server")).toBeInTheDocument();
     expect(c.getByText("ollama pull qwen3:4b-instruct-2507-q4_K_M")).toBeInTheDocument();
@@ -62,7 +62,7 @@ describe("LocalAiCard", () => {
 
   it("says when the smaller fallback model is doing the work", async () => {
     mockApi({ ...settingsBase, "GET /admin/llm": { body: { data: status({ degraded: true }) } } });
-    renderApp("/settings");
+    renderApp("/settings?tab=ai");
     const c = within(await card());
     expect(await c.findByText("Using the smaller fallback model")).toBeInTheDocument();
     expect(c.getByText(/qwen3:1\.7b-q4_K_M/)).toBeInTheDocument();
@@ -70,7 +70,7 @@ describe("LocalAiCard", () => {
 
   it("shows the counters while it works", async () => {
     mockApi({ ...settingsBase, "GET /admin/llm": { body: { data: status({ last_error: "timeout" }) } } });
-    renderApp("/settings");
+    renderApp("/settings?tab=ai");
     const c = within(await card());
     expect(await c.findByText("Working")).toBeInTheDocument();
     const counters = c.getByRole("list", { name: "Enrichment progress" });
@@ -87,7 +87,7 @@ describe("LocalAiCard", () => {
       "GET /admin/llm": { body: { data: status() } },
       "POST /admin/llm/check": { body: { data: status({ probe_ok: true, probe_ms: 900 }) } },
     });
-    renderApp("/settings");
+    renderApp("/settings?tab=ai");
     const c = within(await card());
     await userEvent.click(await c.findByRole("button", { name: "Test connection" }));
     expect(await c.findByText("The model answered in 900 ms")).toBeInTheDocument();
@@ -100,7 +100,7 @@ describe("LocalAiCard", () => {
       "GET /admin/llm": { body: { data: status() } },
       "POST /admin/llm/check": { body: { data: status({ probe_ok: false }) } },
     });
-    renderApp("/settings");
+    renderApp("/settings?tab=ai");
     const c = within(await card());
     await userEvent.click(await c.findByRole("button", { name: "Test connection" }));
     expect(await c.findByText("The model did not answer")).toBeInTheDocument();
@@ -112,7 +112,7 @@ describe("LocalAiCard", () => {
       "GET /admin/llm": { body: { data: status() } },
       "POST /admin/llm/check": { status: 429, body: { error: { code: "rate_limited", message: "Wait a few seconds before checking again." } } },
     });
-    renderApp("/settings");
+    renderApp("/settings?tab=ai");
     const c = within(await card());
     await userEvent.click(await c.findByRole("button", { name: "Test connection" }));
     expect(await c.findByRole("alert")).toHaveTextContent(/few seconds/i);
@@ -120,7 +120,7 @@ describe("LocalAiCard", () => {
 
   it("warns when job text would leave the computer", async () => {
     mockApi({ ...settingsBase, "GET /admin/llm": { body: { data: status({ local: false, base_host: "gpu.example.com:443" }) } } });
-    renderApp("/settings");
+    renderApp("/settings?tab=ai");
     const c = within(await card());
     expect(await c.findByRole("alert")).toHaveTextContent("Job text is sent to gpu.example.com:443");
   });
@@ -133,7 +133,7 @@ describe("LocalAiCard", () => {
         body: { data: config({ base_url: "https://api.openai.com/v1", model: "gpt-4o-mini", has_api_key: true, api_key_hint: "••••1234", background: false }) },
       }),
     });
-    renderApp("/settings");
+    renderApp("/settings?tab=ai");
     const c = within(await card());
     await userEvent.click(await c.findByRole("button", { name: "OpenAI" }));
     expect(c.getByLabelText("Base URL")).toHaveValue("https://api.openai.com/v1");
@@ -157,7 +157,7 @@ describe("LocalAiCard", () => {
       "GET /admin/llm": { body: { data: status() } },
       "PUT /admin/llm/config": { body: { data: config({ has_api_key: true, api_key_hint: "••••1234" }) } },
     });
-    renderApp("/settings");
+    renderApp("/settings?tab=ai");
     const c = within(await card());
     await userEvent.click(await c.findByRole("button", { name: "Save" }));
     await c.findByText("Saved.");
@@ -172,7 +172,7 @@ describe("LocalAiCard", () => {
       "GET /admin/llm": { body: { data: status() } },
       "PUT /admin/llm/config": { body: { data: config() } },
     });
-    renderApp("/settings");
+    renderApp("/settings?tab=ai");
     const c = within(await card());
     await userEvent.click(await c.findByRole("button", { name: "Remove saved key" }));
     await vi.waitFor(() => expect(api.calls.find((x) => x.method === "PUT")?.body).toEqual({ api_key: "" }));
@@ -187,7 +187,7 @@ describe("LocalAiCard", () => {
         body: { error: { code: "invalid_input", message: "invalid", fields: [{ field: "base_url", message: "must be an absolute http(s) URL" }] } },
       },
     });
-    renderApp("/settings");
+    renderApp("/settings?tab=ai");
     const c = within(await card());
     await userEvent.click(await c.findByRole("button", { name: "Save" }));
     expect(await c.findByText("must be an absolute http(s) URL")).toBeInTheDocument();

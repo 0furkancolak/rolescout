@@ -124,6 +124,43 @@ describe("Research profiles", () => {
     expect(body).toMatchObject({ name: "Backend", technologies: ["go", "postgresql"], countries: ["TR"], remote: "remote_only" });
   });
 
+  it("drafts a profile with AI and saves it only after review", async () => {
+    const api = mockApi({
+      ...signedIn(),
+      [`GET ${base}/research-profiles`]: { body: { data: [] } },
+      [`GET ${base}/research-runs`]: { body: { data: [] } },
+      [`POST ${base}/research-profiles/suggest`]: {
+        body: { data: { name: "Go backend, Berlin", title_keywords: ["backend engineer"], keywords: [], technologies: ["go", "postgresql"], countries: ["DE"], locations: ["Berlin"], excluded_keywords: ["php"], remote: "remote_only", seniority: ["senior"], schedule_hours: 12 } },
+      },
+      [`POST ${base}/research-profiles`]: { status: 201, body: { data: makeProfile() } },
+    });
+    renderApp("/research/profiles/new");
+    const draft = await screen.findByRole("button", { name: "Draft with AI" });
+    expect(draft).toBeDisabled();
+    await userEvent.type(screen.getByLabelText("Describe it, let AI draft the profile"), "Senior Go backend in Berlin, remote, no PHP");
+    await userEvent.click(draft);
+    expect(await screen.findByText(/Draft ready below/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Name")).toHaveValue("Go backend, Berlin");
+    expect(screen.getByLabelText("Remote only")).toBeChecked();
+    expect(api.calls.some((c) => c.method === "POST" && c.path === `${base}/research-profiles`)).toBe(false);
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await vi.waitFor(() => expect(api.calls.some((c) => c.method === "POST" && c.path === `${base}/research-profiles`)).toBe(true));
+    expect(api.calls.find((c) => c.path === `${base}/research-profiles` && c.method === "POST")?.body).toMatchObject({ technologies: ["go", "postgresql"], countries: ["DE"] });
+  });
+
+  it("explains when AI is off", async () => {
+    mockApi({
+      ...signedIn(),
+      [`GET ${base}/research-profiles`]: { body: { data: [] } },
+      [`GET ${base}/research-runs`]: { body: { data: [] } },
+      [`POST ${base}/research-profiles/suggest`]: { status: 412, body: { error: { code: "ai_disabled", message: "off" } } },
+    });
+    renderApp("/research/profiles/new");
+    await userEvent.type(await screen.findByLabelText("Describe it, let AI draft the profile"), "Senior Go backend in Berlin");
+    await userEvent.click(screen.getByRole("button", { name: "Draft with AI" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("AI is switched off");
+  });
+
   it("limits list fields to 30 items", async () => {
     mockApi({
       ...signedIn(),
