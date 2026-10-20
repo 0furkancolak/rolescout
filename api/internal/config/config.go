@@ -78,7 +78,9 @@ type Crawl struct {
 	CompanySyncInterval time.Duration
 	ResearchInterval    time.Duration
 	JSONLDMaxPages      int
-	MatchMinScore       int
+	// ResearchParallel is how many research runs execute at the same time.
+	ResearchParallel int
+	MatchMinScore    int
 	// ClosedJobRetention is how long closed jobs nobody saved or applied to
 	// are kept; 0 keeps them forever.
 	ClosedJobRetention time.Duration
@@ -230,6 +232,9 @@ func loadCrawl() (Crawl, error) {
 		return c, err
 	}
 	if c.JSONLDMaxPages, err = rangeEnv("JSONLD_MAX_PAGES", 0, 0, 1000000); err != nil {
+		return c, err
+	}
+	if c.ResearchParallel, err = rangeEnv("RESEARCH_PARALLEL", 3, 1, 16); err != nil {
 		return c, err
 	}
 	if c.MatchMinScore, err = rangeEnv("MATCH_MIN_SCORE", 40, 0, 100); err != nil {

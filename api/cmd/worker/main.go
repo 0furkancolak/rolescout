@@ -83,6 +83,7 @@ func run() error {
 			DiscoveryInterval:   cfg.Crawl.DiscoveryInterval,
 			CompanySyncInterval: cfg.Crawl.CompanySyncInterval,
 			Concurrency:         cfg.Crawl.Concurrency,
+			RunSlots:            cfg.Crawl.ResearchParallel,
 			ConcurrencyFn:       func() int { return pace.Get().Concurrency },
 			MatchMinScore:       cfg.Crawl.MatchMinScore,
 			ClosedJobRetention:  cfg.Crawl.ClosedJobRetention,

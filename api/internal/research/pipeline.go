@@ -69,7 +69,9 @@ type Config struct {
 	Concurrency         int
 	// ConcurrencyFn, when set, is asked each time work starts and takes the
 	// place of Concurrency, so the pace can change while the worker runs.
-	ConcurrencyFn      func() int
+	ConcurrencyFn func() int
+	// RunSlots is how many research runs execute at the same time (default 1).
+	RunSlots           int
 	MatchMinScore      int
 	ClosedJobRetention time.Duration
 }
@@ -157,28 +159,8 @@ func (p *Pipeline) Tick(ctx context.Context) {
 	} else if n > 0 {
 		p.Logger.Warn("marked abandoned research runs as failed", "count", n)
 	}
-	due, err := p.Runs.DueProfiles(ctx, p.Now())
-	if err != nil {
-		p.Logger.Error("list due research profiles", "error", err)
-	}
-	for _, prof := range due {
-		if _, err := p.Runs.EnqueueRun(ctx, prof.WorkspaceID, prof.ID, "schedule"); err != nil && !errors.Is(err, domain.ErrConflict) {
-			p.Logger.Error("queue scheduled research run", "profile", prof.ID, "error", err)
-		}
-	}
-	for ctx.Err() == nil {
-		run, ok, err := p.Runs.ClaimRun(ctx)
-		if err != nil {
-			p.Logger.Error("claim research run", "error", err)
-			break
-		}
-		if !ok {
-			break
-		}
-		if err := p.Execute(ctx, run); err != nil {
-			p.Logger.Error("research run failed", "run", run.ID, "error", err)
-		}
-	}
+	p.queueDue(ctx)
+	p.runQueued(ctx)
 	if p.Now().Sub(p.lastPurge) >= 24*time.Hour && ctx.Err() == nil {
 		p.lastPurge = p.Now()
 		if p.Config.ClosedJobRetention > 0 {
@@ -190,6 +172,70 @@ func (p *Pipeline) Tick(ctx context.Context) {
 		}
 		if _, err := p.Runs.PurgeRunEvents(ctx, eventRetention); err != nil {
 			p.Logger.Error("purge research run events", "error", err)
+		}
+	}
+}
+
+// queueDue queues a run for every profile whose schedule says it is due.
+func (p *Pipeline) queueDue(ctx context.Context) {
+	due, err := p.Runs.DueProfiles(ctx, p.Now())
+	if err != nil {
+		p.Logger.Error("list due research profiles", "error", err)
+	}
+	for _, prof := range due {
+		if _, err := p.Runs.EnqueueRun(ctx, prof.WorkspaceID, prof.ID, "schedule"); err != nil && !errors.Is(err, domain.ErrConflict) {
+			p.Logger.Error("queue scheduled research run", "profile", prof.ID, "error", err)
+		}
+	}
+}
+
+// runQueued executes queued runs, RunSlots at a time, until none is queued and
+// the last one has finished. Runs queued while it works are picked up as
+// slots free. The shared stages still go one run at a time (see lockStages),
+// so parallel runs do not read the same sites twice; their own stages overlap.
+func (p *Pipeline) runQueued(ctx context.Context) {
+	slots := max(p.Config.RunSlots, 1)
+	sem := make(chan struct{}, slots)
+	freed := make(chan struct{}, 1)
+	var wg sync.WaitGroup
+	defer wg.Wait()
+	for ctx.Err() == nil {
+		select {
+		case sem <- struct{}{}:
+			run, ok, err := p.Runs.ClaimRun(ctx)
+			if err != nil || !ok {
+				<-sem
+				if err != nil {
+					p.Logger.Error("claim research run", "error", err)
+					return
+				}
+				if len(sem) == 0 {
+					return
+				}
+				break
+			}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				if err := p.Execute(ctx, run); err != nil {
+					p.Logger.Error("research run failed", "run", run.ID, "error", err)
+				}
+				<-sem
+				select {
+				case freed <- struct{}{}:
+				default:
+				}
+			}()
+			continue
+		default:
+		}
+		// Every slot is busy, or nothing is queued while runs are still going.
+		select {
+		case <-ctx.Done():
+			return
+		case <-freed:
+		case <-time.After(p.LockWait):
+			p.queueDue(ctx)
 		}
 	}
 }
