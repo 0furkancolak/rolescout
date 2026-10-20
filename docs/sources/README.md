@@ -79,6 +79,10 @@ docker compose run --rm admin companies list -status pending
 | `ashby` | Ashby Job Postings API | [ashby.md](ashby.md) |
 | `workable` | Workable jobs widget API | [workable.md](workable.md) |
 | `recruitee` | Recruitee careers site API | [recruitee.md](recruitee.md) |
+| `teamtailor` | Teamtailor career site RSS feed (`/jobs.rss`) | [teamtailor.md](teamtailor.md) |
+| `breezy` | Breezy HR career site JSON list (`/json`) | [breezy.md](breezy.md) |
+| `rippling` | Rippling ATS board API (list only) | [rippling.md](rippling.md) |
+| `gem` | Gem job board API (Greenhouse-compatible) | [gem.md](gem.md) |
 | `personio` | Personio XML job feed | [personio.md](personio.md) |
 | `bamboohr` | BambooHR careers list | [bamboohr.md](bamboohr.md) |
 | `jsonld` | schema.org JobPosting data on company career sites | [jsonld.md](jsonld.md) |
@@ -87,7 +91,9 @@ docker compose run --rm admin companies list -status pending
 | `workday` | Workday career site endpoint, **off until reviewed** | [workday.md](workday.md) |
 
 SmartRecruiters is not supported: the robots.txt of its API host disallows all
-crawlers except LinkedIn's.
+crawlers except LinkedIn's. The other systems that were looked at and left out
+(Pinpoint, Comeet, Join, Jobvite, Freshteam, HiBob, Homerun) are explained in
+[more-ats.md](more-ats.md).
 
 ## Where companies are discovered
 Discovery runs before detection and collection and adds companies to the

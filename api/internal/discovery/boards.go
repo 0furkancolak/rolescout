@@ -67,6 +67,14 @@ func ParseBoardURL(raw string) (Board, bool) {
 		return subdomainBoard("workable", strings.TrimSuffix(host, ".workable.com"), "account")
 	case strings.HasSuffix(host, ".recruitee.com"):
 		return subdomainBoard("recruitee", strings.TrimSuffix(host, ".recruitee.com"), "subdomain")
+	case strings.HasSuffix(host, ".teamtailor.com"):
+		return subdomainBoard("teamtailor", strings.TrimSuffix(host, ".teamtailor.com"), "subdomain")
+	case strings.HasSuffix(host, ".breezy.hr"):
+		return subdomainBoard("breezy", strings.TrimSuffix(host, ".breezy.hr"), "subdomain")
+	case host == "ats.rippling.com":
+		return board("rippling", first, "board")
+	case host == "jobs.gem.com":
+		return board("gem", first, "board")
 	case strings.HasSuffix(host, ".jobs.personio.de"), strings.HasSuffix(host, ".jobs.personio.com"):
 		tld := host[strings.LastIndex(host, ".")+1:]
 		b, ok := subdomainBoard("personio", strings.TrimSuffix(host, ".jobs.personio."+tld), "subdomain")

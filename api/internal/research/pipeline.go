@@ -633,6 +633,14 @@ func boardURL(b discovery.Board) string {
 		return "https://apply.workable.com/" + b.ID + "/"
 	case "recruitee":
 		return "https://" + b.ID + ".recruitee.com/"
+	case "teamtailor":
+		return "https://" + b.ID + ".teamtailor.com/jobs"
+	case "breezy":
+		return "https://" + b.ID + ".breezy.hr/"
+	case "rippling":
+		return "https://ats.rippling.com/" + b.ID + "/jobs"
+	case "gem":
+		return "https://jobs.gem.com/" + b.ID
 	case "personio":
 		return fmt.Sprintf("https://%s.jobs.personio.%s/", b.ID, b.Config["tld"])
 	case "bamboohr":

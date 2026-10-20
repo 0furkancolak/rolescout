@@ -183,6 +183,8 @@ func probeTargets(slug string) []probeTarget {
 		{"https://boards.greenhouse.io/" + esc, "https://boards-api.greenhouse.io/v1/boards/" + esc + "/jobs", "jobs"},
 		{"https://jobs.ashbyhq.com/" + esc, "https://api.ashbyhq.com/posting-api/job-board/" + esc, "jobs"},
 		{"https://apply.workable.com/" + esc, "https://apply.workable.com/api/v1/widget/accounts/" + esc, "jobs"},
+		{"https://ats.rippling.com/" + esc, "https://api.rippling.com/platform/api/ats/v1/board/" + esc + "/jobs", "array"},
+		{"https://jobs.gem.com/" + esc, "https://api.gem.com/job_board/v0/" + esc + "/job_posts/", "array"},
 	}
 	if labelPattern.MatchString(slug) {
 		t = append(t, probeTarget{"https://" + slug + ".recruitee.com", "https://" + slug + ".recruitee.com/api/offers/", "offers"})

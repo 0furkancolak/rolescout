@@ -32,7 +32,7 @@ var ErrPrivateAddress = errors.New("address is not a public internet address")
 var DefaultVendorHosts = []string{
 	"boards-api.greenhouse.io", "api.lever.co", "api.eu.lever.co", "api.ashbyhq.com",
 	"apply.workable.com", "api.smartrecruiters.com",
-	".recruitee.com", ".jobs.personio.de", ".jobs.personio.com", ".bamboohr.com", ".myworkdayjobs.com",
+	".recruitee.com", ".teamtailor.com", ".breezy.hr", "api.rippling.com", "api.gem.com", ".jobs.personio.de", ".jobs.personio.com", ".bamboohr.com", ".myworkdayjobs.com",
 	// Discovery sources.
 	"hacker-news.firebaseio.com", "hn.algolia.com", "www.nasdaqtrader.com", "raw.githubusercontent.com",
 }

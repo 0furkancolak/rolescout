@@ -8,6 +8,8 @@ import (
 	"example.com/rolescout/api/internal/ingest"
 	"example.com/rolescout/api/internal/ingest/ashby"
 	"example.com/rolescout/api/internal/ingest/bamboohr"
+	"example.com/rolescout/api/internal/ingest/breezy"
+	"example.com/rolescout/api/internal/ingest/gem"
 	"example.com/rolescout/api/internal/ingest/greenhouse"
 	"example.com/rolescout/api/internal/ingest/htmlpage"
 	"example.com/rolescout/api/internal/ingest/jsonld"
@@ -15,6 +17,8 @@ import (
 	"example.com/rolescout/api/internal/ingest/lever"
 	"example.com/rolescout/api/internal/ingest/personio"
 	"example.com/rolescout/api/internal/ingest/recruitee"
+	"example.com/rolescout/api/internal/ingest/rippling"
+	"example.com/rolescout/api/internal/ingest/teamtailor"
 	"example.com/rolescout/api/internal/ingest/workable"
 	"example.com/rolescout/api/internal/ingest/workday"
 )
@@ -50,6 +54,8 @@ func Registry(c *crawl.Client, o Options) ingest.Registry {
 	return ingest.Registry{
 		"ashby":      ashby.New(c),
 		"bamboohr":   bamboohr.New(c),
+		"breezy":     breezy.New(c),
+		"gem":        gem.New(c),
 		"greenhouse": greenhouse.New(c),
 		"htmlpage":   htmlpage.New(c),
 		"jsonld":     jsonld.New(c, o.JSONLDMaxPages),
@@ -57,6 +63,8 @@ func Registry(c *crawl.Client, o Options) ingest.Registry {
 		"lever":      lever.New(c),
 		"personio":   personio.New(c),
 		"recruitee":  recruitee.New(c),
+		"rippling":   rippling.New(c),
+		"teamtailor": teamtailor.New(c),
 		"workable":   workable.New(c),
 		"workday":    workday.New(c),
 	}
