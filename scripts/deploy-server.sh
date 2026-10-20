@@ -21,7 +21,7 @@ git archive --format=tar HEAD | ssh "$HOST" "rm -rf '$DIR.new' && mkdir -p '$DIR
   && { [ ! -f '$DIR/.env' ] || cp -p '$DIR/.env' '$DIR.new/.env'; } \
   && mkdir -p '$DIR' && rm -rf '$DIR.old' && mv '$DIR' '$DIR.old' && mv '$DIR.new' '$DIR'"
 
-ssh "$HOST" bash -s -- "$DIR" "$PORT" "$SERVICES" <<'REMOTE'
+ssh "$HOST" bash -s -- "$DIR" "$PORT" $SERVICES <<'REMOTE'
 set -euo pipefail
 cd "$1"
 if [ ! -f .env ]; then
@@ -36,7 +36,6 @@ if [ ! -f .env ]; then
     echo "COMPOSE_PROJECT_NAME=rolescout"
   } > .env
 fi
-# shellcheck disable=SC2086
-docker compose up -d --build --wait $3
+docker compose up -d --build --wait "${@:3}"
 docker compose ps --format 'table {{.Service}}\t{{.Status}}'
 REMOTE
