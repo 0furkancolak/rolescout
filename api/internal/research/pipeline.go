@@ -486,6 +486,7 @@ func (p *Pipeline) addCandidate(ctx context.Context, c discovery.Candidate) (boo
 	if params.Country == "" {
 		params.Country = discovery.CountryOfURL(c.URL)
 	}
+	params.SameSite = discovery.SiteVariants(c.URL)
 	if b, ok := discovery.ParseBoardURL(c.URL); ok {
 		params.ATS, params.ATSID = b.ATS, &b.ID
 		if params.Name == "" {

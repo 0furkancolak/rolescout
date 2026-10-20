@@ -107,7 +107,7 @@ type Company struct {
 	// ATSID its board identifier.
 	ATS           string
 	ATSID         *string
-	Origin        string // seed, hackernews, list, link, manual or probe
+	Origin        string // seed, hackernews, list, link, manual, probe, dbpedia or ycombinator
 	Status        CompanyStatus
 	LastCheckedAt *time.Time
 	LastError     *string
