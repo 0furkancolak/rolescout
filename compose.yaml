@@ -113,6 +113,9 @@ services:
         APP: worker
         VERSION: ${ROLESCOUT_VERSION:-dev}
     restart: unless-stopped
+    # An update stops the worker with SIGTERM; a research run in progress is put
+    # back in the queue and starts again, so give it time to do that.
+    stop_grace_period: 60s
     mem_limit: ${WORKER_MEM_LIMIT:-1536m}
     environment:
       GOMEMLIMIT: ${WORKER_GOMEMLIMIT:-1200MiB}

@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { makeJob, mockApi, renderApp, signedIn, WS, type Reply } from "../../../test/utils";
@@ -20,35 +20,20 @@ function board(patch: (body: unknown) => Reply = (body) => ({ body: { data: body
   });
 }
 
-const dataTransfer = () => {
-  const store: Record<string, string> = {};
-  return { setData: (k: string, v: string) => (store[k] = v), getData: (k: string) => store[k] ?? "", effectAllowed: "", dropEffect: "" };
-};
-
 describe("ApplicationsBoard", () => {
-  it("moves a card by dragging it to an allowed column", async () => {
+  it("moves a card a step forward and back with its buttons", async () => {
     const api = board();
     renderApp("/applications?view=board");
     const card = await screen.findByRole("article", { name: "Backend Engineer 1" });
-    const target = screen.getByRole("region", { name: "Interviewing" });
-    const dt = dataTransfer();
-    fireEvent.dragStart(card, { dataTransfer: dt });
-    fireEvent.dragOver(target, { dataTransfer: dt });
-    fireEvent.drop(target, { dataTransfer: dt });
+    await userEvent.click(within(card).getByRole("button", { name: "Move to Interviewing" }));
     await vi.waitFor(() => expect(api.calls.find((c) => c.method === "PATCH")?.body).toEqual({ status: "interviewing" }));
   });
 
-  it("does not take drops on the closed column", async () => {
-    const api = board();
+  it("has no step back for the first column", async () => {
+    board();
     renderApp("/applications?view=board");
-    const card = await screen.findByRole("article", { name: "Backend Engineer 1" });
-    const target = screen.getByRole("region", { name: "Closed" });
-    const dt = dataTransfer();
-    fireEvent.dragStart(card, { dataTransfer: dt });
-    fireEvent.dragOver(target, { dataTransfer: dt });
-    fireEvent.drop(target, { dataTransfer: dt });
-    await new Promise((r) => setTimeout(r, 50));
-    expect(api.calls.some((c) => c.method === "PATCH")).toBe(false);
+    const card = await screen.findByRole("article", { name: "Backend Engineer 2" });
+    expect(within(card).getByRole("button", { name: /Move back/ })).toBeDisabled();
   });
 
   it("moves a card with the menu and reports a refused change", async () => {

@@ -148,6 +148,29 @@ func TestCancelDuringCollection(t *testing.T) {
 	}
 }
 
+func TestStoppingWorkerPutsTheRunBackInTheQueue(t *testing.T) {
+	h := newHarness()
+	h.ingest.block = make(chan struct{})
+	ctx, stop := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- h.p.Execute(ctx, testRun) }()
+	time.Sleep(50 * time.Millisecond)
+	stop()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("run did not stop")
+	}
+	h.runs.mu.Lock()
+	defer h.runs.mu.Unlock()
+	if len(h.runs.requeued) != 1 || h.runs.requeued[0] != "run-1" {
+		t.Fatalf("requeued = %v", h.runs.requeued)
+	}
+	if _, finished := h.runs.finished["run-1"]; finished {
+		t.Fatal("an interrupted run must not be finished as failed")
+	}
+}
+
 func TestDetectorPanicFailsOnlyThatCompany(t *testing.T) {
 	h := newHarness()
 	src := h.p.Sources[0].(fakeSource)

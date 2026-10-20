@@ -1,8 +1,8 @@
-import { useState, type FormEvent } from "react";
-import { X } from "lucide-react";
+import { useState, type FormEvent, type ReactNode } from "react";
+import { ExternalLink, X } from "lucide-react";
 import { Button, Card, ErrorState, Field, InlineError, Spinner } from "../../components/ui";
 import { inputClass } from "../../components/styles";
-import { statusTransitions, type Application, type ApplicationStatus } from "../../lib/api";
+import { statusTransitions, type Application, type ApplicationStatus, type JobDetail } from "../../lib/api";
 import { eventLabel, todayInput, toISODate } from "./format";
 import { useI18n } from "../../lib/i18n";
 import {
@@ -417,6 +417,64 @@ export function TagsSection({ ws, application }: Props) {
         </Button>
       </form>
       <InlineError error={createTag.error ?? setTag.error} />
+    </Card>
+  );
+}
+
+function InfoRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-0.5 py-2.5 sm:flex-row sm:items-baseline sm:gap-4">
+      <dt className="shrink-0 text-sm text-ink-muted sm:w-40">{label}</dt>
+      <dd className="min-w-0 text-sm font-medium text-ink">{children}</dd>
+    </div>
+  );
+}
+
+// InfoSection is what the application is about: the job and the first
+// application, at a glance and with a way back to the original posting.
+export function InfoSection({ ws, application, job }: Props & { job?: JobDetail }) {
+  const { t, formatDate } = useI18n();
+  const attempts = useAttempts(ws, application.id);
+  const first = attempts.data?.[0];
+  const url = job?.listings[0]?.url;
+  let host = "";
+  try {
+    host = url ? new URL(url).host : "";
+  } catch {
+    host = "";
+  }
+  return (
+    <Card>
+      <SectionTitle>{t("apps.info")}</SectionTitle>
+      <dl className="divide-y divide-line">
+        <InfoRow label={t("apps.info.company")}>{job?.company_name ?? "…"}</InfoRow>
+        <InfoRow label={t("apps.info.location")}>{job ? (job.location ?? t("jobs.locationUnknown")) : "…"}</InfoRow>
+        {job && <InfoRow label={t("apps.info.arrangement")}>{t(`work.${job.work_arrangement}` as "work.unknown")}</InfoRow>}
+        {job && <InfoRow label={t("apps.info.type")}>{t(`employment.${job.employment_type}` as "employment.unknown")}</InfoRow>}
+        {job && <InfoRow label={t("apps.info.seniority")}>{t(`seniority.${job.seniority}` as "seniority.unknown")}</InfoRow>}
+        <InfoRow label={t("apps.info.firstApplied")}>
+          {first ? (
+            `${formatDate(first.applied_at)}${first.channel ? ` · ${first.channel}` : ""}`
+          ) : (
+            <span className="font-normal text-ink-muted">{t("apps.info.notApplied")}</span>
+          )}
+        </InfoRow>
+        <InfoRow label={t("apps.info.added")}>{formatDate(application.created_at, true)}</InfoRow>
+        <InfoRow label={t("apps.info.updated")}>{formatDate(application.updated_at, true)}</InfoRow>
+        {job && <InfoRow label={t("apps.info.posted")}>{formatDate(job.first_seen_at)}</InfoRow>}
+      </dl>
+      {job?.closed_at && <p className="mt-3 rounded-md bg-amber px-3 py-2 text-sm text-ink">{t("apps.info.closedPosting")}</p>}
+      {url && (
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-4 inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-control border border-line-strong px-3 text-sm font-medium text-ink transition-colors hover:bg-canvas focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+        >
+          <ExternalLink aria-hidden className="size-4" />
+          {t("apps.info.openPosting", { host })}
+        </a>
+      )}
     </Card>
   );
 }

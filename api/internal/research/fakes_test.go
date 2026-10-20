@@ -31,6 +31,7 @@ type fakeRuns struct {
 	queued    []domain.ResearchRun
 	enqueued  []string
 	stale     int
+	requeued  []string
 	purged    int
 }
 
@@ -109,6 +110,12 @@ func (f *fakeRuns) ClaimRun(context.Context) (domain.ResearchRun, bool, error) {
 	r := f.queued[0]
 	f.queued = f.queued[1:]
 	return r, true, nil
+}
+func (f *fakeRuns) RequeueRun(_ context.Context, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.requeued = append(f.requeued, id)
+	return nil
 }
 func (f *fakeRuns) FailStaleRuns(context.Context, time.Duration) (int64, error) {
 	f.mu.Lock()

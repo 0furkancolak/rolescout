@@ -29,7 +29,7 @@ func scanProfile(row pgx.Row) (domain.ResearchProfile, error) {
 	var p domain.ResearchProfile
 	var secs int64
 	err := row.Scan(&p.ID, &p.WorkspaceID, &p.Name, &p.TitleKeywords, &p.Keywords, &p.Technologies,
-		&p.Countries, &p.Locations, &p.ExcludedKeywords, &p.Remote, &p.Seniority, &secs,
+		&p.Countries, &p.Locations, &p.ExcludedKeywords, &p.Remote, &p.Seniority, &secs, &p.SchedulePaused,
 		&p.LastRunAt, &p.CreatedAt, &p.UpdatedAt)
 	p.ScheduleInterval = time.Duration(secs) * time.Second
 	return p, err
@@ -48,6 +48,8 @@ type ProfileParams struct {
 	Remote           domain.RemotePreference
 	Seniority        []string
 	ScheduleInterval time.Duration
+	// SchedulePaused stops automatic runs; manual runs still work.
+	SchedulePaused bool
 }
 
 func (p ProfileParams) args() []any {
@@ -66,16 +68,16 @@ func (p ProfileParams) args() []any {
 		interval = 12 * time.Hour
 	}
 	return []any{p.Name, nz(p.TitleKeywords), nz(p.Keywords), nz(p.Technologies), nz(p.Countries),
-		nz(p.Locations), nz(p.ExcludedKeywords), remote, nz(p.Seniority), interval.Seconds()}
+		nz(p.Locations), nz(p.ExcludedKeywords), remote, nz(p.Seniority), interval.Seconds(), p.SchedulePaused}
 }
 
 func (r *ResearchRepository) CreateProfile(ctx context.Context, workspaceID string, p ProfileParams) (domain.ResearchProfile, error) {
 	prof, err := scanProfile(r.pool.QueryRow(ctx, `
 		INSERT INTO research_profiles (workspace_id, name, title_keywords, keywords, technologies, countries,
-			locations, excluded_keywords, remote, seniority, schedule_interval)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, make_interval(secs => $11))
+			locations, excluded_keywords, remote, seniority, schedule_interval, schedule_paused)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, make_interval(secs => $11), $12)
 		RETURNING id, workspace_id, name, title_keywords, keywords, technologies, countries,
-	locations, excluded_keywords, remote, seniority, EXTRACT(EPOCH FROM schedule_interval)::bigint,
+	locations, excluded_keywords, remote, seniority, EXTRACT(EPOCH FROM schedule_interval)::bigint, schedule_paused,
 	last_run_at, created_at, updated_at`, append([]any{workspaceID}, p.args()...)...))
 	return prof, translate(err, "create research profile")
 }
@@ -83,7 +85,7 @@ func (r *ResearchRepository) CreateProfile(ctx context.Context, workspaceID stri
 func (r *ResearchRepository) GetProfile(ctx context.Context, workspaceID, id string) (domain.ResearchProfile, error) {
 	p, err := scanProfile(r.pool.QueryRow(ctx, `
 		SELECT id, workspace_id, name, title_keywords, keywords, technologies, countries,
-	locations, excluded_keywords, remote, seniority, EXTRACT(EPOCH FROM schedule_interval)::bigint,
+	locations, excluded_keywords, remote, seniority, EXTRACT(EPOCH FROM schedule_interval)::bigint, schedule_paused,
 	last_run_at, created_at, updated_at FROM research_profiles WHERE workspace_id = $1 AND id = $2`, workspaceID, id))
 	return p, translate(err, "get research profile")
 }
@@ -91,7 +93,7 @@ func (r *ResearchRepository) GetProfile(ctx context.Context, workspaceID, id str
 func (r *ResearchRepository) ListProfiles(ctx context.Context, workspaceID string) ([]domain.ResearchProfile, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT id, workspace_id, name, title_keywords, keywords, technologies, countries,
-	locations, excluded_keywords, remote, seniority, EXTRACT(EPOCH FROM schedule_interval)::bigint,
+	locations, excluded_keywords, remote, seniority, EXTRACT(EPOCH FROM schedule_interval)::bigint, schedule_paused,
 	last_run_at, created_at, updated_at FROM research_profiles WHERE workspace_id = $1 ORDER BY created_at, id`, workspaceID)
 	return collectProfiles(rows, err, "list research profiles")
 }
@@ -110,10 +112,10 @@ func (r *ResearchRepository) UpdateProfile(ctx context.Context, workspaceID, id 
 	prof, err := scanProfile(r.pool.QueryRow(ctx, `
 		UPDATE research_profiles SET name = $3, title_keywords = $4, keywords = $5, technologies = $6,
 			countries = $7, locations = $8, excluded_keywords = $9, remote = $10, seniority = $11,
-			schedule_interval = make_interval(secs => $12)
+			schedule_interval = make_interval(secs => $12), schedule_paused = $13
 		WHERE workspace_id = $1 AND id = $2
 		RETURNING id, workspace_id, name, title_keywords, keywords, technologies, countries,
-	locations, excluded_keywords, remote, seniority, EXTRACT(EPOCH FROM schedule_interval)::bigint,
+	locations, excluded_keywords, remote, seniority, EXTRACT(EPOCH FROM schedule_interval)::bigint, schedule_paused,
 	last_run_at, created_at, updated_at`, append([]any{workspaceID, id}, p.args()...)...))
 	return prof, translate(err, "update research profile")
 }
@@ -130,14 +132,15 @@ func (r *ResearchRepository) DeleteProfile(ctx context.Context, workspaceID, id 
 }
 
 // DueProfiles returns profiles whose schedule says they should run at now:
-// they have no active run and their last run was queued at least one
+// automatic runs are not paused, they have no active run and their last run was queued at least one
 // schedule interval ago (or never).
 func (r *ResearchRepository) DueProfiles(ctx context.Context, now time.Time) ([]domain.ResearchProfile, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT id, workspace_id, name, title_keywords, keywords, technologies, countries,
-	locations, excluded_keywords, remote, seniority, EXTRACT(EPOCH FROM schedule_interval)::bigint,
+	locations, excluded_keywords, remote, seniority, EXTRACT(EPOCH FROM schedule_interval)::bigint, schedule_paused,
 	last_run_at, created_at, updated_at FROM research_profiles p
-		WHERE NOT EXISTS (SELECT 1 FROM research_runs r WHERE r.profile_id = p.id AND r.state IN ('queued', 'running'))
+		WHERE NOT p.schedule_paused
+		  AND NOT EXISTS (SELECT 1 FROM research_runs r WHERE r.profile_id = p.id AND r.state IN ('queued', 'running'))
 		  AND COALESCE((SELECT max(queued_at) FROM research_runs r WHERE r.profile_id = p.id), '-infinity')
 		      + p.schedule_interval <= $1
 		ORDER BY p.created_at, p.id`, now)
@@ -295,6 +298,16 @@ func (r *ResearchRepository) ListRuns(ctx context.Context, workspaceID, profileI
 		return scanResearchRun(row)
 	})
 	return runs, translate(err, "list research runs")
+}
+
+// RequeueRun puts a running run back in the queue, as when the worker is
+// stopped for an update: the next worker starts it again from the beginning.
+func (r *ResearchRepository) RequeueRun(ctx context.Context, id string) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE research_runs SET state = 'queued', started_at = NULL, stage = 'discovery', stages = '{}',
+			error = NULL, updated_at = NOW()
+		WHERE id = $1 AND state = 'running' AND NOT cancel_requested`, id)
+	return translate(err, "requeue research run")
 }
 
 // FailStaleRuns fails running runs that have not reported progress for

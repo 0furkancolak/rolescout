@@ -1,7 +1,8 @@
 import { Check, Copy } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { autofillFields, bookmarklet, type AutofillProfile } from "../../lib/autofill";
+import { autofillFields, type AutofillProfile } from "../../lib/autofill";
+import { BookmarkletTools } from "../autofill/BookmarkletTools";
 import { useI18n } from "../../lib/i18n";
 import { useUserState } from "../state/api";
 import { useWorkspace } from "../workspaces/context";
@@ -37,22 +38,14 @@ export function AutofillPanel() {
   return (
     <div className="space-y-3 rounded-card bg-canvas p-3 text-sm">
       <p className="text-ink-muted">{t("autofill.howTo")}</p>
-      <a
-        // React refuses javascript: URLs as a prop, so the address is set on the element itself.
-        ref={(el) => el?.setAttribute("href", bookmarklet(profile!))}
-        onClick={(e) => e.preventDefault()}
-        draggable
-        className="inline-flex min-h-10 cursor-grab items-center rounded-control border border-dashed border-line-strong bg-surface px-3 font-medium text-ink"
-      >
-        {t("autofill.bookmarklet")}
-      </a>
+      <BookmarkletTools profile={profile!} />
       <ul className="grid gap-1.5 sm:grid-cols-2">
         {filled.map((f) => (
           <li key={f}>
             <button
               type="button"
               onClick={() => copy(f, profile![f]!)}
-              className="flex w-full items-center justify-between gap-2 rounded-control bg-surface px-3 py-2 text-left hover:bg-raised"
+              className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-control bg-surface px-3 py-2 text-left transition-colors hover:bg-raised focus-visible:outline-2 focus-visible:outline-focus"
             >
               <span className="min-w-0">
                 <span className="block text-xs text-ink-muted">{t(`autofill.field.${f}`)}</span>

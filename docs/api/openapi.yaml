@@ -1907,6 +1907,7 @@ components:
                 type: array
                 items: { type: string, enum: [intern, junior, mid, senior, lead] }
               schedule_hours: { type: integer, minimum: 1, maximum: 336 }
+              schedule_enabled: { type: boolean, description: "false pauses automatic runs; manual runs still work." }
 
   responses:
     Forbidden:
@@ -2130,7 +2131,7 @@ components:
     ResearchProfile:
       type: object
       required: [id, name, title_keywords, keywords, technologies, countries, locations,
-        excluded_keywords, remote, seniority, schedule_hours, last_run_at, created_at, updated_at]
+        excluded_keywords, remote, seniority, schedule_hours, schedule_enabled, last_run_at, created_at, updated_at]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
@@ -2143,6 +2144,7 @@ components:
         remote: { $ref: "#/components/schemas/RemotePreference" }
         seniority: { type: array, items: { type: string } }
         schedule_hours: { type: integer }
+        schedule_enabled: { type: boolean }
         last_run_at: { type: [string, "null"], format: date-time }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }

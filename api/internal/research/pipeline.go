@@ -31,6 +31,7 @@ type RunStore interface {
 	SetState(ctx context.Context, key, value string) error
 	TryStageLock(ctx context.Context) (func(), bool, error)
 	ClaimRun(ctx context.Context) (domain.ResearchRun, bool, error)
+	RequeueRun(ctx context.Context, id string) error
 	FailStaleRuns(ctx context.Context, maxAge time.Duration) (int64, error)
 	DueProfiles(ctx context.Context, now time.Time) ([]domain.ResearchProfile, error)
 	EnqueueRun(ctx context.Context, workspaceID, profileID, trigger string) (domain.ResearchRun, error)
@@ -211,7 +212,13 @@ func (p *Pipeline) Execute(ctx context.Context, run domain.ResearchRun) error {
 	case rep.isCancelled():
 		state = domain.RunCancelled
 	case err != nil && ctx.Err() != nil:
-		state, msg = domain.RunFailed, strp("the worker stopped during the run")
+		// The worker is stopping (an update, a restart): the run goes back in
+		// the queue and starts again when a worker is up, instead of failing.
+		if rerr := p.Runs.RequeueRun(context.WithoutCancel(ctx), run.ID); rerr != nil {
+			return errors.Join(err, rerr)
+		}
+		log.Info("research run put back in the queue: the worker is stopping")
+		return nil
 	case err != nil:
 		state, msg = domain.RunFailed, strp(err.Error())
 	}

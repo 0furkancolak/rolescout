@@ -181,6 +181,7 @@ export interface ResearchProfile {
   remote: RemotePreference;
   seniority: string[];
   schedule_hours: number;
+  schedule_enabled: boolean;
   last_run_at: string | null;
   created_at: string;
   updated_at: string;

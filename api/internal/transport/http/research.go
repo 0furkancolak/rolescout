@@ -51,6 +51,7 @@ type profileRequest struct {
 	Remote           *string   `json:"remote"`
 	Seniority        *[]string `json:"seniority"`
 	ScheduleHours    *int      `json:"schedule_hours"`
+	ScheduleEnabled  *bool     `json:"schedule_enabled"`
 }
 
 // apply merges the request onto base and validates the result.
@@ -123,6 +124,9 @@ func (req profileRequest) apply(base database.ProfileParams) (database.ProfilePa
 		}
 		p.ScheduleInterval = time.Duration(*req.ScheduleHours) * time.Hour
 	}
+	if req.ScheduleEnabled != nil {
+		p.SchedulePaused = !*req.ScheduleEnabled
+	}
 	if p.ScheduleInterval <= 0 {
 		p.ScheduleInterval = 12 * time.Hour
 	}
@@ -133,7 +137,7 @@ func paramsOf(p domain.ResearchProfile) database.ProfileParams {
 	return database.ProfileParams{
 		Name: p.Name, TitleKeywords: p.TitleKeywords, Keywords: p.Keywords, Technologies: p.Technologies,
 		Countries: p.Countries, Locations: p.Locations, ExcludedKeywords: p.ExcludedKeywords,
-		Remote: p.Remote, Seniority: p.Seniority, ScheduleInterval: p.ScheduleInterval,
+		Remote: p.Remote, Seniority: p.Seniority, ScheduleInterval: p.ScheduleInterval, SchedulePaused: p.SchedulePaused,
 	}
 }
 

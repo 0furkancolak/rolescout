@@ -6,6 +6,16 @@ include breaking changes, which are called out.
 
 ## [Unreleased]
 ### Added
+- Updates no longer lose a research run: when the worker is stopped (an update,
+  a restart) the run in progress goes back in the queue and starts again, and
+  the worker gets 60 s to do so. `ROLESCOUT_SERVICES="api web"` lets
+  `scripts/deploy-server.sh` update only some services.
+- Research profiles can have automatic runs switched off (`schedule_enabled`);
+  the research screen shows when the next automatic run is due.
+- Application details page shows the job's company, place, work arrangement,
+  seniority, first application and a link to the original posting.
+- Autofill bookmark can be copied as code with steps, for browsers where
+  dragging it to the bookmarks bar does not work.
 - Country focus: a research profile's countries are read first in every stage
   (companies of those countries are identified and their jobs collected before
   the rest), and the sector search asks about those countries before the
@@ -68,6 +78,9 @@ include breaking changes, which are called out.
   employers).
 - `make dev` streams the API and worker logs into the terminal.
 ### Changed
+- Application board: cards move with step buttons instead of drag and drop (which
+  did not work on touch screens and some browsers); research run history shows
+  its counts as tiles; hover and focus states on cards, rows and buttons.
 - Research is much faster: all discovery sources run at the same time (the
   stage shows sources finished), names are probed eight at a time, defaults are
   32 hosts in parallel and 8 requests per job board API (150 ms apart), the
