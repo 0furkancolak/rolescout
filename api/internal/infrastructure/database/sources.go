@@ -21,9 +21,6 @@ func NewSourceRepository(pool *pgxpool.Pool) *SourceRepository {
 	return &SourceRepository{pool: pool}
 }
 
-const sourceColumns = `id, key, name, base_url, enabled, adapter, config,
-	EXTRACT(EPOCH FROM sync_interval)::bigint, reviewed_at, review_note, company_id, created_at, updated_at`
-
 func scanSource(row pgx.Row) (domain.JobSource, error) {
 	var s domain.JobSource
 	var seconds int64
@@ -61,17 +58,20 @@ func (r *SourceRepository) Create(ctx context.Context, p SourceParams) (domain.J
 	s, err := scanSource(r.pool.QueryRow(ctx, `
 		INSERT INTO job_sources (key, name, base_url, adapter, config, sync_interval)
 		VALUES ($1, $2, $3, $4, $5, COALESCE(make_interval(secs => $6), INTERVAL '6 hours'))
-		RETURNING `+sourceColumns, p.Key, p.Name, p.BaseURL, adapter, config, interval))
+		RETURNING id, key, name, base_url, enabled, adapter, config,
+	EXTRACT(EPOCH FROM sync_interval)::bigint, reviewed_at, review_note, company_id, created_at, updated_at`, p.Key, p.Name, p.BaseURL, adapter, config, interval))
 	return s, translate(err, "create job source")
 }
 
 func (r *SourceRepository) Get(ctx context.Context, key string) (domain.JobSource, error) {
-	s, err := scanSource(r.pool.QueryRow(ctx, `SELECT `+sourceColumns+` FROM job_sources WHERE key = $1`, key))
+	s, err := scanSource(r.pool.QueryRow(ctx, `SELECT id, key, name, base_url, enabled, adapter, config,
+	EXTRACT(EPOCH FROM sync_interval)::bigint, reviewed_at, review_note, company_id, created_at, updated_at FROM job_sources WHERE key = $1`, key))
 	return s, translate(err, "get job source")
 }
 
 func (r *SourceRepository) List(ctx context.Context) ([]domain.JobSource, error) {
-	rows, err := r.pool.Query(ctx, `SELECT `+sourceColumns+` FROM job_sources ORDER BY key`)
+	rows, err := r.pool.Query(ctx, `SELECT id, key, name, base_url, enabled, adapter, config,
+	EXTRACT(EPOCH FROM sync_interval)::bigint, reviewed_at, review_note, company_id, created_at, updated_at FROM job_sources ORDER BY key`)
 	if err != nil {
 		return nil, translate(err, "list job sources")
 	}
@@ -86,7 +86,8 @@ func (r *SourceRepository) List(ctx context.Context) ([]domain.JobSource, error)
 func (r *SourceRepository) Review(ctx context.Context, key, note string) (domain.JobSource, error) {
 	s, err := scanSource(r.pool.QueryRow(ctx, `
 		UPDATE job_sources SET reviewed_at = NOW(), review_note = $2
-		WHERE key = $1 RETURNING `+sourceColumns, key, note))
+		WHERE key = $1 RETURNING id, key, name, base_url, enabled, adapter, config,
+	EXTRACT(EPOCH FROM sync_interval)::bigint, reviewed_at, review_note, company_id, created_at, updated_at`, key, note))
 	return s, translate(err, "review job source")
 }
 
@@ -95,7 +96,8 @@ var ErrSourceNotReviewed = fmt.Errorf("source must be reviewed before it is enab
 
 func (r *SourceRepository) SetEnabled(ctx context.Context, key string, enabled bool) (domain.JobSource, error) {
 	s, err := scanSource(r.pool.QueryRow(ctx, `
-		UPDATE job_sources SET enabled = $2 WHERE key = $1 RETURNING `+sourceColumns, key, enabled))
+		UPDATE job_sources SET enabled = $2 WHERE key = $1 RETURNING id, key, name, base_url, enabled, adapter, config,
+	EXTRACT(EPOCH FROM sync_interval)::bigint, reviewed_at, review_note, company_id, created_at, updated_at`, key, enabled))
 	err = translate(err, "set job source enabled")
 	if enabled && errors.Is(err, domain.ErrInvalid) {
 		return s, ErrSourceNotReviewed
@@ -134,9 +136,6 @@ func (r *SourceRepository) Due(ctx context.Context, now time.Time) ([]domain.Job
 	return sources, translate(err, "list due job sources")
 }
 
-const runColumns = `id, source_id, status, started_at, finished_at, attempts, fetched_count,
-	upserted_count, failed_count, error`
-
 func scanRun(row pgx.Row) (domain.IngestionRun, error) {
 	var run domain.IngestionRun
 	err := row.Scan(&run.ID, &run.SourceID, &run.Status, &run.StartedAt, &run.FinishedAt,
@@ -149,7 +148,8 @@ func scanRun(row pgx.Row) (domain.IngestionRun, error) {
 // workers from syncing the same source twice.
 func (r *SourceRepository) StartRun(ctx context.Context, sourceID string) (domain.IngestionRun, error) {
 	run, err := scanRun(r.pool.QueryRow(ctx, `
-		INSERT INTO ingestion_runs (source_id) VALUES ($1) RETURNING `+runColumns, sourceID))
+		INSERT INTO ingestion_runs (source_id) VALUES ($1) RETURNING id, source_id, status, started_at, finished_at, attempts, fetched_count,
+	upserted_count, failed_count, error`, sourceID))
 	return run, translate(err, "start ingestion run")
 }
 
@@ -159,7 +159,8 @@ func (r *SourceRepository) FinishRun(ctx context.Context, run domain.IngestionRu
 		UPDATE ingestion_runs SET status = $2, finished_at = NOW(), attempts = $3,
 			fetched_count = $4, upserted_count = $5, failed_count = $6, error = $7
 		WHERE id = $1 AND status = 'running'
-		RETURNING `+runColumns, run.ID, run.Status, run.Attempts, run.FetchedCount,
+		RETURNING id, source_id, status, started_at, finished_at, attempts, fetched_count,
+	upserted_count, failed_count, error`, run.ID, run.Status, run.Attempts, run.FetchedCount,
 		run.UpsertedCount, run.FailedCount, run.Error))
 	return out, translate(err, "finish ingestion run")
 }
@@ -181,7 +182,8 @@ func (r *SourceRepository) FailStaleRuns(ctx context.Context, maxAge time.Durati
 // ListRuns returns the most recent runs of a source, newest first.
 func (r *SourceRepository) ListRuns(ctx context.Context, sourceID string, limit int) ([]domain.IngestionRun, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT `+runColumns+` FROM ingestion_runs WHERE source_id = $1
+		SELECT id, source_id, status, started_at, finished_at, attempts, fetched_count,
+	upserted_count, failed_count, error FROM ingestion_runs WHERE source_id = $1
 		ORDER BY started_at DESC, id LIMIT $2`, sourceID, limit)
 	if err != nil {
 		return nil, translate(err, "list ingestion runs")

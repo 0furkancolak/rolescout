@@ -25,10 +25,6 @@ func NewResearchRepository(pool *pgxpool.Pool) *ResearchRepository {
 // maxRunEvents is how many log lines are kept per run.
 const maxRunEvents = 2000
 
-const profileColumns = `id, workspace_id, name, title_keywords, keywords, technologies, countries,
-	locations, excluded_keywords, remote, seniority, EXTRACT(EPOCH FROM schedule_interval)::bigint,
-	last_run_at, created_at, updated_at`
-
 func scanProfile(row pgx.Row) (domain.ResearchProfile, error) {
 	var p domain.ResearchProfile
 	var secs int64
@@ -78,19 +74,25 @@ func (r *ResearchRepository) CreateProfile(ctx context.Context, workspaceID stri
 		INSERT INTO research_profiles (workspace_id, name, title_keywords, keywords, technologies, countries,
 			locations, excluded_keywords, remote, seniority, schedule_interval)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, make_interval(secs => $11))
-		RETURNING `+profileColumns, append([]any{workspaceID}, p.args()...)...))
+		RETURNING id, workspace_id, name, title_keywords, keywords, technologies, countries,
+	locations, excluded_keywords, remote, seniority, EXTRACT(EPOCH FROM schedule_interval)::bigint,
+	last_run_at, created_at, updated_at`, append([]any{workspaceID}, p.args()...)...))
 	return prof, translate(err, "create research profile")
 }
 
 func (r *ResearchRepository) GetProfile(ctx context.Context, workspaceID, id string) (domain.ResearchProfile, error) {
 	p, err := scanProfile(r.pool.QueryRow(ctx, `
-		SELECT `+profileColumns+` FROM research_profiles WHERE workspace_id = $1 AND id = $2`, workspaceID, id))
+		SELECT id, workspace_id, name, title_keywords, keywords, technologies, countries,
+	locations, excluded_keywords, remote, seniority, EXTRACT(EPOCH FROM schedule_interval)::bigint,
+	last_run_at, created_at, updated_at FROM research_profiles WHERE workspace_id = $1 AND id = $2`, workspaceID, id))
 	return p, translate(err, "get research profile")
 }
 
 func (r *ResearchRepository) ListProfiles(ctx context.Context, workspaceID string) ([]domain.ResearchProfile, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT `+profileColumns+` FROM research_profiles WHERE workspace_id = $1 ORDER BY created_at, id`, workspaceID)
+		SELECT id, workspace_id, name, title_keywords, keywords, technologies, countries,
+	locations, excluded_keywords, remote, seniority, EXTRACT(EPOCH FROM schedule_interval)::bigint,
+	last_run_at, created_at, updated_at FROM research_profiles WHERE workspace_id = $1 ORDER BY created_at, id`, workspaceID)
 	return collectProfiles(rows, err, "list research profiles")
 }
 
@@ -110,7 +112,9 @@ func (r *ResearchRepository) UpdateProfile(ctx context.Context, workspaceID, id 
 			countries = $7, locations = $8, excluded_keywords = $9, remote = $10, seniority = $11,
 			schedule_interval = make_interval(secs => $12)
 		WHERE workspace_id = $1 AND id = $2
-		RETURNING `+profileColumns, append([]any{workspaceID, id}, p.args()...)...))
+		RETURNING id, workspace_id, name, title_keywords, keywords, technologies, countries,
+	locations, excluded_keywords, remote, seniority, EXTRACT(EPOCH FROM schedule_interval)::bigint,
+	last_run_at, created_at, updated_at`, append([]any{workspaceID, id}, p.args()...)...))
 	return prof, translate(err, "update research profile")
 }
 
@@ -130,16 +134,15 @@ func (r *ResearchRepository) DeleteProfile(ctx context.Context, workspaceID, id 
 // schedule interval ago (or never).
 func (r *ResearchRepository) DueProfiles(ctx context.Context, now time.Time) ([]domain.ResearchProfile, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT `+profileColumns+` FROM research_profiles p
+		SELECT id, workspace_id, name, title_keywords, keywords, technologies, countries,
+	locations, excluded_keywords, remote, seniority, EXTRACT(EPOCH FROM schedule_interval)::bigint,
+	last_run_at, created_at, updated_at FROM research_profiles p
 		WHERE NOT EXISTS (SELECT 1 FROM research_runs r WHERE r.profile_id = p.id AND r.state IN ('queued', 'running'))
 		  AND COALESCE((SELECT max(queued_at) FROM research_runs r WHERE r.profile_id = p.id), '-infinity')
 		      + p.schedule_interval <= $1
 		ORDER BY p.created_at, p.id`, now)
 	return collectProfiles(rows, err, "list due research profiles")
 }
-
-const runColumnsResearch = `id, workspace_id, profile_id, state, stage, stages, summary, trigger, error,
-	cancel_requested, queued_at, started_at, finished_at`
 
 func scanResearchRun(row pgx.Row) (domain.ResearchRun, error) {
 	var run domain.ResearchRun
@@ -163,7 +166,8 @@ func scanResearchRun(row pgx.Row) (domain.ResearchRun, error) {
 func (r *ResearchRepository) EnqueueRun(ctx context.Context, workspaceID, profileID, trigger string) (domain.ResearchRun, error) {
 	run, err := scanResearchRun(r.pool.QueryRow(ctx, `
 		INSERT INTO research_runs (workspace_id, profile_id, trigger) VALUES ($1, $2, $3)
-		RETURNING `+runColumnsResearch, workspaceID, profileID, trigger))
+		RETURNING id, workspace_id, profile_id, state, stage, stages, summary, trigger, error,
+	cancel_requested, queued_at, started_at, finished_at`, workspaceID, profileID, trigger))
 	return run, translate(err, "enqueue research run")
 }
 
@@ -176,7 +180,8 @@ func (r *ResearchRepository) ClaimRun(ctx context.Context) (domain.ResearchRun, 
 			SELECT id FROM research_runs WHERE state = 'queued'
 			ORDER BY queued_at, id FOR UPDATE SKIP LOCKED LIMIT 1
 		)
-		RETURNING `+runColumnsResearch))
+		RETURNING id, workspace_id, profile_id, state, stage, stages, summary, trigger, error,
+	cancel_requested, queued_at, started_at, finished_at`))
 	if err == pgx.ErrNoRows {
 		return run, false, nil
 	}
@@ -220,7 +225,13 @@ func (r *ResearchRepository) FinishRun(ctx context.Context, id string, state dom
 		var profileID string
 		err := tx.QueryRow(ctx, `
 			UPDATE research_runs SET state = $2, error = $3, summary = $4, finished_at = NOW(), updated_at = NOW(),
-				stages = `+settleStages("$2::text")+`
+				-- A stage still "running" when the run ends did not finish: it becomes
+				-- failed (or skipped when the run was cancelled), not a spinner forever.
+				stages = CASE WHEN $2::text = 'succeeded' THEN stages ELSE COALESCE((
+					SELECT jsonb_object_agg(k, CASE WHEN v->>'state' = 'running'
+						THEN jsonb_set(v, '{state}', to_jsonb(CASE WHEN $2::text = 'failed' THEN 'failed' ELSE 'skipped' END::text))
+						ELSE v END)
+					FROM jsonb_each(stages) AS s(k, v)), stages) END
 			WHERE id = $1 AND state IN ('queued', 'running')
 			RETURNING profile_id`, id, state, errMsg, sum).Scan(&profileID)
 		if err != nil {
@@ -265,14 +276,16 @@ func (r *ResearchRepository) CancelRequested(ctx context.Context, id string) (bo
 
 func (r *ResearchRepository) GetRun(ctx context.Context, workspaceID, id string) (domain.ResearchRun, error) {
 	run, err := scanResearchRun(r.pool.QueryRow(ctx, `
-		SELECT `+runColumnsResearch+` FROM research_runs WHERE workspace_id = $1 AND id = $2`, workspaceID, id))
+		SELECT id, workspace_id, profile_id, state, stage, stages, summary, trigger, error,
+	cancel_requested, queued_at, started_at, finished_at FROM research_runs WHERE workspace_id = $1 AND id = $2`, workspaceID, id))
 	return run, translate(err, "get research run")
 }
 
 // ListRuns returns a workspace's runs, newest first; profileID filters when set.
 func (r *ResearchRepository) ListRuns(ctx context.Context, workspaceID, profileID string, limit int) ([]domain.ResearchRun, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT `+runColumnsResearch+` FROM research_runs
+		SELECT id, workspace_id, profile_id, state, stage, stages, summary, trigger, error,
+	cancel_requested, queued_at, started_at, finished_at FROM research_runs
 		WHERE workspace_id = $1 AND ($2 = '' OR profile_id::text = $2)
 		ORDER BY queued_at DESC, id DESC LIMIT $3`, workspaceID, profileID, limit)
 	if err != nil {
@@ -289,7 +302,9 @@ func (r *ResearchRepository) ListRuns(ctx context.Context, workspaceID, profileI
 func (r *ResearchRepository) FailStaleRuns(ctx context.Context, maxAge time.Duration) (int64, error) {
 	tag, err := r.pool.Exec(ctx, `
 		UPDATE research_runs SET state = 'failed', finished_at = NOW(), updated_at = NOW(),
-			stages = `+settleStages("'failed'")+`,
+			stages = COALESCE((
+				SELECT jsonb_object_agg(k, CASE WHEN v->>'state' = 'running' THEN jsonb_set(v, '{state}', '"failed"') ELSE v END)
+				FROM jsonb_each(stages) AS s(k, v)), stages),
 			error = 'the worker stopped while the run was in progress'
 		WHERE state = 'running' AND updated_at < NOW() - make_interval(secs => $1)`, maxAge.Seconds())
 	if err != nil {
@@ -496,15 +511,4 @@ func (r *ResearchRepository) TryStageLock(ctx context.Context) (release func(), 
 		_, _ = conn.Exec(context.Background(), `SELECT pg_advisory_unlock($1)`, stageLockKey)
 		conn.Release()
 	}, true, nil
-}
-
-// settleStages is SQL for the stages column of a run that has ended: a stage
-// still "running" did not finish, so it becomes failed (or skipped when the
-// run was cancelled) instead of spinning forever. A succeeded run is untouched.
-func settleStages(stateExpr string) string {
-	return `CASE WHEN ` + stateExpr + ` = 'succeeded' THEN stages ELSE COALESCE((
-		SELECT jsonb_object_agg(k, CASE WHEN v->>'state' = 'running'
-			THEN jsonb_set(v, '{state}', to_jsonb(CASE WHEN ` + stateExpr + ` = 'failed' THEN 'failed' ELSE 'skipped' END::text))
-			ELSE v END)
-		FROM jsonb_each(stages) AS s(k, v)), stages) END`
 }

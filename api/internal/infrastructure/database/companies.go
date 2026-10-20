@@ -23,12 +23,6 @@ func NewCompanyRepository(pool *pgxpool.Pool) *CompanyRepository {
 	return &CompanyRepository{pool: pool}
 }
 
-const companyColumns = `c.id, c.name, c.domain, c.careers_url, c.ats, c.ats_id, c.origin, c.status,
-	c.last_checked_at, c.last_error, c.failure_count, c.next_check_at,
-	(SELECT s.id FROM job_sources s WHERE s.company_id = c.id),
-	(SELECT count(*) FROM jobs j WHERE j.company_id = c.id AND j.closed_at IS NULL)::int,
-	c.created_at, c.updated_at`
-
 func scanCompany(row pgx.Row, extra ...any) (domain.Company, error) {
 	var c domain.Company
 	dst := []any{&c.ID, &c.Name, &c.Domain, &c.CareersURL, &c.ATS, &c.ATSID, &c.Origin, &c.Status,
@@ -85,14 +79,22 @@ func (r *CompanyRepository) UpsertDiscovered(ctx context.Context, p CompanyParam
 		case err != nil:
 			return translate(err, "find company")
 		}
-		c, err = scanCompany(tx.QueryRow(ctx, `SELECT `+companyColumns+` FROM companies c WHERE c.id = $1`, id))
+		c, err = scanCompany(tx.QueryRow(ctx, `SELECT c.id, c.name, c.domain, c.careers_url, c.ats, c.ats_id, c.origin, c.status,
+	c.last_checked_at, c.last_error, c.failure_count, c.next_check_at,
+	(SELECT s.id FROM job_sources s WHERE s.company_id = c.id),
+	(SELECT count(*) FROM jobs j WHERE j.company_id = c.id AND j.closed_at IS NULL)::int,
+	c.created_at, c.updated_at FROM companies c WHERE c.id = $1`, id))
 		return translate(err, "read company")
 	})
 	return c, created, err
 }
 
 func (r *CompanyRepository) Get(ctx context.Context, id string) (domain.Company, error) {
-	c, err := scanCompany(r.pool.QueryRow(ctx, `SELECT `+companyColumns+` FROM companies c WHERE c.id = $1`, id))
+	c, err := scanCompany(r.pool.QueryRow(ctx, `SELECT c.id, c.name, c.domain, c.careers_url, c.ats, c.ats_id, c.origin, c.status,
+	c.last_checked_at, c.last_error, c.failure_count, c.next_check_at,
+	(SELECT s.id FROM job_sources s WHERE s.company_id = c.id),
+	(SELECT count(*) FROM jobs j WHERE j.company_id = c.id AND j.closed_at IS NULL)::int,
+	c.created_at, c.updated_at FROM companies c WHERE c.id = $1`, id))
 	return c, translate(err, "get company")
 }
 
@@ -100,7 +102,11 @@ func (r *CompanyRepository) Get(ctx context.Context, id string) (domain.Company,
 // identified: new ones and unknown ones whose next check is due.
 func (r *CompanyRepository) PendingDetection(ctx context.Context, limit int) ([]domain.Company, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT `+companyColumns+` FROM companies c
+		SELECT c.id, c.name, c.domain, c.careers_url, c.ats, c.ats_id, c.origin, c.status,
+	c.last_checked_at, c.last_error, c.failure_count, c.next_check_at,
+	(SELECT s.id FROM job_sources s WHERE s.company_id = c.id),
+	(SELECT count(*) FROM jobs j WHERE j.company_id = c.id AND j.closed_at IS NULL)::int,
+	c.created_at, c.updated_at FROM companies c
 		WHERE c.status = 'pending'
 		   OR (c.ats = 'unknown' AND c.status NOT IN ('disabled') AND c.next_check_at <= NOW())
 		ORDER BY c.next_check_at, c.id LIMIT $1`, limit)
@@ -128,16 +134,15 @@ func (r *CompanyRepository) RecordDetection(ctx context.Context, id, ats string,
 				status = CASE WHEN status = 'disabled' THEN status ELSE $4 END,
 				last_error = $5, last_checked_at = NOW(),
 				failure_count = CASE WHEN $6 THEN failure_count + 1 ELSE 0 END,
-				next_check_at = CASE WHEN $6 THEN NOW() + `+backoffSQL("failure_count + 1")+` ELSE NOW() END
+				next_check_at = CASE WHEN $6 THEN NOW() + LEAST(INTERVAL '1 hour' * power(2, GREATEST(failure_count + 1, 1) - 1), INTERVAL '168 hours') ELSE NOW() END
 			WHERE id = $1 RETURNING *
 		)
-		SELECT `+companyColumns+` FROM updated c`, id, ats, atsID, status, errMsg, failed))
+		SELECT c.id, c.name, c.domain, c.careers_url, c.ats, c.ats_id, c.origin, c.status,
+	c.last_checked_at, c.last_error, c.failure_count, c.next_check_at,
+	(SELECT s.id FROM job_sources s WHERE s.company_id = c.id),
+	(SELECT count(*) FROM jobs j WHERE j.company_id = c.id AND j.closed_at IS NULL)::int,
+	c.created_at, c.updated_at FROM updated c`, id, ats, atsID, status, errMsg, failed))
 	return c, translate(err, "record company detection")
-}
-
-// backoffSQL is 1 hour doubled per earlier failure, capped at 7 days.
-func backoffSQL(failures string) string {
-	return fmt.Sprintf("LEAST(INTERVAL '1 hour' * power(2, GREATEST(%s, 1) - 1), INTERVAL '168 hours')", failures)
 }
 
 var sourceKeyUnsafe = regexp.MustCompile(`[^a-z0-9_-]+`)
@@ -164,7 +169,8 @@ func (r *CompanyRepository) AttachSource(ctx context.Context, companyID string, 
 		ON CONFLICT (company_id) DO UPDATE SET
 			name = EXCLUDED.name, base_url = EXCLUDED.base_url, adapter = EXCLUDED.adapter,
 			config = EXCLUDED.config, enabled = TRUE
-		RETURNING `+sourceColumns, key, p.Name, p.BaseURL, p.Adapter, config, interval, companyID))
+		RETURNING id, key, name, base_url, enabled, adapter, config,
+	EXTRACT(EPOCH FROM sync_interval)::bigint, reviewed_at, review_note, company_id, created_at, updated_at`, key, p.Name, p.BaseURL, p.Adapter, config, interval, companyID))
 	return s, translate(err, "attach company source")
 }
 
@@ -191,7 +197,7 @@ func (r *CompanyRepository) RecordSyncOutcome(ctx context.Context, companyID str
 			status = CASE WHEN status = 'disabled' THEN status ELSE $2 END,
 			last_error = $3, last_checked_at = NOW(),
 			failure_count = CASE WHEN $4 THEN failure_count + 1 ELSE 0 END,
-			next_check_at = CASE WHEN $4 THEN NOW() + `+backoffSQL("failure_count + 1")+` ELSE NOW() END
+			next_check_at = CASE WHEN $4 THEN NOW() + LEAST(INTERVAL '1 hour' * power(2, GREATEST(failure_count + 1, 1) - 1), INTERVAL '168 hours') ELSE NOW() END
 		WHERE id = $1`, companyID, status, errMsg, failed)
 	return translate(err, "record company sync outcome")
 }
@@ -220,7 +226,11 @@ func (r *CompanyRepository) List(ctx context.Context, f CompanyFilter) ([]domain
 		ws = &f.WorkspaceID
 	}
 	rows, err := r.pool.Query(ctx, `
-		SELECT `+companyColumns+`,
+		SELECT c.id, c.name, c.domain, c.careers_url, c.ats, c.ats_id, c.origin, c.status,
+	c.last_checked_at, c.last_error, c.failure_count, c.next_check_at,
+	(SELECT s.id FROM job_sources s WHERE s.company_id = c.id),
+	(SELECT count(*) FROM jobs j WHERE j.company_id = c.id AND j.closed_at IS NULL)::int,
+	c.created_at, c.updated_at,
 			($4::uuid IS NOT NULL AND EXISTS (
 				SELECT 1 FROM workspace_company_blocks b WHERE b.workspace_id = $4 AND b.company_id = c.id))
 		FROM companies c
@@ -273,7 +283,11 @@ func (r *CompanyRepository) SetDisabled(ctx context.Context, id string, disabled
 		if _, err := tx.Exec(ctx, `UPDATE job_sources SET enabled = NOT $2 WHERE company_id = $1`, id, disabled); err != nil {
 			return translate(err, "set company source enabled")
 		}
-		c, err = scanCompany(tx.QueryRow(ctx, `SELECT `+companyColumns+` FROM companies c WHERE c.id = $1`, id))
+		c, err = scanCompany(tx.QueryRow(ctx, `SELECT c.id, c.name, c.domain, c.careers_url, c.ats, c.ats_id, c.origin, c.status,
+	c.last_checked_at, c.last_error, c.failure_count, c.next_check_at,
+	(SELECT s.id FROM job_sources s WHERE s.company_id = c.id),
+	(SELECT count(*) FROM jobs j WHERE j.company_id = c.id AND j.closed_at IS NULL)::int,
+	c.created_at, c.updated_at FROM companies c WHERE c.id = $1`, id))
 		return translate(err, "read company")
 	})
 	return c, err

@@ -106,7 +106,13 @@ func (r *WorkspaceRepository) ListMemberWorkspaces(ctx context.Context, userID s
 // ListMembers returns a workspace's members, owners first.
 func (r *WorkspaceRepository) ListMembers(ctx context.Context, workspaceID string) ([]domain.WorkspaceMember, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT `+prefixed("u", userColumns)+`, m.role, m.created_at
+		SELECT u.id,
+			u.email,
+			u.display_name,
+			u.locale,
+			u.created_at,
+			u.updated_at,
+			u.is_admin, m.role, m.created_at
 		FROM workspace_memberships m JOIN users u ON u.id = m.user_id
 		WHERE m.workspace_id = $1
 		ORDER BY m.role = 'owner' DESC, m.created_at, u.id`, workspaceID)
@@ -127,13 +133,19 @@ func (r *WorkspaceRepository) ListMembers(ctx context.Context, workspaceID strin
 func (r *WorkspaceRepository) AddMemberByEmail(ctx context.Context, workspaceID, email string, role domain.MembershipRole) (domain.WorkspaceMember, error) {
 	var m domain.WorkspaceMember
 	err := r.pool.QueryRow(ctx, `
-		WITH target AS (SELECT `+userColumns+` FROM users WHERE email = $2),
+		WITH target AS (SELECT id, email, display_name, locale, created_at, updated_at, is_admin FROM users WHERE email = $2),
 		inserted AS (
 			INSERT INTO workspace_memberships (workspace_id, user_id, role)
 			SELECT $1, id, $3 FROM target
 			RETURNING role, created_at
 		)
-		SELECT `+prefixed("t", userColumns)+`, i.role, i.created_at FROM target t, inserted i`,
+		SELECT t.id,
+			t.email,
+			t.display_name,
+			t.locale,
+			t.created_at,
+			t.updated_at,
+			t.is_admin, i.role, i.created_at FROM target t, inserted i`,
 		workspaceID, strings.ToLower(strings.TrimSpace(email)), role,
 	).Scan(&m.User.ID, &m.User.Email, &m.User.DisplayName, &m.User.Locale,
 		&m.User.CreatedAt, &m.User.UpdatedAt, &m.User.IsAdmin, &m.Role, &m.CreatedAt)

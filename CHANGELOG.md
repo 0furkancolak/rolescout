@@ -63,6 +63,9 @@ include breaking changes, which are called out.
   employers).
 - `make dev` streams the API and worker logs into the terminal.
 ### Changed
+- All SQL is written out as literal statements with parameters; the dynamic
+  query builder (job search, facets) is replaced by fixed statements with
+  optional filters, and a test fails if SQL is ever built at run time.
 - Hacker News discovery reads a whole "Who is hiring?" thread in one request
   (HN Search API) instead of one request per comment, so the first run takes
   seconds instead of tens of minutes; the old per-comment path is the fallback.
