@@ -8,6 +8,7 @@ import { useI18n } from "../../lib/i18n";
 import { useWorkspace } from "../workspaces/context";
 import { isActive, useProfiles, useRuns, useStartRun } from "./api";
 import { secondsBetween } from "./duration";
+import { MemoryCard } from "./MemoryCard";
 import { RunStateBadge } from "./RunStateBadge";
 
 export function ResearchPage() {
@@ -25,6 +26,7 @@ export function ResearchPage() {
           {t("research.newProfile")}
         </Link>
       </div>
+      <MemoryCard />
       {profiles.isPending ? (
         <Spinner />
       ) : profiles.isError ? (

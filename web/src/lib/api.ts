@@ -150,6 +150,31 @@ export interface WorkspaceJob extends Job {
   saved: boolean;
   match: Match | null;
   ai?: JobAI | null;
+  tech_fit?: TechFit | null;
+}
+
+// TechFit compares a job's technologies with the person's (profile and CV).
+export interface TechFit {
+  matched: string[];
+  missing: string[];
+  excluded: string[];
+  from_cv: boolean;
+}
+
+// WorkspaceContext is what the AI knows about the person: a note and a CV.
+export interface WorkspaceContext {
+  about: string;
+  ai_read: boolean;
+  cv: {
+    filename: string;
+    uploaded_at: string;
+    chars: number;
+    skills: string[];
+    titles: string[];
+    seniority: string;
+    years: number | null;
+    summary: string;
+  } | null;
 }
 
 export interface FacetCount {
@@ -353,14 +378,16 @@ interface RequestOptions {
 // non-2xx response becomes an ApiError carrying the API's error code.
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: "application/json" };
-  if (options.body !== undefined) headers["Content-Type"] = "application/json";
+  const isForm = options.body instanceof FormData;
+  // A form is sent as it is: the browser adds the multipart boundary itself.
+  if (options.body !== undefined && !isForm) headers["Content-Type"] = "application/json";
 
   let response: Response;
   try {
     response = await fetch(API_BASE + path, {
       method: options.method ?? "GET",
       headers,
-      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      body: options.body === undefined ? undefined : isForm ? (options.body as FormData) : JSON.stringify(options.body),
       credentials: "same-origin",
       signal: options.signal,
     });
