@@ -128,7 +128,7 @@ export function makeProfile(overrides: Partial<ResearchProfile> = {}): ResearchP
     excluded_keywords: [],
     remote: "any",
     seniority: [],
-    schedule_hours: 12,
+    schedule_enabled: true, schedule_hours: 12,
     last_run_at: null,
     created_at: "2026-10-01T10:00:00Z",
     updated_at: "2026-10-01T10:00:00Z",
