@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"sync"
 	"time"
 
@@ -84,6 +85,17 @@ func (s *Summarizer) begin(ctx context.Context, jobID, title, company, descripti
 	go func() {
 		defer cancel()
 		c.text, c.err = llm.Summarize(run, s.Client, title, company, description, language, c.write)
+		if errors.Is(c.err, llm.ErrInvalidOutput) {
+			// A small model often slips once (a number or tool the posting
+			// lacks); a second try usually passes. If it does not, the posting's
+			// own opening sentences are better than no summary at all.
+			c.text, c.err = llm.Summarize(run, s.Client, title, company, description, language, nil)
+			if errors.Is(c.err, llm.ErrInvalidOutput) {
+				if text := llm.ExtractiveSummary(description); text != "" {
+					c.text, c.err = text, nil
+				}
+			}
+		}
 		if c.err == nil {
 			_ = s.Store.Put(run, jobID, language, hash, llm.SummaryPromptVersion, s.modelName(run), c.text)
 		}

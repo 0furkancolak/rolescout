@@ -3,6 +3,7 @@ package crawlconfig
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -12,7 +13,12 @@ import (
 
 type memStore map[string]string
 
+// memMu guards every memStore: the live-follow test reads it from a goroutine.
+var memMu sync.Mutex
+
 func (m memStore) All(context.Context) (map[string]string, error) {
+	memMu.Lock()
+	defer memMu.Unlock()
 	out := map[string]string{}
 	for k, v := range m {
 		out[k] = v
@@ -21,6 +27,8 @@ func (m memStore) All(context.Context) (map[string]string, error) {
 }
 
 func (m memStore) Apply(_ context.Context, changes map[string]*string) error {
+	memMu.Lock()
+	defer memMu.Unlock()
 	for k, v := range changes {
 		if v == nil {
 			delete(m, k)
@@ -97,7 +105,7 @@ func TestFollowUpdatesLive(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go r.Follow(ctx, live, 5*time.Millisecond)
-	store[KeyConcurrency] = "512"
+	_ = store.Apply(ctx, map[string]*string{KeyConcurrency: ptrStr("512")})
 	deadline := time.Now().Add(2 * time.Second)
 	for live.Get().Concurrency != 512 {
 		if time.Now().After(deadline) {
@@ -108,3 +116,5 @@ func TestFollowUpdatesLive(t *testing.T) {
 }
 
 func ptr(n int) *int { return &n }
+
+func ptrStr(s string) *string { return &s }

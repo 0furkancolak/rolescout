@@ -5,6 +5,15 @@ All notable changes are listed here. Versions follow
 include breaking changes, which are called out.
 
 ## [Unreleased]
+### Fixed
+- AI summaries: postings without a description (kariyer.net lists) now get a
+  line built from the listing's own fields instead of "unavailable"; a summary
+  the model got wrong is retried once and then replaced by the posting's opening
+  sentences instead of being dropped; the model gets room for two or three full
+  sentences (Turkish text was cut short) and skips boilerplate. Old summaries
+  are rewritten (prompt version 4).
+- Career pages that print an emoji beside each job no longer get that emoji as
+  the job's location (which hid such jobs from country filters).
 ### Added
 - More company job-board systems: Teamtailor, Breezy HR, Rippling and Gem
   (read, detected on career pages, probed by company name).

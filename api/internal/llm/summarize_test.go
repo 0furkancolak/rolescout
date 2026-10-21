@@ -66,10 +66,34 @@ func TestSummarizeStreamsPiecesAndChecksTheWholeText(t *testing.T) {
 	}
 }
 
-func TestSummarizeCutsARunOnReplyAtTheSecondSentence(t *testing.T) {
+func TestSummarizeCutsARunOnReplyAtTheThirdSentence(t *testing.T) {
 	c := summarizer(t, "Acme builds React tools. They hire a developer. They offer a team. They are nice.")
 	got, err := Summarize(context.Background(), c, "Engineer", "Acme", "We build with React.", "en", nil)
-	if err != nil || got != "Acme builds React tools. They hire a developer." {
+	if err != nil || got != "Acme builds React tools. They hire a developer. They offer a team." {
 		t.Fatalf("got %q, %v", got, err)
+	}
+}
+
+func TestFactsSummaryNamesWhatTheSourceGave(t *testing.T) {
+	got := FactsSummary("Çevre Mühendisi", "Mitto", "Ankara", "onsite", "full_time", "tr")
+	want := "Mitto şirketinin Çevre Mühendisi pozisyonu (Ankara, iş yerinde, tam zamanlı). İlan kaynağında ayrıntılı açıklama yayımlanmıyor; ayrıntılar için ilan bağlantısına bakın."
+	if got != want {
+		t.Fatalf("got %q", got)
+	}
+	if en := FactsSummary("Engineer", "Acme", "", "", "", "en"); en != "Engineer role at Acme. The source publishes no detailed description; see the listing link for details." {
+		t.Fatalf("got %q", en)
+	}
+	if FactsSummary("", "Acme", "", "", "", "en") != "" {
+		t.Fatal("a posting without a title has nothing to say")
+	}
+}
+
+func TestExtractiveSummaryTakesTheFirstSentences(t *testing.T) {
+	desc := "We build payment tools for small shops across Europe. You will design the APIs they use. Benefits include snacks. Apply today."
+	if got := ExtractiveSummary(desc); got != "We build payment tools for small shops across Europe. You will design the APIs they use." {
+		t.Fatalf("got %q", got)
+	}
+	if ExtractiveSummary("Too short.") != "" {
+		t.Fatal("short text is not a summary")
 	}
 }
