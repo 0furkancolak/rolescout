@@ -242,12 +242,14 @@ func TestAPIUserState(t *testing.T) {
 	expectStatus(t, f.b.call(t, f.app, "GET", ws+"/state/jobs_view", nil), 404)
 }
 
-func TestAPIJobSummaryIsUnavailableWithoutTheModel(t *testing.T) {
+func TestAPIJobSummaryFallsBackToTheListingFactsWithoutTheModel(t *testing.T) {
 	f := newAPIFixture(t)
 	ws := "/api/v1/workspaces/" + f.workspaceA
 	r := f.a.call(t, f.app, "GET", ws+"/jobs/"+f.jobID+"/summary?lang=tr", nil)
 	expectStatus(t, r, 200)
-	if r.data()["source"] != "unavailable" || r.data()["summary"] != nil {
+	// The fixture job has no description worth summarising, so the line comes
+	// from the listing's fields, with no model.
+	if r.data()["source"] != "facts" || r.data()["summary"] == nil {
 		t.Fatalf("summary = %s", r.Raw)
 	}
 	expectStatus(t, f.a.call(t, f.app, "GET", ws+"/jobs/"+f.jobID+"/summary?lang=de", nil), 422)
