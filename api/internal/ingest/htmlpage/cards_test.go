@@ -24,6 +24,11 @@ func TestEadamKariyerPage(t *testing.T) {
 	if got := strings.Join(titles, "|"); got != want {
 		t.Fatalf("titles = %s", got)
 	}
+	for _, c := range cards {
+		if c.Location != "" {
+			t.Errorf("%s: location %q is an icon, not a place", c.Title, c.Location)
+		}
+	}
 	c := cards[5]
 	if c.EmploymentType != "full-time" || c.Arrangement != "onsite" || !strings.Contains(c.Description, "framework") {
 		t.Fatalf("card = %+v", c)

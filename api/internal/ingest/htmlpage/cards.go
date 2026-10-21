@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"unicode"
 
 	"golang.org/x/net/html"
 )
@@ -193,7 +194,7 @@ func buildCard(card, marker *html.Node, page *url.URL) (Card, bool) {
 			c.EmploymentType = v
 		} else if v, ok := arrangementWords[low]; ok && c.Arrangement == "" {
 			c.Arrangement = v
-		} else if c.Location == "" && !strings.ContainsAny(s, ".!?") {
+		} else if c.Location == "" && !strings.ContainsAny(s, ".!?") && hasLetter(s) {
 			c.Location = s
 		}
 	}
@@ -390,4 +391,15 @@ func attr(n *html.Node, name string) string {
 func hash(s string) string {
 	sum := sha256.Sum256([]byte(strings.ToLower(collapse(s))))
 	return hex.EncodeToString(sum[:8])
+}
+
+// hasLetter is false for icon-only text such as an emoji printed beside a
+// card, which is decoration and not a place.
+func hasLetter(s string) bool {
+	for _, r := range s {
+		if unicode.IsLetter(r) {
+			return true
+		}
+	}
+	return false
 }

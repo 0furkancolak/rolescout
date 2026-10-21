@@ -11,6 +11,7 @@ import (
 
 	"example.com/rolescout/api/internal/domain"
 	"example.com/rolescout/api/internal/infrastructure/database"
+	"example.com/rolescout/api/internal/llm"
 )
 
 const (
@@ -146,9 +147,21 @@ type JobSummarizer interface {
 	Stream(ctx context.Context, jobID, title, company, description, language string, emit func(string)) (string, error)
 }
 
+// shortDescription is the length under which a posting counts as having no
+// description worth sending to a model.
+const shortDescription = 80
+
+func factsSummary(job domain.Job, lang string) string {
+	location := ""
+	if job.Location != nil {
+		location = *job.Location
+	}
+	return llm.FactsSummary(job.Title, job.CompanyName, location, job.WorkArrangement, job.EmploymentType, lang)
+}
+
 type summaryDTO struct {
 	Summary *string `json:"summary"`
-	// Source is "ai" with a summary, "pending" while the model is still
+	// Source is "ai" with a model-written summary, "facts" with a line built from the listing's fields, "pending" while the model is still
 	// writing it (ask again), or "unavailable" when the model is off,
 	// unreachable or gave an unusable answer.
 	Source string `json:"source"`
@@ -169,7 +182,15 @@ func (h *handlers) jobSummary(c fiber.Ctx) error {
 		return err
 	}
 	unavailable := dataResponse[summaryDTO]{Data: summaryDTO{Source: "unavailable"}}
-	if h.Summaries == nil || len(strings.TrimSpace(job.Description)) < 80 {
+	if len(strings.TrimSpace(job.Description)) < shortDescription {
+		// List-only sources (kariyer.net) publish no description: say what the
+		// source did give instead of nothing, with no model involved.
+		if text := factsSummary(job, lang); text != "" {
+			return c.JSON(dataResponse[summaryDTO]{Data: summaryDTO{Summary: &text, Source: "facts"}})
+		}
+		return c.JSON(unavailable)
+	}
+	if h.Summaries == nil {
 		return c.JSON(unavailable)
 	}
 	text, ready, err := h.Summaries.Summary(c.Context(), id, job.Title, job.CompanyName, job.Description, lang)
@@ -210,7 +231,15 @@ func (h *handlers) jobSummaryStream(c fiber.Ctx) error {
 			}
 			return w.Flush() == nil
 		}
-		if h.Summaries == nil || len(strings.TrimSpace(job.Description)) < 80 {
+		if len(strings.TrimSpace(job.Description)) < shortDescription {
+			if text := factsSummary(job, lang); text != "" {
+				send("done", map[string]string{"summary": text})
+				return
+			}
+			send("unavailable", map[string]string{})
+			return
+		}
+		if h.Summaries == nil {
 			send("unavailable", map[string]string{})
 			return
 		}
