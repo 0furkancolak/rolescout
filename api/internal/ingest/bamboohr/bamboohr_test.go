@@ -23,6 +23,14 @@ func TestValidate(t *testing.T) {
 func TestFetchMapsFixture(t *testing.T) {
 	var path string
 	c, base := ingesttest.Server(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/careers/178/detail" {
+			w.Write([]byte(`{"result":{"jobOpening":{"description":"<p>Build <b>data</b> models.</p>"}}}`))
+			return
+		}
+		if r.URL.Path != "/careers/list" {
+			http.NotFound(w, r)
+			return
+		}
 		path = r.URL.RequestURI()
 		ingesttest.File(t, "testdata/list.json")(w, r)
 	})
@@ -35,6 +43,9 @@ func TestFetchMapsFixture(t *testing.T) {
 	}
 	if len(got) != 3 {
 		t.Fatalf("listings = %d", len(got))
+	}
+	if got[0].Description != "<p>Build <b>data</b> models.</p>" || got[1].Description != "" {
+		t.Errorf("descriptions = %q, %q", got[0].Description, got[1].Description)
 	}
 	l := got[0]
 	if l.ExternalID != "178" || l.Title != "Applied Data Scientist" || l.URL != base+"/careers/178" ||

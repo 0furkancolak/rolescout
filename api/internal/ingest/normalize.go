@@ -33,7 +33,7 @@ const (
 // representation. seenAt is when the listing was fetched.
 func Normalize(sourceID string, raw RawListing, seenAt time.Time) (database.IngestedListing, error) {
 	title := truncate(cleanLine(raw.Title), maxTitleLength)
-	company := truncate(cleanLine(raw.Company), maxCompanyLength)
+	company := truncate(CleanCompanyName(cleanLine(raw.Company)), maxCompanyLength)
 	location := truncate(cleanLine(raw.Location), maxLocationLength)
 	externalID := strings.TrimSpace(raw.ExternalID)
 

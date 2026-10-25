@@ -29,7 +29,9 @@ export function JobsPage() {
   const profiles = useProfiles(workspace.id);
   const ready = !profiles.isPending;
   const search = effectiveSearch(raw, profiles.data?.[0]?.id);
-  const jobs = useWorkspaceJobs(workspace.id, search, ready);
+  // Browsing all jobs: they are still rated against the first profile.
+  const scoreProfile = search.profile ? "" : (profiles.data?.[0]?.id ?? "");
+  const jobs = useWorkspaceJobs(workspace.id, search, ready, scoreProfile);
   const facets = useFacets(workspace.id, search, ready);
   const save = useSaveFromBrowser(workspace.id);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -91,7 +93,7 @@ export function JobsPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <PageTitle>{t("browse.title")}</PageTitle>
-        <p className="text-sm text-ink-muted">{t("browse.keyboardHint")}</p>
+        <p className="hidden text-sm text-ink-muted lg:block">{t("browse.keyboardHint")}</p>
       </div>
 
       <form role="search" onSubmit={onSubmit} className="flex flex-col gap-2 sm:flex-row">
@@ -114,66 +116,71 @@ export function JobsPage() {
         </Button>
       </form>
 
-      <div className="flex flex-wrap items-center gap-3 text-sm">
-        <Segmented
-          label={t("browse.sort")}
-          value={search.sort}
-          options={sorts.map((s) => ({ value: s, label: t(`browse.sort.${s}`) }))}
-          onChange={(s) => update({ sort: s, job: "" })}
-        />
-        <label className="inline-flex items-center gap-2 text-ink-muted">
-          {t("browse.profile")}
-          <select
-            value={search.profile || "all"}
-            onChange={(e) => update({ profile: e.target.value, sort: "", job: "" })}
-            className="min-h-10 rounded-control border border-line-strong bg-surface px-2 py-1.5 text-ink"
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+        <div className="flex w-full items-center gap-2 sm:w-auto sm:gap-3">
+          <Segmented
+            label={t("browse.sort")}
+            value={search.sort}
+            options={sorts.map((s) => ({ value: s, label: t(`browse.sort.${s}`) }))}
+            onChange={(s) => update({ sort: s, job: "" })}
+          />
+          <label className="inline-flex min-w-0 flex-1 items-center gap-2 text-ink-muted sm:flex-none">
+            <span className="hidden sm:inline">{t("browse.profile")}</span>
+            <select
+              aria-label={t("browse.profile")}
+              value={search.profile || "all"}
+              onChange={(e) => update({ profile: e.target.value, sort: "", job: "" })}
+              className="min-h-10 w-full min-w-0 rounded-control border border-line-strong bg-surface px-2 py-1.5 text-ink sm:w-auto"
+            >
+              {profiles.data?.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+              <option value="all">{t("browse.allJobs")}</option>
+            </select>
+          </label>
+        </div>
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <button
+            type="button"
+            onClick={() => {
+              setFocusCountry(true);
+              setFiltersOpen(true);
+            }}
+            aria-haspopup="dialog"
+            className={buttonClass("secondary", "flex-1 sm:flex-none")}
           >
-            {profiles.data?.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-            <option value="all">{t("browse.allJobs")}</option>
-          </select>
-        </label>
-        <button
-          type="button"
-          onClick={() => {
-            setFocusCountry(true);
-            setFiltersOpen(true);
-          }}
-          aria-haspopup="dialog"
-          className={buttonClass("secondary")}
-        >
-          <Globe aria-hidden className="size-4" />
-          {t("browse.country")}
-          {raw.countries.length > 0 && (
-            <span className="rounded-full bg-ink px-1.5 text-xs tabular-nums text-ink-inverse">{raw.countries.length}</span>
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setFocusCountry(false);
-            setFiltersOpen(true);
-          }}
-          aria-haspopup="dialog"
-          className={buttonClass("secondary")}
-        >
-          <SlidersHorizontal aria-hidden className="size-4" />
-          {t("browse.filters")}
-          {activeFilters > 0 && (
-            <span className="rounded-full bg-ink px-1.5 text-xs tabular-nums text-ink-inverse">{activeFilters}</span>
-          )}
-        </button>
-        {hasFilters && (
-          <Button
-            variant="ghost"
-            onClick={() => update({ posted: "", arrangement: "", seniority: "", technologies: [], countries: [], location: "", region: "", ats: "", companies: [], closed: false })}
+            <Globe aria-hidden className="size-4" />
+            {t("browse.country")}
+            {raw.countries.length > 0 && (
+              <span className="rounded-full bg-ink px-1.5 text-xs tabular-nums text-ink-inverse">{raw.countries.length}</span>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setFocusCountry(false);
+              setFiltersOpen(true);
+            }}
+            aria-haspopup="dialog"
+            className={buttonClass("secondary", "flex-1 sm:flex-none")}
           >
-            {t("browse.clear")}
-          </Button>
-        )}
+            <SlidersHorizontal aria-hidden className="size-4" />
+            {t("browse.filters")}
+            {activeFilters > 0 && (
+              <span className="rounded-full bg-ink px-1.5 text-xs tabular-nums text-ink-inverse">{activeFilters}</span>
+            )}
+          </button>
+          {hasFilters && (
+            <Button
+              variant="ghost"
+              onClick={() => update({ posted: "", arrangement: "", seniority: "", technologies: [], countries: [], location: "", region: "", ats: "", companies: [], closed: false })}
+            >
+              {t("browse.clear")}
+            </Button>
+          )}
+        </div>
       </div>
 
       <FilterChips search={raw} facets={facets.data} onChange={(c) => update({ ...c, job: "" })} />
@@ -206,7 +213,7 @@ export function JobsPage() {
 
         <div className={selected ? "" : "hidden lg:block"}>
           {selected ? (
-            <JobDetailPane job={selected} profileId={search.profile} onBack={() => update({ job: "" }, true)} />
+            <JobDetailPane job={selected} profileId={search.profile || scoreProfile} onBack={() => update({ job: "" }, true)} />
           ) : (
             <p className="rounded-hero border border-dashed border-line-strong p-8 text-center text-sm text-ink-muted">
               {t("browse.selectJob")}

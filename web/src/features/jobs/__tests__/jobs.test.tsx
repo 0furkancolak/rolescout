@@ -50,6 +50,16 @@ describe("JobsPage", () => {
     expect(await screen.findByRole("button", { name: /Full Stack Engineer 3/ })).toBeInTheDocument();
   });
 
+  it("rates all jobs against the first profile so every row shows a score", async () => {
+    const api = browse();
+    renderApp("/jobs?profile=all");
+    expect(await screen.findByRole("button", { name: /Full Stack Engineer 1/ })).toBeInTheDocument();
+    const first = api.calls.find((c) => c.path === `${base}/jobs`)!;
+    expect(first.search.get("profile")).toBeNull();
+    expect(first.search.get("score_profile")).toBe(PROFILE);
+    expect(screen.getAllByRole("img", { name: /match|eşleşme|score|skor/i }).length).toBeGreaterThan(0);
+  });
+
   it("filters with facets and keeps them in the URL", async () => {
     const api = browse();
     const { router } = renderApp("/jobs");

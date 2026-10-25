@@ -14,6 +14,7 @@ import (
 	"example.com/rolescout/api/internal/domain"
 	"example.com/rolescout/api/internal/infrastructure/database"
 	"example.com/rolescout/api/internal/ingest"
+	"example.com/rolescout/api/internal/research"
 )
 
 var adapterName = regexp.MustCompile(`^[a-z][a-z0-9_]{1,31}$`)
@@ -184,9 +185,15 @@ func (h *handlers) listWorkspaceJobs(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+	scoreProfile := f.ProfileID
+	if f.ProfileID == "" {
+		if scoreProfile, err = h.scoreUnmatched(c, jobs); err != nil {
+			return err
+		}
+	}
 	resp := pageResponse[workspaceJobDTO]{Data: mapSlice(jobs, toWorkspaceJob)}
-	h.attachAI(c, f.ProfileID, resp.Data)
-	h.attachFit(c, f.ProfileID, resp.Data)
+	h.attachAI(c, scoreProfile, resp.Data)
+	h.attachFit(c, scoreProfile, resp.Data)
 	if more && (f.Sort != "relevance" || f.After == nil || f.After.Offset+f.Limit < database.MaxRelevanceOffset) {
 		next := encodeJobCursor(database.CursorAfter(f, jobs[len(jobs)-1]))
 		resp.NextCursor = &next
@@ -204,4 +211,32 @@ func (h *handlers) workspaceJobFacets(c fiber.Ctx) error {
 		return err
 	}
 	return c.JSON(dataResponse[facetsDTO]{Data: toFacets(fc)})
+}
+
+// scoreUnmatched rates the jobs of a page that is not limited to one profile
+// (all jobs) against the profile named by score_profile, so the list shows how
+// each job fits. The score is the same one research gives; it is computed
+// for this page only and stored nowhere. A job the profile excludes gets none.
+// It returns the profile's ID, or "" when none was asked for.
+func (h *handlers) scoreUnmatched(c fiber.Ctx, jobs []domain.WorkspaceJob) (string, error) {
+	id := c.Query("score_profile")
+	if id == "" {
+		return "", nil
+	}
+	if !isUUID(id) {
+		return "", (&domain.ValidationError{}).Add("score_profile", "must be a profile ID")
+	}
+	p, err := h.Research.GetProfile(c.Context(), workspaceID(c), id)
+	if err != nil {
+		return "", err
+	}
+	now := time.Now()
+	for i := range jobs {
+		score, reasons, ok := research.Score(p, jobs[i].Job, now)
+		if !ok || jobs[i].Match != nil {
+			continue
+		}
+		jobs[i].Match = &domain.Match{ProfileID: p.ID, JobID: jobs[i].Job.ID, Score: score, Reasons: reasons}
+	}
+	return p.ID, nil
 }

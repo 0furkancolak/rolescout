@@ -233,7 +233,7 @@ func (h *handlers) jobSummaryStream(c fiber.Ctx) error {
 		}
 		if len(strings.TrimSpace(job.Description)) < shortDescription {
 			if text := factsSummary(job, lang); text != "" {
-				send("done", map[string]string{"summary": text})
+				send("done", map[string]string{"summary": text, "source": "facts"})
 				return
 			}
 			send("unavailable", map[string]string{})

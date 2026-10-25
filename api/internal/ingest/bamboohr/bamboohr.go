@@ -12,7 +12,8 @@ import (
 )
 
 // Adapter fetches one company per source. Config: {"subdomain": "acme", "company": "Acme"}.
-// The list has no descriptions; listings link to the career page.
+// The list has no descriptions, so each job's detail page is read for its
+// description (a failure there leaves the listing without one).
 type Adapter struct {
 	Client  *crawl.Client
 	BaseURL string // overrides https://{subdomain}.bamboohr.com (for tests)
@@ -64,7 +65,7 @@ func (a *Adapter) Fetch(ctx context.Context, config map[string]any) ([]ingest.Ra
 		return nil, fmt.Errorf("list jobs: %w", err)
 	}
 	out := make([]ingest.RawListing, 0, len(resp.Result))
-	for _, j := range resp.Result {
+	for i, j := range resp.Result {
 		loc := j.ATSLocation
 		parts := nonEmpty(loc.City, loc.State, loc.Province, loc.Country)
 		if len(parts) == 0 {
@@ -89,9 +90,32 @@ func (a *Adapter) Fetch(ctx context.Context, config map[string]any) ([]ingest.Ra
 		case j.LocationType == "0":
 			l.Arrangement = "onsite"
 		}
+		if i < maxDetails {
+			l.Description = a.description(ctx, base, j.ID)
+		}
 		out = append(out, l)
 	}
 	return out, nil
+}
+
+// maxDetails bounds the detail requests of one company.
+const maxDetails = 100
+
+type detailResponse struct {
+	Result struct {
+		JobOpening struct {
+			Description string `json:"description"`
+		} `json:"jobOpening"`
+	} `json:"result"`
+}
+
+// description reads one job's description; it is "" when the detail cannot be read.
+func (a *Adapter) description(ctx context.Context, base, id string) string {
+	var d detailResponse
+	if err := ingest.FetchJSON(ctx, a.Client, base+"/careers/"+id+"/detail", &d); err != nil {
+		return ""
+	}
+	return d.Result.JobOpening.Description
 }
 
 func nonEmpty(ss ...*string) []string {
