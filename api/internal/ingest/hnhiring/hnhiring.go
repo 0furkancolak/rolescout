@@ -150,12 +150,13 @@ func parsePost(id, text string, created int64) (ingest.RawListing, bool) {
 			location = p
 		}
 	}
-	if title == "" {
+	if title == "" && !strings.HasPrefix(strings.ToLower(parts[1]), "http") && !placeWords.MatchString(parts[1]) && len(parts[1]) <= 80 {
 		title = parts[1]
 	}
 	if company == "" || title == "" || len(company) > 100 {
 		return ingest.RawListing{}, false
 	}
+	company = ingest.CleanCompanyName(company)
 	l := ingest.RawListing{
 		ExternalID:  id,
 		URL:         "https://news.ycombinator.com/item?id=" + id,

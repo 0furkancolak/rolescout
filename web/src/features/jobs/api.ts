@@ -96,13 +96,20 @@ export function workspaceJobsKey(ws: string) {
   return ["workspaces", ws, "jobs"] as const;
 }
 
-export function useWorkspaceJobs(ws: string, s: JobSearch, enabled = true) {
+// scoreProfile is the profile that rates the jobs when the list is not limited
+// to one profile's matches (all jobs): every job still shows how it fits.
+export function useWorkspaceJobs(ws: string, s: JobSearch, enabled = true, scoreProfile = "") {
   const { job: _selected, ...key } = s;
   return useInfiniteQuery({
-    queryKey: [...workspaceJobsKey(ws), "browse", key],
+    queryKey: [...workspaceJobsKey(ws), "browse", key, scoreProfile],
     queryFn: ({ pageParam, signal }) =>
       request<Page<WorkspaceJob>>(
-        wsPath(ws, "/jobs") + browseParams(s, { limit: String(BROWSE_PAGE_SIZE), cursor: pageParam ?? undefined }),
+        wsPath(ws, "/jobs") +
+          browseParams(s, {
+            limit: String(BROWSE_PAGE_SIZE),
+            cursor: pageParam ?? undefined,
+            score_profile: s.profile ? undefined : scoreProfile || undefined,
+          }),
         { signal },
       ),
     initialPageParam: null as string | null,
@@ -139,9 +146,11 @@ export interface JobSummary {
   text: string;
   /** loading: nothing yet; streaming: the model is writing; done: checked and stored; unavailable: none (model off or answer rejected). */
   status: "loading" | "streaming" | "done" | "unavailable";
+  /** True when the text was built from the listing's own fields, not written by the model. */
+  facts?: boolean;
 }
 
-const finished = new Map<string, string>();
+const finished = new Map<string, { text: string; facts: boolean }>();
 
 /** Forgets finished summaries (tests). */
 export const resetSummaryCache = () => finished.clear();
@@ -182,7 +191,7 @@ export function useJobSummary(ws: string, jobID: string, lang: string, enabled =
   useEffect(() => {
     if (!enabled || jobID === "" || finished.has(key)) return;
     const controller = new AbortController();
-    const set = (text: string, status: JobSummary["status"]) => setState({ key, text, status });
+    const set = (text: string, status: JobSummary["status"], facts = false) => setState({ key, text, status, facts });
     let text = "";
     (async () => {
       try {
@@ -193,13 +202,14 @@ export function useJobSummary(ws: string, jobID: string, lang: string, enabled =
         });
         if (!res.ok || !res.body) return set("", "unavailable");
         await parseEvents(res.body, (event, payload) => {
-          const p = payload as { text?: string; summary?: string };
+          const p = payload as { text?: string; summary?: string; source?: string };
           if (event === "delta" && p.text) {
             text += p.text;
             set(text, "streaming");
           } else if (event === "done" && p.summary) {
-            finished.set(key, p.summary);
-            set(p.summary, "done");
+            const facts = p.source === "facts";
+            finished.set(key, { text: p.summary, facts });
+            set(p.summary, "done", facts);
           } else if (event === "unavailable") {
             set("", "unavailable");
           }
@@ -214,9 +224,9 @@ export function useJobSummary(ws: string, jobID: string, lang: string, enabled =
   }, [key, enabled, jobID, lang, ws]);
 
   const cached = finished.get(key);
-  if (cached !== undefined) return { text: cached, status: "done" };
+  if (cached !== undefined) return { text: cached.text, status: "done", facts: cached.facts };
   if (state.key !== key) return { text: "", status: "loading" };
-  return { text: state.text, status: state.status };
+  return { text: state.text, status: state.status, facts: state.facts };
 }
 
 // useApplyToJob records an application with status "applied".

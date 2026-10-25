@@ -11,6 +11,14 @@ export function enumLabel(t: I18n["t"], group: Group, value: string): string {
   return text === key ? value : text;
 }
 
+// atsLabel names a job board system; "unknown" (not detected yet) is a dash.
+export function atsLabel(t: I18n["t"], ats: string): string {
+  if (ats === "unknown") return "–";
+  const key = `ats.${ats}` as MessageKey;
+  const text = t(key);
+  return text === key ? ats : text;
+}
+
 export function hostOf(url: string): string {
   try {
     return new URL(url).hostname;

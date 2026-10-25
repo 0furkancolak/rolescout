@@ -109,3 +109,28 @@ func TestWorkspaceJobsRegionalFilters(t *testing.T) {
 		t.Errorf("countries = %v", f.Countries)
 	}
 }
+
+func TestWorkspaceJobsScoreProfileRatesUnmatchedJobs(t *testing.T) {
+	seen := time.Now()
+	jobs := &fakeWorkspaceJobs{result: []domain.WorkspaceJob{
+		{Job: domain.Job{ID: jobID, Title: "Full Stack Developer", Technologies: []string{"react"}, WorkArrangement: "remote", FirstSeenAt: seen}},
+		{Job: domain.Job{ID: "33333333-3333-3333-3333-333333333333", Title: "Sales Manager", Description: "cold calls", FirstSeenAt: seen.AddDate(-1, 0, 0)}},
+	}}
+	res := &fakeResearch{profile: domain.ResearchProfile{ID: profileID, TitleKeywords: []string{"full stack"}, Technologies: []string{"react"}, ExcludedKeywords: []string{"sales"}}}
+	app := newTestApp(Deps{Jobs: jobs, Research: res, Workspaces: allowAll})
+
+	r := call(t, app, "GET", wsPath+"/jobs?score_profile="+profileID, nil)
+	expectStatus(t, r, 200)
+	if jobs.gotFilter.ProfileID != "" {
+		t.Fatalf("score_profile must not restrict the list: %+v", jobs.gotFilter)
+	}
+	list := r.list()
+	m, _ := list[0].(map[string]any)["match"].(map[string]any)
+	if m == nil || m["score"].(float64) < 60 || m["new"] != false {
+		t.Fatalf("scored job match = %v", m)
+	}
+	if list[1].(map[string]any)["match"] != nil {
+		t.Fatalf("an excluded job must get no score: %v", list[1])
+	}
+	expectError(t, call(t, app, "GET", wsPath+"/jobs?score_profile=nope", nil), 422, "invalid_input")
+}

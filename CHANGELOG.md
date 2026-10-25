@@ -6,6 +6,20 @@ include breaking changes, which are called out.
 
 ## [Unreleased]
 ### Fixed
+- Browsing all jobs now rates every job against your first profile, so the
+  match score shows in the list and the job pane (`score_profile` on
+  `GET /workspaces/{id}/jobs`); before, scores appeared only with a profile.
+- Junk in the catalog: general applications and talent-pool entries, link-only
+  or place-only titles are no longer ingested (stored ones close with the next
+  sync), and company names that were whole sentences ("xAI (Yes, we just got
+  acquired…)") are cleaned, in new jobs and by a migration for stored ones.
+- BambooHR jobs get their description from the job's detail page. A job whose
+  source has no description shows a clear note with a link to the original
+  posting, and a summary built from the listing's fields is no longer labelled
+  as AI-written.
+- Job browser layout on phones (controls wrap in two tidy rows, the chip row
+  has no scrollbar, the keyboard hint is hidden), a real search placeholder,
+  and the companies list opens on active companies with readable job-board names.
 - AI summaries: postings without a description (kariyer.net lists) now get a
   line built from the listing's own fields instead of "unavailable"; a summary
   the model got wrong is retried once and then replaced by the posting's opening

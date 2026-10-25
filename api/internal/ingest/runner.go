@@ -271,6 +271,11 @@ func (r *Runner) sync(ctx context.Context, source domain.JobSource, run *domain.
 		if ctx.Err() != nil {
 			return fmt.Errorf("stopped after %d of %d listings: %w", run.UpsertedCount+run.FailedCount, len(raw), ctx.Err())
 		}
+		// Not a job (a general application, a talent pool): left out of the
+		// snapshot, so a copy stored earlier closes with this sync.
+		if IsJunkListing(item) {
+			continue
+		}
 		// Sources occasionally repeat a listing within one snapshot.
 		if seen[item.ExternalID] {
 			continue

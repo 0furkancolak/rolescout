@@ -79,7 +79,9 @@ const en = {
   "jobs.updated": "Updated at source {date}",
   "jobs.ingested": "Fetched {date}",
   "jobs.description": "Description",
-  "jobs.noDescription": "No description was provided by the source.",
+  "jobs.noDescription": "The source published no description for this job.",
+  "jobs.noDescriptionHint": "Open the original posting for the full details.",
+  "jobs.openSource": "Open original posting",
   "jobs.locationUnknown": "Location not specified",
 
   "saved.title": "Saved jobs",
@@ -303,7 +305,7 @@ const en = {
 
   "browse.title": "Jobs",
   "browse.search": "Search jobs",
-  "browse.searchPlaceholder": "full stack react node…",
+  "browse.searchPlaceholder": "Search title, company or technology…",
   "browse.profile": "Results for",
   "browse.allJobs": "All jobs",
   "browse.sort": "Sort",
@@ -694,7 +696,9 @@ const tr: Messages = {
   "jobs.updated": "Kaynakta güncellenme {date}",
   "jobs.ingested": "Alınma {date}",
   "jobs.description": "Açıklama",
-  "jobs.noDescription": "Kaynak bir açıklama sağlamadı.",
+  "jobs.noDescription": "Kaynak bu ilan için açıklama yayınlamamış.",
+  "jobs.noDescriptionHint": "Tüm ayrıntılar için özgün ilanı aç.",
+  "jobs.openSource": "Özgün ilanı aç",
   "jobs.locationUnknown": "Konum belirtilmemiş",
 
   "saved.title": "Kaydedilen ilanlar",
@@ -918,7 +922,7 @@ const tr: Messages = {
 
   "browse.title": "İlanlar",
   "browse.search": "İlan ara",
-  "browse.searchPlaceholder": "full stack react node…",
+  "browse.searchPlaceholder": "Pozisyon, şirket veya teknoloji ara…",
   "browse.profile": "Sonuçlar",
   "browse.allJobs": "Tüm ilanlar",
   "browse.sort": "Sırala",

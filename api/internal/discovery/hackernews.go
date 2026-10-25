@@ -211,7 +211,11 @@ feed:
 func commentCandidates(text string) []Candidate {
 	plain := html.UnescapeString(tagPattern.ReplaceAllString(strings.SplitN(text, "<p>", 2)[0], " "))
 	name, _, _ := strings.Cut(plain, "|")
-	name = strings.Join(strings.Fields(name), " ")
+	// A first line that is no name (a greeting, a sentence) leaves it empty:
+	// the company is then named after its job board or site.
+	if name = ingest.CleanCompanyName(name); !ingest.PlausibleCompanyName(name) {
+		name = ""
+	}
 	if r := []rune(name); len(r) > 100 {
 		name = string(r[:100])
 	}

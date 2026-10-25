@@ -230,9 +230,20 @@ export function JobDetailPane({
               <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
                 {t("jobs.description")}
               </h3>
-              <div className="mt-2 whitespace-pre-line text-sm leading-relaxed text-ink">
-                {job.description || t("jobs.noDescription")}
-              </div>
+              {job.description ? (
+                <div className="mt-2 whitespace-pre-line break-words text-sm leading-relaxed text-ink">{job.description}</div>
+              ) : (
+                <div className="mt-2 rounded-card border border-dashed border-line-strong p-4 text-sm text-ink-muted">
+                  <p className="font-medium text-ink">{t("jobs.noDescription")}</p>
+                  <p className="mt-1">{t("jobs.noDescriptionHint")}</p>
+                  {url && (
+                    <a href={url} target="_blank" rel="noopener noreferrer" className={buttonClass("secondary", "mt-3")}>
+                      <ExternalLink aria-hidden className="size-4" />
+                      {t("jobs.openSource")}
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           <aside
@@ -250,7 +261,7 @@ export function JobDetailPane({
               <div className="rounded-card bg-canvas p-4">
                 <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-muted">
                   {t("ai.summary")}
-                  {ai && aiSummary && !streaming && <AiBadge model={ai.model} />}
+                  {ai && aiSummary && !streaming && !summary.facts && <AiBadge model={ai.model} />}
                 </h3>
                 {shownSummary ? (
                   <p
@@ -363,7 +374,7 @@ export function JobDetailPane({
               </details>
             )}
 
-            {(aiSummary ||
+            {((aiSummary && !summary.facts) ||
               ai?.remote_policy ||
               explanation ||
               ai?.salary ||

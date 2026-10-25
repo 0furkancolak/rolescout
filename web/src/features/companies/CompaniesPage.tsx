@@ -5,7 +5,7 @@ import { Button, EmptyState, ErrorState, Field, InlineError, PageTitle, Spinner 
 import { inputClass } from "../../components/styles";
 import type { Company, CompanyStatus } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
-import { hostOf } from "../../lib/labels";
+import { atsLabel, hostOf } from "../../lib/labels";
 import { useCurrentUser } from "../auth/api";
 import { useWorkspace } from "../workspaces/context";
 import { useAddCompany, useBlockCompany, useCompanies, useDisableCompany, type CompanyFilters } from "./api";
@@ -26,7 +26,7 @@ export function CompaniesPage() {
   const { t, formatDate } = useI18n();
   const { workspace } = useWorkspace();
   const me = useCurrentUser();
-  const [filters, setFilters] = useState<CompanyFilters>({ q: "", ats: "", status: "" });
+  const [filters, setFilters] = useState<CompanyFilters>({ q: "", ats: "", status: "active" });
   const [text, setText] = useState("");
   const [adding, setAdding] = useState(false);
   const [notice, setNotice] = useState("");
@@ -89,7 +89,7 @@ export function CompaniesPage() {
             <option value="">{t("companies.anyAts")}</option>
             {atsList.map((a) => (
               <option key={a} value={a}>
-                {a}
+                {atsLabel(t, a)}
               </option>
             ))}
           </select>
@@ -148,7 +148,7 @@ export function CompaniesPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-2.5 text-ink">{c.ats}</td>
+                  <td className="px-4 py-2.5 text-ink">{atsLabel(t, c.ats)}</td>
                   <td className="px-4 py-2.5">
                     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${statusColor[c.status]}`}>{t(`cstatus.${c.status}`)}</span>
                   </td>
