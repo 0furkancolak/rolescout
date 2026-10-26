@@ -2,7 +2,7 @@ import { ArrowRight, Square } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { BackLink } from "../../components/BackLink";
-import { Button, ErrorState, PageTitle, Spinner } from "../../components/ui";
+import { Button, ErrorState, PageTitle } from "../../components/ui";
 import { buttonClass } from "../../components/styles";
 import { stages, type ResearchRun, type Stage, type StageProgress } from "../../lib/api";
 import { RunSystem } from "./RunSystem";
@@ -13,6 +13,7 @@ import { isActive, useCancelRun, useProfile, useRun, useRunEvents } from "./api"
 import { RunLog } from "./RunLog";
 import { StageCard } from "./StageCard";
 import { RunStateBadge } from "./RunStateBadge";
+import { PageSkeleton } from "../../components/Skeleton";
 
 const summaryKeys = ["companies_known", "companies_checked", "companies_failed", "jobs_collected", "jobs_open", "matches", "new_matches"] as const;
 
@@ -28,7 +29,7 @@ export function RunPage() {
   const events = useRunEvents(workspace.id, runId, errorsOnly, active);
   const cancel = useCancelRun(workspace.id, runId);
 
-  if (run.isPending) return <Spinner />;
+  if (run.isPending) return <PageSkeleton />;
   if (run.isError) return <ErrorState error={run.error} onRetry={() => run.refetch()} />;
   const r = run.data;
   // A run that ended leaves no stage "running" or waiting: show where it stopped.

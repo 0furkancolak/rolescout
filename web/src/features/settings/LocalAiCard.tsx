@@ -1,9 +1,10 @@
 import { AlertTriangle, Cpu } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, ErrorState, Spinner } from "../../components/ui";
+import { Button, Card, ErrorState } from "../../components/ui";
 import { data, isApiError, type LlmStatus } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { AiConnectionForm } from "./AiConnectionForm";
+import { SkeletonRows } from "../../components/Skeleton";
 
 const statusKey = ["admin", "llm"] as const;
 const DOCS = "https://github.com/0furkancolak/rolescout/blob/main/docs/local-ai.md";
@@ -32,7 +33,7 @@ export function LocalAiCard() {
       <p className="mt-1 text-sm text-ink-muted">{t("localAi.hint")}</p>
       <AiConnectionForm />
       {status.isPending ? (
-        <Spinner />
+        <SkeletonRows rows={2} />
       ) : status.isError ? (
         <ErrorState error={status.error} onRetry={() => status.refetch()} />
       ) : (

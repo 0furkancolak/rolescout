@@ -174,6 +174,7 @@ const en = {
 
   "nav.dashboard": "Dashboard",
   "nav.research": "Research",
+  "nav.about": "About me",
   "nav.companies": "Companies",
   "nav.settings": "Settings",
   "nav.openMenu": "Open menu",
@@ -503,6 +504,7 @@ const en = {
   "research.aiTitle": "Describe it, let AI draft the profile",
   "research.aiHint": "Write the job you want in your own words. AI fills in the form below; check it and save. Nothing is saved until you do.",
   "research.aiPlaceholder": "e.g. Senior Go backend role, remote or hybrid in Germany or Turkey, no PHP, Postgres and Kubernetes experience",
+  "about.title": "About me",
   "memory.title": "What the AI knows about you",
   "memory.hint": "The AI uses this note and your CV when it drafts profiles, compares technologies and explains matches. The text goes only to the AI service you set up in Settings.",
   "memory.aboutLabel": "The work you look for",
@@ -791,6 +793,7 @@ const tr: Messages = {
 
   "nav.dashboard": "Pano",
   "nav.research": "Araştırma",
+  "nav.about": "Kendimi tanıt",
   "nav.companies": "Şirketler",
   "nav.settings": "Ayarlar",
   "nav.openMenu": "Menüyü aç",
@@ -1120,6 +1123,7 @@ const tr: Messages = {
   "research.aiTitle": "Anlat, yapay zekâ profili hazırlasın",
   "research.aiHint": "Aradığın işi kendi cümlelerinle yaz. Yapay zekâ aşağıdaki formu doldurur; kontrol edip kaydet. Sen kaydedene kadar hiçbir şey kaydedilmez.",
   "research.aiPlaceholder": "örn. Almanya veya Türkiye'de uzaktan ya da hibrit senior Go backend işi, PHP istemiyorum, Postgres ve Kubernetes bilgisi",
+  "about.title": "Kendimi tanıt",
   "memory.title": "Yapay zekâ senin hakkında neler biliyor",
   "memory.hint": "Yapay zekâ bu notu ve CV'ni profil hazırlarken, teknolojileri karşılaştırırken ve eşleşmeleri açıklarken kullanır. Metin yalnızca Ayarlar'da kurduğun yapay zekâ servisine gider.",
   "memory.aboutLabel": "Aradığın iş",

@@ -1,10 +1,11 @@
 import { AlertTriangle } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, ErrorState, Field, Spinner } from "../../components/ui";
+import { Button, ErrorState, Field } from "../../components/ui";
 import { inputClass } from "../../components/styles";
 import { ApiError, data, type LlmConfig, type LlmConfigUpdate } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
+import { SkeletonRows } from "../../components/Skeleton";
 
 const configKey = ["admin", "llm", "config"] as const;
 
@@ -20,7 +21,7 @@ export function AiConnectionForm() {
     queryKey: configKey,
     queryFn: ({ signal }) => data<LlmConfig>("/admin/llm/config", { signal }),
   });
-  if (config.isPending) return <Spinner />;
+  if (config.isPending) return <SkeletonRows rows={3} />;
   if (config.isError) return <ErrorState error={config.error} onRetry={() => config.refetch()} />;
   return <Form config={config.data} />;
 }

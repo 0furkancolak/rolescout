@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, ErrorState, Field, InlineError, Spinner } from "../../components/ui";
+import { Button, Card, ErrorState, Field, InlineError } from "../../components/ui";
 import { inputClass } from "../../components/styles";
 import { data, isApiError, type Locale, type User } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
+import { SkeletonRows } from "../../components/Skeleton";
 
 const usersKey = ["admin", "users"] as const;
 
@@ -30,7 +31,7 @@ export function UsersCard() {
       <h2 className="text-lg font-semibold text-ink">{t("users.title")}</h2>
       <p className="mt-1 text-sm text-ink-muted">{t("users.hint")}</p>
       {users.isPending ? (
-        <Spinner />
+        <SkeletonRows rows={3} />
       ) : users.isError ? (
         <ErrorState error={users.error} onRetry={() => users.refetch()} />
       ) : (

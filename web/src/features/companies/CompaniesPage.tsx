@@ -1,7 +1,7 @@
 import { CompanyTile } from "../../components/CompanyTile";
 import { Plus, X } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Button, EmptyState, ErrorState, Field, InlineError, PageTitle, Spinner } from "../../components/ui";
+import { Button, EmptyState, ErrorState, Field, InlineError, PageTitle } from "../../components/ui";
 import { inputClass } from "../../components/styles";
 import type { Company, CompanyStatus } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
@@ -9,6 +9,7 @@ import { atsLabel, hostOf } from "../../lib/labels";
 import { useCurrentUser } from "../auth/api";
 import { useWorkspace } from "../workspaces/context";
 import { useAddCompany, useBlockCompany, useCompanies, useDisableCompany, type CompanyFilters } from "./api";
+import { SkeletonCards } from "../../components/Skeleton";
 
 const statuses: CompanyStatus[] = ["pending", "active", "empty", "unreachable", "blocked_by_robots", "disabled"];
 const atsList = ["greenhouse", "lever", "ashby", "workable", "recruitee", "personio", "bamboohr", "workday", "teamtailor", "breezy", "rippling", "gem", "htmlpage", "jsonld", "unknown"];
@@ -114,7 +115,7 @@ export function CompaniesPage() {
       <InlineError error={block.error ?? disable.error} />
 
       {companies.isPending ? (
-        <Spinner />
+        <SkeletonCards count={6} className="md:grid-cols-2" />
       ) : companies.isError ? (
         <ErrorState error={companies.error} onRetry={() => companies.refetch()} />
       ) : list.length === 0 ? (

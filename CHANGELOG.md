@@ -5,6 +5,12 @@ All notable changes are listed here. Versions follow
 include breaking changes, which are called out.
 
 ## [Unreleased]
+### Changed
+- "About me" (note and CV) is its own page with its own sidebar entry,
+  separate from Research.
+- Pages load in separate chunks (the first download is about a quarter
+  smaller) and show skeletons shaped like the content instead of spinners.
+
 ### Fixed
 - Browsing all jobs now rates every job against your first profile, so the
   match score shows in the list and the job pane (`score_profile` on

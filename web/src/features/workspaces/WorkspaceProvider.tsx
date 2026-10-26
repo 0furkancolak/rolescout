@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState, type ReactNode } from "react";
-import { ErrorState, Spinner } from "../../components/ui";
+import { ErrorState } from "../../components/ui";
 import { data, type Workspace } from "../../lib/api";
 import { WORKSPACE_STORAGE_KEY, WorkspaceContext } from "./context";
+import { ShellSkeleton } from "../../components/Skeleton";
 
 function storedWorkspace(): string | null {
   try {
@@ -37,7 +38,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     };
   }, [workspaces.data, selected]);
 
-  if (workspaces.isPending) return <Spinner />;
+  if (workspaces.isPending) return <ShellSkeleton />;
   if (workspaces.isError || !value)
     return (
       <main className="mx-auto max-w-md p-6">

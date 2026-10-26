@@ -1,12 +1,13 @@
 import type { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { ErrorState, Spinner } from "../../components/ui";
+import { ErrorState } from "../../components/ui";
 import { useCurrentUser } from "./api";
+import { ShellSkeleton } from "../../components/Skeleton";
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const me = useCurrentUser();
   const location = useLocation();
-  if (me.isPending) return <Spinner />;
+  if (me.isPending) return <ShellSkeleton />;
   if (me.isError)
     return (
       <main className="mx-auto max-w-md p-6">

@@ -1,7 +1,7 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { CompanyTile } from "../../components/CompanyTile";
 import { Segmented } from "../../components/Segmented";
-import { EmptyState, ErrorState, PageTitle, Spinner } from "../../components/ui";
+import { EmptyState, ErrorState, PageTitle } from "../../components/ui";
 import type { Application } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { useJob } from "../jobs/api";
@@ -10,6 +10,7 @@ import { useApplications } from "./api";
 import { ApplicationsBoard } from "./ApplicationsBoard";
 import { DeleteApplication, StatusSelect } from "./parts";
 import { isClosed } from "./statuses";
+import { SkeletonCards } from "../../components/Skeleton";
 
 type Group = "all" | "open" | "closed";
 const groups: Group[] = ["all", "open", "closed"];
@@ -34,7 +35,7 @@ export function ApplicationsPage() {
   };
 
   let content;
-  if (apps.isPending) content = <Spinner />;
+  if (apps.isPending) content = <SkeletonCards count={5} />;
   else if (apps.isError) content = <ErrorState error={apps.error} onRetry={() => void apps.refetch()} />;
   else if (view === "board") content = <ApplicationsBoard applications={apps.data} />;
   else {

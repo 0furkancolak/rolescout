@@ -1,8 +1,9 @@
 import { Cpu } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, ErrorState, Spinner } from "../../components/ui";
+import { Card, ErrorState } from "../../components/ui";
 import { data, type SystemReport, type SystemService } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
+import { SkeletonRows } from "../../components/Skeleton";
 
 // formatBytes: 512 MB, 1.5 GB.
 export function formatBytes(n: number): string {
@@ -28,7 +29,7 @@ export function SystemCard() {
       </h2>
       <p className="mt-1 text-sm text-ink-muted">{t("system.hint")}</p>
       {report.isPending ? (
-        <Spinner />
+        <SkeletonRows rows={4} />
       ) : report.isError ? (
         <ErrorState error={report.error} onRetry={() => report.refetch()} />
       ) : (

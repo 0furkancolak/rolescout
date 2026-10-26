@@ -35,7 +35,7 @@ describe("MemoryCard", () => {
         return { body: { data: withCV } };
       },
     });
-    renderApp("/research");
+    renderApp("/about");
 
     const card = (await screen.findByRole("heading", { name: "What the AI knows about you" })).closest("section, div")!.parentElement!;
     expect(await within(card).findByText("PDF, Word (.docx) or text, up to 5 MB")).toBeInTheDocument();
@@ -67,7 +67,7 @@ describe("MemoryCard", () => {
       },
     });
     vi.spyOn(window, "confirm").mockReturnValue(true);
-    renderApp("/research");
+    renderApp("/about");
 
     const note = await screen.findByLabelText("The work you look for");
     expect(note).toHaveValue("Backend jobs in Istanbul");

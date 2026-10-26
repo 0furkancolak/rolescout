@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Drawer } from "../../components/Drawer";
 import { Segmented } from "../../components/Segmented";
 import { Button, EmptyState, ErrorState, PageTitle, Spinner } from "../../components/ui";
+import { SkeletonCards } from "../../components/Skeleton";
 import { buttonClass, inputClass } from "../../components/styles";
 import type { WorkspaceJob } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
@@ -192,7 +193,7 @@ export function JobsPage() {
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(20rem,27rem)_minmax(0,1fr)]">
         <div className={selected ? "hidden lg:block" : ""}>
           {!ready || jobs.isPending ? (
-            <Spinner />
+            <SkeletonCards count={7} />
           ) : jobs.isError ? (
             <ErrorState error={jobs.error} onRetry={() => jobs.refetch()} />
           ) : list.length === 0 ? (

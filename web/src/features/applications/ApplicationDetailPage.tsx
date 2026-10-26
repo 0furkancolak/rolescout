@@ -1,7 +1,7 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { BackLink } from "../../components/BackLink";
 import { NotFound } from "../../components/NotFound";
-import { Card, ErrorState, Spinner, StatusBadge } from "../../components/ui";
+import { Card, ErrorState, StatusBadge } from "../../components/ui";
 import { isApiError } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { useJob } from "../jobs/api";
@@ -9,6 +9,7 @@ import { useWorkspace } from "../workspaces/context";
 import { useApplication } from "./api";
 import { DeleteApplication } from "./parts";
 import { AttemptsSection, HistorySection, InfoSection, NotesSection, ScheduleSection, StatusControl, TagsSection } from "./sections";
+import { PageSkeleton } from "../../components/Skeleton";
 
 export function ApplicationDetailPage() {
   const { applicationId = "" } = useParams();
@@ -18,7 +19,7 @@ export function ApplicationDetailPage() {
   const job = useJob(app.data?.job_id ?? "");
   const navigate = useNavigate();
 
-  if (app.isPending) return <Spinner />;
+  if (app.isPending) return <PageSkeleton />;
   if (isApiError(app.error, "not_found")) return <NotFound />;
   if (app.isError) return <ErrorState error={app.error} onRetry={() => void app.refetch()} />;
 
