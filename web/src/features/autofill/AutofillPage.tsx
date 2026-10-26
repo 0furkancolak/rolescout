@@ -1,11 +1,12 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Button, Card, ErrorState, Field, InlineError, PageTitle, Spinner } from "../../components/ui";
+import { Button, Card, ErrorState, Field, InlineError, PageTitle } from "../../components/ui";
 import { inputClass } from "../../components/styles";
 import { autofillFields, type AutofillProfile } from "../../lib/autofill";
 import { BookmarkletTools } from "./BookmarkletTools";
 import { useI18n } from "../../lib/i18n";
 import { usePutUserState, useUserState } from "../state/api";
 import { useWorkspace } from "../workspaces/context";
+import { PageSkeleton } from "../../components/Skeleton";
 
 const types: Partial<Record<(typeof autofillFields)[number], string>> = { email: "email", phone: "tel", linkedin: "url", github: "url", website: "url" };
 
@@ -21,7 +22,7 @@ export function AutofillPage() {
     if (state.data) setForm(state.data);
   }, [state.data]);
 
-  if (state.isPending) return <Spinner />;
+  if (state.isPending) return <PageSkeleton cards={2} />;
   if (state.isError) return <ErrorState error={state.error} onRetry={() => void state.refetch()} />;
 
   const submit = (e: FormEvent) => {

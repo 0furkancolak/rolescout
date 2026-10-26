@@ -1,15 +1,15 @@
 import { CalendarClock, Pencil, Play, Plus } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Button, Card, EmptyState, ErrorState, InlineError, PageTitle, Spinner } from "../../components/ui";
+import { Button, Card, EmptyState, ErrorState, InlineError, PageTitle } from "../../components/ui";
 import { buttonClass } from "../../components/styles";
 import { isApiError, type ResearchProfile, type ResearchRun } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { useWorkspace } from "../workspaces/context";
 import { isActive, useProfiles, useRuns, useStartRun } from "./api";
 import { secondsBetween } from "./duration";
-import { MemoryCard } from "./MemoryCard";
 import { RunStateBadge } from "./RunStateBadge";
+import { SkeletonCards } from "../../components/Skeleton";
 
 export function ResearchPage() {
   const { t } = useI18n();
@@ -26,9 +26,8 @@ export function ResearchPage() {
           {t("research.newProfile")}
         </Link>
       </div>
-      <MemoryCard />
       {profiles.isPending ? (
-        <Spinner />
+        <SkeletonCards count={2} className="xl:grid-cols-2" />
       ) : profiles.isError ? (
         <ErrorState error={profiles.error} onRetry={() => profiles.refetch()} />
       ) : profiles.data.length === 0 ? (

@@ -10,8 +10,7 @@ import {
   ErrorState,
   InlineError,
   PageTitle,
-  Spinner,
-} from "../../components/ui";
+  } from "../../components/ui";
 import { inputClass } from "../../components/styles";
 import { data, type AdapterReview, type Setting } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
@@ -20,6 +19,7 @@ import { LocalAiCard } from "./LocalAiCard";
 import { SystemCard } from "./SystemCard";
 import { CrawlPaceCard } from "./CrawlPaceCard";
 import { UsersCard } from "./UsersCard";
+import { PageSkeleton, SkeletonRows } from "../../components/Skeleton";
 
 const adaptersKey = ["admin", "adapters"] as const;
 const tabs = ["sources", "people", "ai", "crawl", "system"] as const;
@@ -46,7 +46,7 @@ export function SettingsPage() {
     enabled: isAdmin && tab === "crawl",
   });
 
-  if (me.isPending) return <Spinner />;
+  if (me.isPending) return <PageSkeleton />;
   if (!isAdmin) return <NotFound />;
 
   return (
@@ -73,7 +73,7 @@ export function SettingsPage() {
                 {t("settings.adaptersHint")}
               </p>
               {adapters.isPending ? (
-                <Spinner />
+                <SkeletonRows rows={3} />
               ) : adapters.isError ? (
                 <ErrorState
                   error={adapters.error}

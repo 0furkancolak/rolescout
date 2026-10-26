@@ -2,7 +2,7 @@ import { Sparkles, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { BackLink } from "../../components/BackLink";
-import { Button, Card, ErrorState, PageTitle, Spinner } from "../../components/ui";
+import { Button, Card, ErrorState, PageTitle } from "../../components/ui";
 import { inputClass } from "../../components/styles";
 import { isApiError } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
@@ -11,6 +11,7 @@ import { useMemory } from "./memory";
 import { useDeleteProfile, useProfile, useSaveProfile, useSuggestProfile, type ProfileInput } from "./api";
 import { ProfileForm } from "./ProfileForm";
 import { emptyProfile, toInput } from "./profileInput";
+import { PageSkeleton } from "../../components/Skeleton";
 
 export function ProfileEditPage() {
   const { t } = useI18n();
@@ -29,7 +30,7 @@ export function ProfileEditPage() {
   // A draft from the AI replaces the form's starting values; the key remounts it.
   const [draft, setDraft] = useState<{ n: number; input: ProfileInput } | null>(null);
 
-  if (!isNew && profile.isPending) return <Spinner />;
+  if (!isNew && profile.isPending) return <PageSkeleton />;
   if (!isNew && profile.isError) return <ErrorState error={profile.error} onRetry={() => profile.refetch()} />;
 
   return (

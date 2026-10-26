@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, ErrorState, Field, Spinner } from "../../components/ui";
+import { Button, Card, ErrorState, Field } from "../../components/ui";
 import { inputClass } from "../../components/styles";
 import { ApiError, data, type CrawlPace, type CrawlPaceUpdate, type CrawlPaceValues } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import type { MessageKey } from "../../lib/messages";
+import { SkeletonRows } from "../../components/Skeleton";
 
 const paceKey = ["admin", "crawl", "config"] as const;
 
@@ -27,7 +28,7 @@ export function CrawlPaceCard() {
     <Card>
       <h2 className="text-lg font-semibold text-ink">{t("pace.title")}</h2>
       <p className="mt-1 text-sm text-ink-muted">{t("pace.hint")}</p>
-      {pace.isPending ? <Spinner /> : pace.isError ? <ErrorState error={pace.error} onRetry={() => pace.refetch()} /> : <Form pace={pace.data} />}
+      {pace.isPending ? <SkeletonRows rows={3} /> : pace.isError ? <ErrorState error={pace.error} onRetry={() => pace.refetch()} /> : <Form pace={pace.data} />}
     </Card>
   );
 }

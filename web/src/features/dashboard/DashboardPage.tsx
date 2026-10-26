@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { CompanyTile } from "../../components/CompanyTile";
 import { Pill } from "../../components/Pill";
 import { ScoreRing } from "../../components/ScoreRing";
-import { Button, Card, InlineError, PageTitle, Spinner } from "../../components/ui";
+import { Button, Card, InlineError, PageTitle } from "../../components/ui";
 import { buttonClass } from "../../components/styles";
 import { applicationStatuses, data, query, stages, type ResearchRun, type WorkspaceJob } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
@@ -13,6 +13,7 @@ import { isActive, useProfiles, useRuns, useStartRun } from "../research/api";
 import { RunStateBadge } from "../research/RunStateBadge";
 import { useWorkspace, wsPath } from "../workspaces/context";
 import { ActivityCards } from "./ActivityCards";
+import { SkeletonRows } from "../../components/Skeleton";
 
 export function DashboardPage() {
   const { t } = useI18n();
@@ -72,7 +73,7 @@ function LastRunCard({ profileID, loading, lastRun }: { profileID?: string; load
   if (loading) {
     return (
       <Card className="rounded-hero!">
-        <Spinner />
+        <SkeletonRows rows={3} />
       </Card>
     );
   }
@@ -147,7 +148,7 @@ function NewMatches({ profileID }: { profileID: string }) {
         </Link>
       </div>
       {jobs.isPending ? (
-        <Spinner />
+        <SkeletonRows rows={4} />
       ) : !jobs.data?.length ? (
         <p className="mt-3 text-sm text-ink-muted">{t("dash.noMatches")}</p>
       ) : (
@@ -189,7 +190,7 @@ function ApplicationCounts() {
         </Link>
       </div>
       {apps.isPending ? (
-        <Spinner />
+        <SkeletonRows rows={6} />
       ) : (
         <ul className="mt-3 space-y-1">
           {applicationStatuses.map((s) => (

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import {
   Bookmark,
   Briefcase,
@@ -8,6 +8,7 @@ import {
   UserRound,
   Menu,
   Radar,
+  Sparkles,
   Settings,
   X,
 } from "lucide-react";
@@ -15,6 +16,7 @@ import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useCurrentUser } from "../features/auth/api";
 import { useI18n } from "../lib/i18n";
 import type { MessageKey } from "../lib/messages";
+import { PageSkeleton } from "./Skeleton";
 import { UserMenu } from "./UserMenu";
 
 interface NavItem {
@@ -28,6 +30,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { to: "/", key: "nav.dashboard", icon: LayoutDashboard, end: true },
   { to: "/research", key: "nav.research", icon: Radar },
+  { to: "/about", key: "nav.about", icon: Sparkles },
   { to: "/jobs", key: "nav.jobs", icon: Briefcase },
   { to: "/saved", key: "nav.saved", icon: Bookmark },
   { to: "/applications", key: "nav.applications", icon: ListChecks },
@@ -150,7 +153,9 @@ export function AppShell() {
       </aside>
 
       <main id="main" className="px-4 py-6 sm:px-6 lg:ml-72 lg:px-8 lg:py-8">
-        <Outlet />
+        <Suspense fallback={<PageSkeleton />}>
+          <Outlet />
+        </Suspense>
       </main>
     </div>
   );

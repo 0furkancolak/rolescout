@@ -1,12 +1,13 @@
 import { FileText, Sparkles, Trash2, Upload } from "lucide-react";
 import { useRef, useState, type DragEvent } from "react";
-import { Button, Card, Chip, ErrorState, Spinner } from "../../components/ui";
+import { Button, Card, Chip, ErrorState } from "../../components/ui";
 import { inputClass } from "../../components/styles";
 import { ApiError } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { enumLabel } from "../../lib/labels";
 import { useWorkspace } from "../workspaces/context";
 import { useDeleteCV, useMemory, useSaveAbout, useUploadCV } from "./memory";
+import { SkeletonCards } from "../../components/Skeleton";
 
 const SKILLS_SHOWN = 24;
 
@@ -24,7 +25,7 @@ export function MemoryCard() {
   const [over, setOver] = useState(false);
   const input = useRef<HTMLInputElement>(null);
 
-  if (memory.isPending) return <Spinner />;
+  if (memory.isPending) return <SkeletonCards count={1} />;
   if (memory.isError) return <ErrorState error={memory.error} onRetry={() => memory.refetch()} />;
 
   const ctx = memory.data;

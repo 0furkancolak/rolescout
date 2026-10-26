@@ -1,6 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { ExternalLink, X } from "lucide-react";
-import { Button, Card, ErrorState, Field, InlineError, Spinner } from "../../components/ui";
+import { Button, Card, ErrorState, Field, InlineError } from "../../components/ui";
 import { inputClass } from "../../components/styles";
 import { statusTransitions, type Application, type ApplicationStatus, type JobDetail } from "../../lib/api";
 import { eventLabel, todayInput, toISODate } from "./format";
@@ -19,6 +19,7 @@ import {
   useTags,
   useUpdateNote,
 } from "./api";
+import { SkeletonRows } from "../../components/Skeleton";
 
 interface Props {
   ws: string;
@@ -78,7 +79,7 @@ export function HistorySection({ ws, application }: Props) {
     <Card>
       <SectionTitle>{t("apps.history")}</SectionTitle>
       {events.isPending ? (
-        <Spinner />
+        <SkeletonRows rows={2} />
       ) : events.isError ? (
         <ErrorState error={events.error} onRetry={() => void events.refetch()} />
       ) : (
@@ -117,7 +118,7 @@ export function AttemptsSection({ ws, application }: Props) {
     <Card>
       <SectionTitle>{t("apps.attempts")}</SectionTitle>
       {attempts.isPending ? (
-        <Spinner />
+        <SkeletonRows rows={2} />
       ) : attempts.isError ? (
         <ErrorState error={attempts.error} onRetry={() => void attempts.refetch()} />
       ) : attempts.data.length === 0 ? (
@@ -276,7 +277,7 @@ export function NotesSection({ ws, application }: Props) {
       </form>
       <div className="mt-4">
         {notes.isPending ? (
-          <Spinner />
+          <SkeletonRows rows={2} />
         ) : notes.isError ? (
           <ErrorState error={notes.error} onRetry={() => void notes.refetch()} />
         ) : notes.data.length === 0 ? (
@@ -372,7 +373,7 @@ export function TagsSection({ ws, application }: Props) {
     <Card>
       <SectionTitle>{t("apps.tags")}</SectionTitle>
       {attached.isPending ? (
-        <Spinner />
+        <SkeletonRows rows={2} />
       ) : attached.isError ? (
         <ErrorState error={attached.error} onRetry={() => void attached.refetch()} />
       ) : attached.data.length === 0 ? (
